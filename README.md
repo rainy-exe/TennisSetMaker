@@ -17,19 +17,19 @@
 All users are expected to use the latest stable version of Python to run the application and execute the testing procedures.
 
 ## How to run the app in backend
-1. Make sure VS Code opened the repository folder
+** 1. Make sure VS Code opened the repository folder
 ```bash
 pwd
 ```
-2. Create a Virtual Environment in VSCode
+** 2. Create a Virtual Environment in VSCode
 ```bash
 python3 -m venv venv
 ```
-3. Activate the Virtual Environment
+** 3. Activate the Virtual Environment
 ```bash
 source venv/bin/activate
 ```
-4. Install dependencies
+** 4. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
@@ -37,21 +37,21 @@ pip install -r requirements.txt
 
 
 ## How to makesure your repository is up-to-date
-1. Branch Check - check which branch you are in
+** 1. Branch Check - check which branch you are in
 ```bash
 git branch
 ```
-2. Check whether you have any local changes
+** 2. Check whether you have any local changes
 ```bash
 git status
 ```
-3. Update your local main
+** 3. Update your local main
 ```bash
 git pull origin main
 ```
 Make sure you see: Already up to date.
 
-4. Update dependencies to the newest version
+** 4. Update dependencies to the newest version
 ```bash
 pip install -r requirements.txt
 ```
