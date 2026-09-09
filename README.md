@@ -38,4 +38,4 @@ All users are expected to use the latest stable version of Python to run the app
    Make sure you see: Already up to date.
 4. Update dependencies to the newest version
    pip install -r requirements.txt
-   
+   If there's any depency is needed to update, follow the procedures. 
