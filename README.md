@@ -50,6 +50,7 @@ git status
 git pull origin main
 ```
 Make sure you see: Already up to date.
+
 4. Update dependencies to the newest version
 ```bash
 pip install -r requirements.txt
