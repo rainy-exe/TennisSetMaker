@@ -18,7 +18,9 @@ All users are expected to use the latest stable version of Python to run the app
 
 ## How to run the app in backend
 1. Make sure VS Code opened the repository folder
+```bash
    pwd
+   ```
 2. Create a Virtual Environment in VSCode
    python3 -m venv venv
 3. Activate the Virtual Environment
