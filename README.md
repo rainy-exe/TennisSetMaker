@@ -15,3 +15,12 @@
 ## Getting Started
 
 All users are expected to use the latest stable version of Python to run the application and execute the testing procedures.
+
+## How to run the app in backend
+1. Create a Virtual Environment in VSCode
+   python3 -m venv venv
+2. Activate the Virtual Environment
+   source venv/bin/activate
+3. Install dependencies
+   pip install -r requirements.txt
+4. ...
