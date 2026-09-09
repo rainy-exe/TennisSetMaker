@@ -16,7 +16,7 @@
 
 All users are expected to use the latest stable version of Python to run the application and execute the testing procedures.
 
-## How to run the app in backend
+## How to run the app in VScode
 ** 1. Make sure VS Code opened the repository folder
 ```bash
 pwd
