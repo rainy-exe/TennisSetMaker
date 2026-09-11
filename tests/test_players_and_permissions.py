@@ -1,0 +1,88 @@
+from app.permissions import Role
+
+
+def test_player_crud_duplicate_confirmation_and_soft_delete(client, create_player):
+    first = create_player("Alex Smith", "M", 6)
+
+    duplicate = client.post(
+        "/api/players", json={"name": "Alex  Smith", "gender": "F", "skill": 4}
+    )
+    assert duplicate.status_code == 409
+    assert duplicate.get_json()["error"] == "duplicate_confirmation_required"
+
+    confirmed = client.post(
+        "/api/players",
+        json={
+            "name": "Alex Smith",
+            "gender": "F",
+            "skill": 4,
+            "confirm_duplicate": True,
+        },
+    )
+    assert confirmed.status_code == 201
+    assert confirmed.get_json()["player"]["id"] != first["id"]
+
+    updated = client.patch(
+        f"/api/players/{first['id']}", json={"name": "Alex Jones", "skill": 7}
+    )
+    assert updated.status_code == 200
+    assert updated.get_json()["player"]["skill"] == 7
+
+    assert client.delete(f"/api/players/{first['id']}").status_code == 204
+    listed = client.get("/api/players").get_json()["players"]
+    assert first["id"] not in {player["id"] for player in listed}
+    all_players = client.get("/api/players?include_inactive=true").get_json()["players"]
+    assert any(
+        player["id"] == first["id"] and not player["active"] for player in all_players
+    )
+
+
+def test_distinct_unicode_names_do_not_collapse_to_one_duplicate(client, create_player):
+    create_player("王明", "M", 5)
+    second = client.post(
+        "/api/players", json={"name": "李娜", "gender": "F", "skill": 5}
+    )
+    assert second.status_code == 201
+
+
+def test_user_cannot_see_or_write_skill_but_can_manage_players(client, set_actor):
+    set_actor(Role.OWNER)
+    created = client.post(
+        "/api/players", json={"name": "Skilled Player", "gender": "M", "skill": 8}
+    ).get_json()["player"]
+
+    set_actor(Role.USER)
+    fetched = client.get(f"/api/players/{created['id']}")
+    assert fetched.status_code == 200
+    assert "skill" not in fetched.get_json()["player"]
+    assert (
+        client.patch(f"/api/players/{created['id']}", json={"skill": 2}).status_code
+        == 403
+    )
+
+    provisional = client.post(
+        "/api/players", json={"name": "Provisional Player", "gender": "F"}
+    )
+    assert provisional.status_code == 201
+    assert provisional.get_json()["player"]["skill_ready"] is False
+    assert "skill" not in provisional.get_json()["player"]
+
+
+def test_club_isolation_returns_not_found(client, create_player, set_actor):
+    player = create_player("Club A Player")
+    set_actor(Role.OWNER, club_id="club-b")
+    assert client.get(f"/api/players/{player['id']}").status_code == 404
+    assert client.get("/api/players").get_json() == {"players": []}
+
+
+def test_missing_auth_provider_is_denied(tmp_path):
+    from app import create_app
+
+    app = create_app(
+        {
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{tmp_path / 'noauth.db'}",
+        }
+    )
+    response = app.test_client().get("/api/players")
+    assert response.status_code == 401

@@ -35,6 +35,29 @@ pip install -r requirements.txt
 ```
 5. ...
 
+## Session-management backend
+
+The Players, Courts, Session Configuration, Live Changes, Round Persistence,
+and Manual Override API is documented in
+[`Documents/backend-session-api.md`](Documents/backend-session-api.md).
+
+Before using a persistent database, run:
+
+```bash
+flask --app run.py db upgrade
+```
+
+Protected API routes require the Accounts/Club integration to configure a
+`CURRENT_ACTOR_PROVIDER`. The matching adapter can be pointed at the team's
+Prototype3 checkout with `TENNIS_ALGORITHM_PATH`.
+
+For backend development and tests, install `requirements-dev.txt`, then run:
+
+```bash
+python -m pytest
+ruff check app tests migrations/versions
+```
+
 
 ## How to makesure your repository is up-to-date
 ** 1. Branch Check - check which branch you are in
@@ -55,4 +78,4 @@ Make sure you see: Already up to date.
 ```bash
 pip install -r requirements.txt
 ```
-If there's any depency is needed to update, follow the procedures. 
+If there's any depency is needed to update, follow the procedures.
