@@ -1,131 +1,180 @@
 # Backend quick start
 
-Use this guide to run the existing backend and test the main session flow.
-Commands below are for PowerShell.
+Use Git Bash on Windows or Terminal on macOS. This guide runs the existing
+backend and its main session flow.
 
-## 1. Set up the branch
+## 1. Set up
 
-```powershell
+```bash
 git fetch origin
 git switch backend-session-management
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-flask --app run.py db upgrade
+
+PYTHON=python3
+command -v "$PYTHON" >/dev/null 2>&1 || PYTHON=python
+"$PYTHON" -m venv .venv
+
+if [ -f .venv/Scripts/activate ]; then
+  source .venv/Scripts/activate
+else
+  source .venv/bin/activate
+fi
+
+python -m pip install -r requirements.txt
+export DATABASE_URL="sqlite:///quickstart-$(date +%s).db"
+python -m flask --app run.py db upgrade
 ```
 
-Prototype3 is currently on `main`, so keep it in a separate worktree. Do not
+Prototype3 is currently on `main`. Keep it in a separate worktree; do not
 merge it into this branch.
 
-```powershell
-git worktree add ..\TennisSetMaker-main origin/main
-$env:TENNIS_ALGORITHM_PATH = (Resolve-Path "..\TennisSetMaker-main\Backend\Set_Algorithm\Prototype3")
+```bash
+if [ ! -d ../TennisSetMaker-main ]; then
+  git worktree add ../TennisSetMaker-main origin/main
+fi
+export TENNIS_ALGORITHM_PATH="$(cd ../TennisSetMaker-main/Backend/Set_Algorithm/Prototype3 && pwd)"
 ```
 
-## 2. Run before Accounts integration
+## 2. Start the local API
 
-The protected API needs a current actor. This command starts a local-only
-Owner for development. Do not use this actor in production.
+Until Accounts is connected, use this local-only Owner. Do not deploy this
+development actor.
 
-```powershell
-$env:PYTHONDONTWRITEBYTECODE = "1"
-python -c "from app import create_app; from app.permissions import CurrentActor, Role; app=create_app({'CURRENT_ACTOR_PROVIDER': lambda: CurrentActor('demo-owner', 'demo-club', Role.OWNER)}); app.run(debug=False)"
+```bash
+export PYTHONDONTWRITEBYTECODE=1
+python -c 'from app import create_app; from app.permissions import CurrentActor, Role; app=create_app({"CURRENT_ACTOR_PROVIDER": lambda: CurrentActor("demo-owner", "demo-club", Role.OWNER)}); app.run(debug=False)'
 ```
 
-Keep that terminal open. Use a second PowerShell terminal for the next steps.
+Keep this terminal open. Activate the same virtual environment in a second
+terminal, then run the next block.
 
 ## 3. Run the session flow
 
-This creates eight players, two courts, a template and a session. It then
-generates a round, changes one pairing, completes the round, records a late
-arrival and an early departure, and generates the next round.
+This creates players, courts, a template and a session. It then generates a
+round, changes a pairing, completes the round, records player availability
+changes and generates the next round.
 
-```powershell
-$api = "http://127.0.0.1:5000/api"
+```bash
+python - <<'PY'
+import json
+from datetime import datetime
+from urllib.request import Request, urlopen
 
-$playerInput = @(
-    @{name="Alex"; gender="M"; skill=5},
-    @{name="Ben"; gender="M"; skill=6},
-    @{name="Chris"; gender="M"; skill=4},
-    @{name="David"; gender="M"; skill=5},
-    @{name="Emma"; gender="F"; skill=5},
-    @{name="Fiona"; gender="F"; skill=6},
-    @{name="Grace"; gender="F"; skill=4},
-    @{name="Helen"; gender="F"; skill=5}
+
+BASE = "http://127.0.0.1:5000/api"
+
+
+def call(method, path, body=None):
+    data = None if body is None else json.dumps(body).encode()
+    request = Request(
+        BASE + path,
+        data=data,
+        method=method,
+        headers={"Content-Type": "application/json"},
+    )
+    with urlopen(request) as response:
+        if response.status == 204:
+            return None
+        return json.load(response)
+
+
+player_data = [
+    ("Alex", "M", 5),
+    ("Ben", "M", 6),
+    ("Chris", "M", 4),
+    ("David", "M", 5),
+    ("Emma", "F", 5),
+    ("Fiona", "F", 6),
+    ("Grace", "F", 4),
+    ("Helen", "F", 5),
+]
+players = [
+    call("POST", "/players", {"name": name, "gender": gender, "skill": skill})["player"]
+    for name, gender, skill in player_data
+]
+
+court1 = call(
+    "POST", "/courts", {"number": 1, "court_type": "hard", "priority": 0}
+)["court"]
+court2 = call(
+    "POST", "/courts", {"number": 2, "court_type": "hard", "priority": 1}
+)["court"]
+
+template = call(
+    "POST",
+    "/session-templates",
+    {
+        "name": "Saturday Social",
+        "number_of_rounds": 6,
+        "session_duration_minutes": 180,
+        "round_duration_minutes": 30,
+        "start_time": "13:00",
+        "round_format": "open",
+        "strict_format": False,
+        "tea_break_after_round": 3,
+        "court_ids": [court1["id"], court2["id"]],
+    },
+)["session_template"]
+
+session = call(
+    "POST",
+    "/sessions",
+    {
+        "name": "Saturday Social Demo",
+        "starts_at": datetime.now().replace(microsecond=0).isoformat(),
+        "template_id": template["id"],
+        "player_ids": [player["id"] for player in players],
+    },
+)["session"]
+
+round1 = call("POST", f"/sessions/{session['id']}/rounds/generate")["round"]
+generated_before = round1["generated"]
+
+# Manual override: swap one player between the two courts.
+first = round1["final"]["assignments"][0]
+second = round1["final"]["assignments"][1]
+first["team_a_player_ids"][1], second["team_a_player_ids"][1] = (
+    second["team_a_player_ids"][1],
+    first["team_a_player_ids"][1],
 )
+round1 = call(
+    "PUT",
+    f"/rounds/{round1['id']}/final",
+    {
+        "assignments": round1["final"]["assignments"],
+        "sit_out_player_ids": round1["final"]["sit_out_player_ids"],
+    },
+)["round"]
+assert round1["generated"] == generated_before
+call("POST", f"/rounds/{round1['id']}/complete")
 
-$players = foreach ($item in $playerInput) {
-    (Invoke-RestMethod -Method Post -Uri "$api/players" `
-        -ContentType "application/json" -Body ($item | ConvertTo-Json)).player
-}
+late = call(
+    "POST", "/players", {"name": "Late Player", "gender": "F", "skill": 5}
+)["player"]
+call("POST", f"/sessions/{session['id']}/players", {"player_id": late["id"]})
+call(
+    "PATCH",
+    f"/sessions/{session['id']}/players/{players[0]['id']}",
+    {"reason": "Left early"},
+)
+round2 = call("POST", f"/sessions/{session['id']}/rounds/generate")["round"]
 
-$court1 = (Invoke-RestMethod -Method Post -Uri "$api/courts" `
-    -ContentType "application/json" `
-    -Body (@{number=1; court_type="hard"; priority=0} | ConvertTo-Json)).court
-$court2 = (Invoke-RestMethod -Method Post -Uri "$api/courts" `
-    -ContentType "application/json" `
-    -Body (@{number=2; court_type="hard"; priority=1} | ConvertTo-Json)).court
-
-$templateBody = @{
-    name = "Saturday Social"
-    number_of_rounds = 6
-    session_duration_minutes = 180
-    round_duration_minutes = 30
-    start_time = "13:00"
-    round_format = "open"
-    strict_format = $false
-    tea_break_after_round = 3
-    court_ids = @($court1.id, $court2.id)
-}
-$template = (Invoke-RestMethod -Method Post -Uri "$api/session-templates" `
-    -ContentType "application/json" `
-    -Body ($templateBody | ConvertTo-Json -Depth 5)).session_template
-
-$sessionBody = @{
-    name = "Saturday Social Demo"
-    starts_at = (Get-Date).Date.AddHours(13).ToString("s")
-    template_id = $template.id
-    player_ids = @($players.id)
-}
-$session = (Invoke-RestMethod -Method Post -Uri "$api/sessions" `
-    -ContentType "application/json" `
-    -Body ($sessionBody | ConvertTo-Json -Depth 5)).session
-
-$round1 = (Invoke-RestMethod -Method Post `
-    -Uri "$api/sessions/$($session.id)/rounds/generate").round
-
-# Example manual pairing change: swap one player between the two courts.
-$swap = $round1.final.assignments[0].team_a_player_ids[1]
-$round1.final.assignments[0].team_a_player_ids[1] = `
-    $round1.final.assignments[1].team_a_player_ids[1]
-$round1.final.assignments[1].team_a_player_ids[1] = $swap
-$finalBody = @{
-    assignments = $round1.final.assignments
-    sit_out_player_ids = @($round1.final.sit_out_player_ids)
-}
-$round1 = (Invoke-RestMethod -Method Put -Uri "$api/rounds/$($round1.id)/final" `
-    -ContentType "application/json" `
-    -Body ($finalBody | ConvertTo-Json -Depth 10)).round
-
-Invoke-RestMethod -Method Post -Uri "$api/rounds/$($round1.id)/complete"
-
-$late = (Invoke-RestMethod -Method Post -Uri "$api/players" `
-    -ContentType "application/json" `
-    -Body (@{name="Late Player"; gender="F"; skill=5} | ConvertTo-Json)).player
-Invoke-RestMethod -Method Post -Uri "$api/sessions/$($session.id)/players" `
-    -ContentType "application/json" `
-    -Body (@{player_id=$late.id} | ConvertTo-Json)
-Invoke-RestMethod -Method Patch `
-    -Uri "$api/sessions/$($session.id)/players/$($players[0].id)" `
-    -ContentType "application/json" `
-    -Body (@{reason="Left early"} | ConvertTo-Json)
-
-$round2 = (Invoke-RestMethod -Method Post `
-    -Uri "$api/sessions/$($session.id)/rounds/generate").round
-$round2 | ConvertTo-Json -Depth 10
+statuses = {item["player_id"]: item["status"] for item in round2["eligibility"]}
+print(
+    json.dumps(
+        {
+            "session_id": session["id"],
+            "rounds_generated": [round1["number"], round2["number"]],
+            "generated_result_preserved": round1["generated"] == generated_before,
+            "late_player": statuses[late["id"]],
+            "departed_player": statuses[players[0]["id"]],
+        },
+        indent=2,
+    )
+)
+PY
 ```
 
-Use the returned IDs for later requests. Never use player names as IDs.
+Keep the stable IDs returned by the API. Never use player names as IDs.
 
 ## 4. Connect Accounts and the frontend
 
@@ -135,6 +184,7 @@ Accounts only needs to provide the logged-in actor:
 from app.permissions import CurrentActor, Role
 
 # Import current_user from the team's authentication implementation.
+
 
 def current_actor_provider():
     return CurrentActor(
@@ -147,12 +197,12 @@ def current_actor_provider():
 app.config["CURRENT_ACTOR_PROVIDER"] = current_actor_provider
 ```
 
-The frontend should call the `/api` routes and keep the stable IDs returned by
-the API. Run `flask --app run.py db upgrade` when a migration is added. Do not
-create or update these tables directly from frontend or Accounts code.
+The frontend should call the `/api` routes. Run
+`python -m flask --app run.py db upgrade` when a migration is added. Do not
+write to these tables directly from frontend or Accounts code.
 
 The private ratings CSV is not loaded automatically and must not be committed.
-Create players through `POST /api/players`; confirm duplicate warnings before
+Create players through `POST /api/players`; review duplicate warnings before
 using `confirm_duplicate: true`.
 
 See [`backend-session-api.md`](backend-session-api.md) for the route list,

@@ -40,7 +40,7 @@ pip install -r requirements.txt
 The Players, Courts, Session Configuration, Live Changes, Round Persistence,
 and Manual Override API is documented in
 [`Documents/backend-session-api.md`](Documents/backend-session-api.md).
-For a copy-and-run team demo, use
+For a Bash-based copy-and-run team demo, use
 [`Documents/backend-quickstart.md`](Documents/backend-quickstart.md).
 
 Before using a persistent database, run:
