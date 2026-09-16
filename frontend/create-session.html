@@ -121,9 +121,114 @@
                             </label>
 
                             <input type="text" id="sessionName" name="sessionName" class="input">
-                            
-                        </div>
 
+                        </div>
+                        <!-- Date and Start Time -->
+                        <div class="two-col">
+
+                            <!-- Date -->
+                            <div class="field">
+
+                                <label for="sessionDate">
+                                    Date
+                                </label>
+
+                                <input type="date" id="sessionDate" name="sessionDate" class="input">
+
+                            </div>
+
+
+                            <!-- Start Time -->
+                            <div class="field">
+
+                                <label for="startTime">
+                                    Start Time
+                                </label>
+
+                                <input type="time" id="startTime" name="startTime" class="input">
+
+                            </div>
+
+                        </div>
+                        <!-- Venue / Location -->
+                        <div class="field">
+
+                            <label for="venue">
+                                Venue / Location
+                            </label>
+
+                            <select id="venue" name="venue" class="select">
+                                <option value="">
+                                    Select a venue
+                                </option>
+                            </select>
+
+                        </div>
+                        <!-- Number of Rounds and Round Duration -->
+                        <div class="two-col">
+
+                            <!-- Number of Rounds -->
+                            <div class="field">
+
+                                <label for="roundCount">
+                                    Number of Rounds
+                                </label>
+
+                                <div class="number-stepper">
+
+                                    <button type="button">
+                                        −
+                                    </button>
+
+                                    <span id="roundCount">
+                                        1
+                                    </span>
+
+                                    <button type="button">
+                                        +
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- Round Duration -->
+                            <div class="field">
+
+                                <label for="roundDuration">
+                                    Round Duration
+                                </label>
+
+                                <select id="roundDuration" name="roundDuration" class="select">
+                                    <option value="">
+                                        Select duration
+                                    </option>
+                                </select>
+
+                            </div>
+
+                        </div>
+                        <!-- Session Mode -->
+                        <div class="field">
+
+                            <label>
+                                Session Mode
+                            </label>
+
+                            <div class="segmented">
+
+                                <button type="button" class="active">
+                                    Social Play
+                                </button>
+
+                                <button type="button">
+                                    Competitive Ladder
+                                </button>
+
+                            </div>
+
+                        </div>
                     </section>
 
 
