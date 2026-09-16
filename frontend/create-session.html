@@ -234,11 +234,151 @@
 
                     <!-- Right Column -->
                     <section>
+                        <!-- Format and Priority Courts -->
+                        <div class="form-section-title">
+                            Format &amp; Priority Courts
+                        </div>
+
+                        <!-- Match Format -->
+                        <div class="field">
+
+                            <label>
+                                Match Format
+                            </label>
+
+                            <div class="radio-group">
+
+                                <label class="choice">
+                                    <input type="radio" name="matchFormat" value="mixedDoubles">
+
+                                    Mixed Doubles
+                                </label>
+
+                                <label class="choice">
+                                    <input type="radio" name="matchFormat" value="sameGenderDoubles">
+
+                                    Same-Gender Doubles
+                                </label>
+
+                                <label class="choice">
+                                    <input type="radio" name="matchFormat" value="openPlay">
+
+                                    Open Play
+                                </label>
+
+                            </div>
+
+                        </div>
+                        <!-- Court Allocation -->
+                        <div class="field">
+
+                            <label>
+                                Court Allocation (Priority Reordering)
+                            </label>
+
+                            <div class="court-options" id="courtOptions">
+
+                                <div class="court-option selected">
+
+                                    <div class="fake-check">
+                                        ✓
+                                    </div>
+
+                                    <span>
+                                        Court 1
+                                    </span>
+
+                                    <span class="drag">
+                                        ⋮⋮
+                                    </span>
+
+                                </div>
+
+
+                                <div class="court-option selected">
+
+                                    <div class="fake-check">
+                                        ✓
+                                    </div>
+
+                                    <span>
+                                        Court 2
+                                    </span>
+
+                                    <span class="drag">
+                                        ⋮⋮
+                                    </span>
+
+                                </div>
+
+
+                                <div class="court-option selected">
+
+                                    <div class="fake-check">
+                                        ✓
+                                    </div>
+
+                                    <span>
+                                        Court 3
+                                    </span>
+
+                                    <span class="drag">
+                                        ⋮⋮
+                                    </span>
+
+                                </div>
+
+
+                                <div class="court-option">
+
+                                    <div class="fake-check">
+                                    </div>
+
+                                    <span>
+                                        Court 4
+                                    </span>
+
+                                    <span class="drag">
+                                        ⋮⋮
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                        </div>
 
                     </section>
 
                 </div>
+                <!-- Divider -->
+                <div class="form-divider"></div>
 
+                <!-- Allow Format Relaxation -->
+                <div class="relax-row">
+
+                    <div>
+
+                        <div class="relax-title">
+                            Allow Format Relaxation
+                        </div>
+
+                        <div class="relax-copy">
+                            If odd player numbers occur, the system can automatically
+                            adapt the match format to keep everyone playing.
+                        </div>
+
+                    </div>
+
+                    <label class="switch">
+
+                        <input type="checkbox" id="allowRelaxation" name="allowRelaxation">
+
+                        <span class="slider"></span>
+
+                    </label>
+
+                </div>
             </form>
 
         </main>
