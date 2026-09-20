@@ -12,6 +12,7 @@ only files matching the program's own output naming pattern.
 - `config.py`    — run inputs only (courts, players, rounds, mode toggles, seed). No algorithm logic.
 - `helpers.py`   — CSV loading, random player pull, seed/state logging, output writers. No algorithm logic.
 - `algorithm.py` — the actual priority-weight block chain (the part that matters for client/mentor feedback).
+- `refinement.py` — bounded local-search pass that flattens the greedy fill's court-position skill-spread gradient; shared by both engines.
 - `main.py`      — wires the three together.
 - `NTC_ratings_data.csv` — MOCK 76-player dataset (Name, Gender, Rating 1-10), matching the format
   described. Replace this file with the real NTC ratings CSV (same column names) — nothing else changes.
@@ -65,7 +66,9 @@ Each round:
 
 ## Changes in Prototype3 (vs Prototype2)
 
-Two bugs fixed after review with the team:
+Two bugs fixed after review with the team, plus three follow-up fixes found
+during deeper testing (identity, input validation, and the court-position
+skill gradient) — five in total:
 
 - **Skill pairing now clusters similar-rated players onto the same court first**
   (`raw_skill_spread` in `algorithm.py`), instead of only balancing team sums. A
@@ -86,8 +89,53 @@ Two bugs fixed after review with the team:
     else's. It's now `consecutive_sit_outs`-based and escalates the longer a
     player's streak runs (+1, +2, +3, ...), while staying soft — it still yields if
     truly unavoidable, consistent with `mixed_mode`'s auto-relax philosophy.
+- **Player identity for history tracking no longer collides on shared names.**
+  `partners_played`/`opponents_played` used to be keyed by `player.name` (a
+  string), so two distinct real people sharing a name could get falsely
+  flagged as repeat partners/opponents. `Player` now has a dedicated
+  `player_id` field that those sets key on instead — it defaults to `name`
+  when a caller doesn't supply one (every existing call site keeps working
+  unchanged), but a real deployment should pass a real unique ID (e.g. a
+  database row ID) to fully close the gap for CSV-loaded players. The
+  `backend-session-management` branch already works around the original
+  limitation today by substituting its own DB row IDs into the prototype's
+  `name` field — this fix doesn't touch that branch, it just gives
+  Prototype3 a clean field to receive a real ID directly, without
+  overloading `name`, once a caller supplies one.
+- **`Player` now rejects an invalid rating at construction time.**
+  `raw_skill_diff`/`raw_skill_spread` would previously crash with an
+  obscure `TypeError` deep inside a scoring loop if any player's rating
+  was `None` or otherwise non-numeric. `Player.__post_init__` now raises a
+  clear `ValueError` naming the offending player immediately on
+  construction instead — provisional/unrated players must be filtered out
+  by the caller before constructing a `Player`.
+- **Skill balance's court-position degradation is reduced, not eliminated.**
+  The greedy per-court fill always fills court 1 first, so it
+  systematically front-loads the tightest-clustered foursome onto the
+  earliest courts — measured on the real dataset at 60 players/15 courts:
+  courts 1-7 averaged skill spread 0.82, courts 9-15 averaged 2.42 (a gap
+  of +1.60). A bounded local-search refinement pass (`refinement.py`) now
+  runs after the greedy fill each round, swapping players between courts
+  to shrink that gap — measured result: gap down to +1.22 (~24% smaller),
+  at negligible extra cost (151.9s vs 152.2s for the same 20-round run).
+  It's deliberately conservative: a court that's already perfectly
+  clustered (spread 0) is never disturbed, and a swap is only ever
+  accepted if it doesn't regress format/partner/opponent quality
+  (priorities 2-4) on either court touched — skill balance stays strictly
+  below those in the priority hierarchy, so this pass can only spend its
+  own budget, never borrow against a higher priority. The residual gap is
+  a real ceiling of this search's move vocabulary (single pairwise swaps
+  between two courts at a time) rather than an iteration-budget limit —
+  raising the iteration cap from 5 to 30 produced an identical result, so
+  closing the gap further would need a richer neighborhood (e.g. chained
+  multi-court moves), not just a bigger budget. Applies to both engines.
+  See `tests/test_skill_refinement.py` for the automated non-regression
+  checks and a smaller-scale (24p/6c) version of the court-position
+  measurement; the exact 60p/15c numbers quoted above come from a one-off
+  manual diagnostic, not the automated suite, since running 40 rounds at
+  full scale is too slow for every test run.
 
-See `tests/` for automated coverage of both fixes (`pip install -r requirements-dev.txt`, then `python3 -m pytest`).
+See `tests/` for automated coverage of all five fixes (`pip install -r requirements-dev.txt`, then `python3 -m pytest`).
 
 ## Known prototype limitations (intentional, out of scope for this pass)
 - Court preferences (priority 6) and "requested number of sets" (priority 7) are not
@@ -95,12 +143,20 @@ See `tests/` for automated coverage of both fixes (`pip install -r requirements-
 - Sit-out history is seeded with random plausible values for demo purposes only, so
   priority 1 has a visible effect from round 1. In the real system this starts at 0
   and accrues from actual session data.
-- Skill balance is greedy per-court (fills best court first), so later courts in a
-  round can end up mildly imbalanced if earlier courts "used up" the best pairings —
-  worth discussing with Warren whether a look-ahead/global optimization is worth the
-  added complexity for V1, or whether greedy is good enough. The Prototype3 skill-spread
-  fix reduces how often this matters (similar-rated players are grouped together before
-  courts are filled) but doesn't eliminate it.
-- Player identity is still tracked by name, not a unique ID (`partners_played`,
-  `opponents_played` in `helpers.py`) — two players sharing a name would collide.
-  Not addressed in this pass; flagged as a separate, pre-existing risk.
+- Skill balance is still greedy-then-refined, not a full global optimization —
+  the local-search refinement pass (see "Changes in Prototype3" above) shrinks
+  the measured court-position gradient by about a quarter (60p/15c: +1.60 down
+  to +1.22) without needing a full rewrite, but it doesn't eliminate it. The
+  residual gap is a ceiling of the search's move vocabulary (single pairwise
+  swaps between two courts at a time, one per iteration) — confirmed by
+  testing that raising the iteration cap well beyond the current default
+  produces an identical result, so a bigger budget alone won't close it
+  further. Worth revisiting with Warren/the team if a real session needs a
+  smaller gap than this — the next lever would be a richer move vocabulary
+  (e.g. chained multi-court swaps in one step), not just more iterations.
+- Player identity for the algorithm's own history tracking is resolved (see
+  the `player_id` fix above) *provided* the caller supplies a real unique ID.
+  `load_players_from_csv`/`pull_random_players` still have no ID column in
+  the CSV format, so `player_id` silently falls back to `name` for
+  CSV-loaded players — a real deployment (or a future CSV format revision)
+  needs to supply a real ID to fully close the gap for that path specifically.

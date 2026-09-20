@@ -24,12 +24,28 @@ class Player:
     name: str
     gender: str
     rating: int
+    player_id: Optional[str] = None  # stable identity for history tracking; defaults to name if not supplied
     sit_out_count: int = 0          # seeded fairness history for this run
     last_sit_out_round: int = -1    # round number they last sat out (-1 = never yet); telemetry only
     consecutive_sit_outs: int = 0   # rounds sat out in a row, ending at the most recent round; reset to 0 the instant they play
-    partners_played: set = field(default_factory=set)   # names of partners so far this run
-    opponents_played: set = field(default_factory=set)  # names of opponents so far this run
+    partners_played: set = field(default_factory=set)   # player_ids of partners so far this run
+    opponents_played: set = field(default_factory=set)  # player_ids of opponents so far this run
     sessions_played: int = 0
+
+    def __post_init__(self):
+        if self.player_id is None:
+            # No caller-supplied identity (e.g. the CSV loader has no ID column) --
+            # name is the best available fallback, matching every existing call site.
+            # A real deployment (e.g. a backend with database row IDs) should pass a
+            # real player_id explicitly to avoid collisions between same-named players.
+            self.player_id = self.name
+        if self.rating is None or isinstance(self.rating, bool) or not isinstance(self.rating, (int, float)):
+            raise ValueError(
+                f"Player {self.name!r} has an invalid rating: {self.rating!r} "
+                f"(type {type(self.rating).__name__}). Ratings must be a number "
+                "(int or float) -- provisional/unrated players must be filtered "
+                "out before constructing a Player."
+            )
 
 
 def load_players_from_csv(csv_path: str) -> List[Dict]:
