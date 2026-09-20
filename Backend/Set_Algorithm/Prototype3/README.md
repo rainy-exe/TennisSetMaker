@@ -63,6 +63,32 @@ Each round:
 - `variety_mode`: 1 = hard avoid repeat partners/opponents, 2 = soft penalty, 3 = round-robin
   bias (also penalises any prior connection, not just direct repeats).
 
+## Changes in Prototype3 (vs Prototype2)
+
+Two bugs fixed after review with the team:
+
+- **Skill pairing now clusters similar-rated players onto the same court first**
+  (`raw_skill_spread` in `algorithm.py`), instead of only balancing team sums. A
+  foursome of four similarly-rated players (e.g. all around a rating of 5) is now
+  preferred over one spanning the whole rating range, even if both could produce a
+  sum-balanced match. A wide-spread foursome (e.g. ratings 1, 2, 8, 9) still only
+  happens when the pool genuinely forces it — and in that case the existing
+  between-team balancing (`raw_skill_diff`) still picks the fairest split available
+  (e.g. 2&8 vs 1&9 over 1&2 vs 8&9). Applies to both engines.
+- **Sit-out fairness had two real bugs, both fixed:**
+  - Ties used to break alphabetically by name every round, which systematically
+    under-selected early-alphabet names for sit-out over a whole session. Ties now
+    break via the run's seeded RNG instead — still fully reproducible per-seed, no
+    longer biased toward any particular name.
+  - The "avoid picking the same person twice in a row" nudge used to be a flat +1
+    for one round only, which wasn't enough to stop someone sitting out several
+    rounds in a row whenever their sit-out count started well below everyone
+    else's. It's now `consecutive_sit_outs`-based and escalates the longer a
+    player's streak runs (+1, +2, +3, ...), while staying soft — it still yields if
+    truly unavoidable, consistent with `mixed_mode`'s auto-relax philosophy.
+
+See `tests/` for automated coverage of both fixes (`pip install -r requirements-dev.txt`, then `python3 -m pytest`).
+
 ## Known prototype limitations (intentional, out of scope for this pass)
 - Court preferences (priority 6) and "requested number of sets" (priority 7) are not
   implemented — no data for them yet, scored as always-0/disabled per the default preset.
@@ -72,4 +98,9 @@ Each round:
 - Skill balance is greedy per-court (fills best court first), so later courts in a
   round can end up mildly imbalanced if earlier courts "used up" the best pairings —
   worth discussing with Warren whether a look-ahead/global optimization is worth the
-  added complexity for V1, or whether greedy is good enough.
+  added complexity for V1, or whether greedy is good enough. The Prototype3 skill-spread
+  fix reduces how often this matters (similar-rated players are grouped together before
+  courts are filled) but doesn't eliminate it.
+- Player identity is still tracked by name, not a unique ID (`partners_played`,
+  `opponents_played` in `helpers.py`) — two players sharing a name would collide.
+  Not addressed in this pass; flagged as a separate, pre-existing risk.

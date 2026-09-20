@@ -10,7 +10,9 @@ default preset order:
     2. Set format compliance    -> mixed_score
     3. Social variety: partners -> partner_score
     4. Social variety: opponents-> opponent_score
-    5. Skill balance             -> skill_diff
+    5. Skill balance             -> skill_spread (which 4 players get grouped
+                                    together) then skill_diff (how they're
+                                    split into teams) — see raw_skill_spread
     6. Court preferences         -> not implemented (no data in prototype scope), always 0
 
 Each candidate court (a foursome + a team split) is scored as a tuple.
@@ -22,6 +24,7 @@ This module knows nothing about CSV files, printing, or user input.
 """
 
 import itertools
+import random
 from typing import List, Tuple
 from helpers import Player
 
@@ -32,29 +35,35 @@ BIG_PENALTY = 10_000  # used by variety_mode=1 (hard avoid) to dominate the scor
 # Priority 1: Sit-out ratio (round-level, not per-court)
 # ---------------------------------------------------------------------------
 
-def select_round_players(active_pool: List[Player], num_to_play: int, round_num: int = None) -> Tuple[List[Player], List[Player]]:
+def select_round_players(active_pool: List[Player], num_to_play: int, rng: random.Random) -> Tuple[List[Player], List[Player]]:
     """Chooses who plays this round vs who sits out, based on sit-out
     fairness: players who have sat out MORE in the past get priority to
     play now; players who have sat out LEAST are the fairest candidates
     to sit out this round (their count then rises to catch up).
 
-    A player who sat out in the IMMEDIATELY PREVIOUS round gets a soft
-    penalty (+1 to their effective count) so they aren't picked again on
-    pure raw-count ties or near-ties. This prevents the same small group
-    of players getting clustered with repeat sit-outs early in a run
-    (most visible when seeded starting counts are unevenly spread) while
-    someone else goes the whole run without ever sitting — the penalty
-    is soft, not a hard block, so it still yields when truly unavoidable
-    (e.g. too few players relative to needed sit-out slots).
+    A player's `consecutive_sit_outs` streak (rounds sat out in a row,
+    reset to 0 the instant they play — see main.py's bookkeeping) adds a
+    soft, ESCALATING penalty to their effective count: +1 after 1
+    consecutive sit-out, +2 after 2, etc. This prevents a player from
+    being stuck sitting out round after round just because their raw
+    count started lower than everyone else's — the penalty grows the
+    longer the streak runs, rather than a single flat nudge that gets
+    swamped whenever the starting counts are unevenly spread. It's still
+    soft, not a hard block, so it yields when truly unavoidable (e.g. too
+    few players relative to needed sit-out slots).
 
-    Ties broken by a stable sort on name to keep runs reproducible under
-    a fixed seed.
+    Ties in effective count are broken by shuffling the pool with the
+    run's seeded `rng` before a stable sort, so the outcome is
+    reproducible under a fixed seed but never structurally biased toward
+    or against any particular player (a fixed tie-break key like name
+    would otherwise let the same player lose every tie, every round).
     """
     def effective_count(p: Player) -> int:
-        recently_sat_out = (round_num is not None and p.last_sit_out_round == round_num - 1)
-        return p.sit_out_count + (1 if recently_sat_out else 0)
+        return p.sit_out_count + p.consecutive_sit_outs
 
-    ranked = sorted(active_pool, key=lambda p: (-effective_count(p), p.name))
+    shuffled = list(active_pool)
+    rng.shuffle(shuffled)
+    ranked = sorted(shuffled, key=lambda p: -effective_count(p))
     playing = ranked[:num_to_play]
     sitting_out = ranked[num_to_play:]
     return playing, sitting_out
@@ -141,10 +150,35 @@ def _opponent_score(team_a: Tuple[Player, Player], team_b: Tuple[Player, Player]
 # Priority 5: Skill balance
 # ---------------------------------------------------------------------------
 
+def raw_skill_spread(four: Tuple[Player, Player, Player, Player]) -> int:
+    """max-min rating across the candidate FOURSOME, irrespective of team
+    split. This is what makes the algorithm prefer grouping similarly-rated
+    players onto the same court (e.g. 5s with other 4/5/6s) instead of only
+    caring that team sums balance — a foursome of {5,5,5,5} now clearly
+    beats one of {2,8,1,9} even though both can produce sum-balanced teams.
+
+    Deliberately constant across all 3 splits of a fixed foursome (it
+    doesn't look at team_a/team_b at all), so it never overrides which
+    split raw_skill_diff picks once 4 players are already chosen — it only
+    shapes WHICH 4 players get proposed as a court in the first place.
+    That's why a foursome that's genuinely forced to span a wide skill
+    range (too few players at each level) still falls back to whatever
+    raw_skill_diff finds best within it, matching the team's stated
+    fallback example (team A: 2 & 8 vs team B: 1 & 9) exactly, with no
+    special-case branching needed.
+
+    Range: 0-9 for ratings 1-10.
+    """
+    ratings = [p.rating for p in four]
+    return max(ratings) - min(ratings)
+
+
 def raw_skill_diff(team_a: Tuple[Player, Player], team_b: Tuple[Player, Player]) -> int:
     """Absolute difference between the two teams' summed ratings. This is
-    the sole 'competitiveness' measure — no separate stacked/seeded-pairs
-    objective, per team decision."""
+    the 'competitiveness of the match' measure, applied only once a
+    foursome is already chosen (see raw_skill_spread for how the foursome
+    itself gets chosen) — no separate stacked/seeded-pairs objective, per
+    team decision."""
     a_sum = team_a[0].rating + team_a[1].rating
     b_sum = team_b[0].rating + team_b[1].rating
     return abs(a_sum - b_sum)
@@ -172,12 +206,14 @@ def _score_candidate(four: Tuple[Player, Player, Player, Player], mixed_mode: in
         ((p1, p3), (p2, p4)),
         ((p1, p4), (p2, p3)),
     ]
+    skill_spread = raw_skill_spread(four)  # constant across splits, computed once
     best = None
     for team_a, team_b in splits:
         score = (
             _mixed_score(team_a, team_b, mixed_mode),
             _partner_score(team_a, team_b, variety_mode),
             _opponent_score(team_a, team_b, variety_mode),
+            skill_spread,
             raw_skill_diff(team_a, team_b),
             raw_court_pref_score(),
         )

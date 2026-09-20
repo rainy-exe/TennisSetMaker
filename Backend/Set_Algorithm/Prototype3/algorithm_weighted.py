@@ -20,11 +20,20 @@ outright regardless of how small the difference is.
 
 WHY NORMALIZATION MATTERS (read before touching MAX_* constants):
 Raw component scores have very different natural ranges (mixed 0-2,
-opponent repeats 0-4, skill diff 0-18). Without dividing each raw score
-by its own maximum first, a weight of 1.0 would NOT mean the same amount
-of influence across criteria — skill_diff's much larger raw range would
-silently dominate the sum even at "equal" weight. Normalizing first is
-what makes the weight vector behave the way the number actually suggests.
+opponent repeats 0-4, skill spread 0-9, skill diff 0-18). Without dividing
+each raw score by its own maximum first, a weight of 1.0 would NOT mean
+the same amount of influence across criteria — skill_diff's much larger
+raw range would silently dominate the sum even at "equal" weight.
+Normalizing first is what makes the weight vector behave the way the
+number actually suggests.
+
+The single "skill" dial itself blends TWO signals internally (see
+SKILL_SPREAD_SHARE/SKILL_DIFF_SHARE below): how similar the 4 players in
+a foursome are to each other, and how balanced the two resulting team
+sums are. This mirrors algorithm.py's lexicographic engine, which checks
+spread before diff — see raw_skill_spread's docstring for why that
+ordering is what makes players cluster by similar skill instead of only
+caring that team sums balance.
 
 Sit-out ratio (priority 1) is NOT part of this weighted sum — it's still
 handled beforehand at the round level by select_round_players() in
@@ -42,6 +51,7 @@ from algorithm import (
     raw_mixed_score,
     raw_partner_repeats,
     raw_opponent_repeats,
+    raw_skill_spread,
     raw_skill_diff,
     raw_court_pref_score,
 )
@@ -52,8 +62,18 @@ from algorithm import (
 MAX_MIXED = 2          # at most both teams are non-mixed
 MAX_PARTNER = 2         # at most both teams are repeat partnerships
 MAX_OPPONENT = 4        # at most all 4 cross-team pairs have played before
+MAX_SKILL_SPREAD = 9    # ratings 1-10; max-min across any foursome = 9
 MAX_SKILL_DIFF = 18     # ratings 1-10; team sum range 2-20; max diff = 18
 MAX_COURT_PREF = 1      # not implemented; placeholder so a future weight has a scale to normalize against
+
+# The single "skill" dial is internally split between two signals: how
+# similar the 4 players in the foursome are to each other (spread), and
+# how balanced the resulting two team sums are (diff). Spread is weighted
+# higher, mirroring the lexicographic engine's tuple order (spread is
+# checked before diff there). Adjustable — not derived from anything, just
+# a starting point pending feedback from real test runs.
+SKILL_SPREAD_SHARE = 0.65
+SKILL_DIFF_SHARE = 0.35
 
 
 class WeightVector:
@@ -91,7 +111,9 @@ def _weighted_score(team_a: Tuple[Player, Player], team_b: Tuple[Player, Player]
     norm_mixed = raw_mixed_score(team_a, team_b) / MAX_MIXED
     norm_partner = raw_partner_repeats(team_a, team_b) / MAX_PARTNER
     norm_opponent = raw_opponent_repeats(team_a, team_b) / MAX_OPPONENT
-    norm_skill = raw_skill_diff(team_a, team_b) / MAX_SKILL_DIFF
+    norm_skill_spread = raw_skill_spread(team_a + team_b) / MAX_SKILL_SPREAD
+    norm_skill_diff = raw_skill_diff(team_a, team_b) / MAX_SKILL_DIFF
+    norm_skill = SKILL_SPREAD_SHARE * norm_skill_spread + SKILL_DIFF_SHARE * norm_skill_diff
     norm_court_pref = raw_court_pref_score() / MAX_COURT_PREF if MAX_COURT_PREF else 0.0
 
     return (
