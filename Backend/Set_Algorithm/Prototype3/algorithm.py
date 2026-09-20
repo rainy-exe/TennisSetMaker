@@ -25,8 +25,9 @@ This module knows nothing about CSV files, printing, or user input.
 
 import itertools
 import random
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from helpers import Player
+from refinement import refine_skill_balance
 
 BIG_PENALTY = 10_000  # used by variety_mode=1 (hard avoid) to dominate the score
 
@@ -100,7 +101,7 @@ def raw_partner_repeats(team_a: Tuple[Player, Player], team_b: Tuple[Player, Pla
     """Count of teams (0, 1, or 2) whose two players have partnered before."""
     repeats = 0
     for team in (team_a, team_b):
-        if team[1].name in team[0].partners_played:
+        if team[1].player_id in team[0].partners_played:
             repeats += 1
     return repeats
 
@@ -110,7 +111,7 @@ def raw_opponent_repeats(team_a: Tuple[Player, Player], team_b: Tuple[Player, Pl
     repeats = 0
     for pa in team_a:
         for pb in team_b:
-            if pb.name in pa.opponents_played:
+            if pb.player_id in pa.opponents_played:
                 repeats += 1
     return repeats
 
@@ -123,7 +124,7 @@ def raw_connection_penalty(team_a: Tuple[Player, Player], team_b: Tuple[Player, 
     four = team_a + team_b
     penalty = 0
     for p1, p2 in itertools.combinations(four, 2):
-        if p2.name in p1.partners_played or p2.name in p1.opponents_played:
+        if p2.player_id in p1.partners_played or p2.player_id in p1.opponents_played:
             penalty += 1
     return penalty
 
@@ -222,10 +223,30 @@ def _score_candidate(four: Tuple[Player, Player, Player, Player], mixed_mode: in
     return best
 
 
-def assign_courts_for_round(playing: List[Player], num_courts: int, mixed_mode: int, variety_mode: int):
+def assign_courts_for_round(
+    playing: List[Player], num_courts: int, mixed_mode: int, variety_mode: int,
+    refine_max_iterations: Optional[int] = None,
+):
     """Greedily fills courts one at a time: generate all candidate
     foursomes from the remaining pool, score each (priorities 2-6),
     assign the best-scoring court, remove those players, repeat.
+
+    Once every court is filled, runs a bounded local-search refinement
+    pass (see refinement.py) that tries swapping players between courts
+    to reduce skill-spread inequality across courts (the greedy fill
+    otherwise systematically front-loads the tightest-clustered foursome
+    onto court 1, leaving later courts progressively worse) -- a swap is
+    only ever accepted if it doesn't regress format/partner/opponent
+    quality (priorities 2-4) on either court involved. `refine_max_iterations`
+    is exposed mainly for testing (e.g. pass 0 to get the pre-refinement
+    greedy-only baseline); production callers can leave it at the default.
+
+    Player-history bookkeeping (partners_played/opponents_played/
+    sessions_played) is deferred until AFTER refinement finalizes the
+    round -- courts partition `remaining` disjointly, so no court's
+    candidate scoring within this round is ever affected by another
+    court's bookkeeping anyway, and deferring means a swap never has to
+    undo/redo half-applied history.
 
     Returns a list of dicts: {court, team_a, team_b, players, team_a_sum, team_b_sum}
     """
@@ -255,17 +276,35 @@ def assign_courts_for_round(playing: List[Player], num_courts: int, mixed_mode: 
             "team_b_sum": b_sum,
         })
 
-        # update history so subsequent courts THIS round see it too
-        team_a[0].partners_played.add(team_a[1].name)
-        team_a[1].partners_played.add(team_a[0].name)
-        team_b[0].partners_played.add(team_b[1].name)
-        team_b[1].partners_played.add(team_b[0].name)
+        for p in four:
+            remaining.remove(p)
+
+    def _priority_quality(team_a, team_b):
+        return (
+            _mixed_score(team_a, team_b, mixed_mode),
+            _partner_score(team_a, team_b, variety_mode),
+            _opponent_score(team_a, team_b, variety_mode),
+        )
+
+    def _best_split(four):
+        return _score_candidate(four, mixed_mode, variety_mode)
+
+    results = refine_skill_balance(
+        results, priority_quality_fn=_priority_quality, best_split_fn=_best_split,
+        skill_spread_fn=raw_skill_spread, max_iterations=refine_max_iterations,
+    )
+
+    for r in results:
+        team_a, team_b = r["team_a"], r["team_b"]
+        team_a[0].partners_played.add(team_a[1].player_id)
+        team_a[1].partners_played.add(team_a[0].player_id)
+        team_b[0].partners_played.add(team_b[1].player_id)
+        team_b[1].partners_played.add(team_b[0].player_id)
         for pa in team_a:
             for pb in team_b:
-                pa.opponents_played.add(pb.name)
-                pb.opponents_played.add(pa.name)
-        for p in four:
+                pa.opponents_played.add(pb.player_id)
+                pb.opponents_played.add(pa.player_id)
+        for p in r["players"]:
             p.sessions_played += 1
-            remaining.remove(p)
 
     return results

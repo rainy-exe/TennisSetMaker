@@ -45,7 +45,7 @@ This module knows nothing about CSV files, printing, or user input.
 """
 
 import itertools
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from helpers import Player
 from algorithm import (
     raw_mixed_score,
@@ -55,6 +55,7 @@ from algorithm import (
     raw_skill_diff,
     raw_court_pref_score,
 )
+from refinement import refine_skill_balance
 
 # Maximum possible value of each raw component, used to normalize every
 # score into the 0-1 range before weighting. If the underlying scoring
@@ -143,13 +144,24 @@ def _score_candidate_weighted(four: Tuple[Player, Player, Player, Player], weigh
     return best
 
 
-def assign_courts_for_round_weighted(playing: List[Player], num_courts: int, weights: WeightVector):
+def assign_courts_for_round_weighted(
+    playing: List[Player], num_courts: int, weights: WeightVector,
+    refine_max_iterations: Optional[int] = None,
+):
     """Weighted-sum equivalent of algorithm.py's assign_courts_for_round.
     Same greedy court-by-court strategy: generate every candidate foursome
     from the remaining pool, score each, assign the best, remove those
     players, repeat. Only the scoring function differs from the
     lexicographic version — the assignment strategy is identical, so
     results from both modules are directly comparable for the same input.
+
+    Also runs the same bounded local-search refinement pass as the
+    lexicographic engine (see refinement.py / algorithm.py's
+    assign_courts_for_round for the full rationale) to flatten the
+    greedy fill's court-position skill-spread gradient, gated so a swap
+    never regresses mixed/partner/opponent quality for any criterion
+    whose weight is actually switched on. `refine_max_iterations` is
+    exposed mainly for testing.
 
     Returns the same result shape as algorithm.py's version:
     [{court, team_a, team_b, players, team_a_sum, team_b_sum}, ...]
@@ -180,16 +192,38 @@ def assign_courts_for_round_weighted(playing: List[Player], num_courts: int, wei
             "team_b_sum": b_sum,
         })
 
-        team_a[0].partners_played.add(team_a[1].name)
-        team_a[1].partners_played.add(team_a[0].name)
-        team_b[0].partners_played.add(team_b[1].name)
-        team_b[1].partners_played.add(team_b[0].name)
+        for p in four:
+            remaining.remove(p)
+
+    def _priority_quality(team_a, team_b):
+        # A criterion switched fully off (weight 0) must never block an
+        # otherwise-legal skill-improving swap just because that
+        # criterion's raw value happened to change.
+        return (
+            raw_mixed_score(team_a, team_b) if weights.mixed > 0 else 0,
+            raw_partner_repeats(team_a, team_b) if weights.partner > 0 else 0,
+            raw_opponent_repeats(team_a, team_b) if weights.opponent > 0 else 0,
+        )
+
+    def _best_split(four):
+        return _score_candidate_weighted(four, weights)
+
+    results = refine_skill_balance(
+        results, priority_quality_fn=_priority_quality, best_split_fn=_best_split,
+        skill_spread_fn=raw_skill_spread, max_iterations=refine_max_iterations,
+    )
+
+    for r in results:
+        team_a, team_b = r["team_a"], r["team_b"]
+        team_a[0].partners_played.add(team_a[1].player_id)
+        team_a[1].partners_played.add(team_a[0].player_id)
+        team_b[0].partners_played.add(team_b[1].player_id)
+        team_b[1].partners_played.add(team_b[0].player_id)
         for pa in team_a:
             for pb in team_b:
-                pa.opponents_played.add(pb.name)
-                pb.opponents_played.add(pa.name)
-        for p in four:
+                pa.opponents_played.add(pb.player_id)
+                pb.opponents_played.add(pa.player_id)
+        for p in r["players"]:
             p.sessions_played += 1
-            remaining.remove(p)
 
     return results
