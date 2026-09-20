@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Edit Player{% endblock %}
+{% block content %}
+<main class="main players-main">
+  <div class="page-topline">
+    <div>
+      <h1 class="page-title">Edit Player</h1>
+      <p class="page-subtitle">Update this player's details.</p>
+    </div>
+  </div>
+
+  <div class="card" style="padding: 24px; max-width: 480px;">
+    <form method="POST">
+      <div class="field">
+        <label for="name">Name</label>
+        <input class="input" type="text" id="name" name="name" value="{{ player.name }}" required />
+      </div>
+      <div class="field">
+        <label for="rating">Rating</label>
+        <select class="select" id="rating" name="rating" required>
+          {% for r in range(1, 8) %}
+          <option value="{{ r }}" {{ 'selected' if player.rating|string == r|string }}>{{ r }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="gender">Gender</label>
+        <select class="select" id="gender" name="gender">
+          <option value="Male" {{ 'selected' if player.gender == 'Male' }}>MALE</option>
+          <option value="Female" {{ 'selected' if player.gender == 'Female' }}>FEMALE</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="notes">Notes</label>
+        <textarea class="input" id="notes" name="notes" rows="4" style="height: auto; padding: 10px 12px; resize: vertical;">{{ player.notes|default('') }}</textarea>
+      </div>
+      <div class="field">
+        <label for="court_preference">Court Preference</label>
+        <select class="select" id="court_preference" name="court_preference">
+          <option value="">Not set</option>
+          <option value="Hard" {{ 'selected' if player.court_preference == 'Hard' }}>Hard</option>
+          <option value="Clay" {{ 'selected' if player.court_preference == 'Clay' }}>Clay</option>
+          <option value="Grass" {{ 'selected' if player.court_preference == 'Grass' }}>Grass</option>
+          <option value="Synthetic" {{ 'selected' if player.court_preference == 'Synthetic' }}>Synthetic</option>
+        </select>
+      </div>
+      <div class="form-actions">
+        <a class="btn" href="{{ url_for('players') }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</main>
+{% endblock %}
