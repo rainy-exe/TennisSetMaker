@@ -25,7 +25,8 @@ class Player:
     gender: str
     rating: int
     sit_out_count: int = 0          # seeded fairness history for this run
-    last_sit_out_round: int = -1    # round number they last sat out (-1 = never yet)
+    last_sit_out_round: int = -1    # round number they last sat out (-1 = never yet); telemetry only
+    consecutive_sit_outs: int = 0   # rounds sat out in a row, ending at the most recent round; reset to 0 the instant they play
     partners_played: set = field(default_factory=set)   # names of partners so far this run
     opponents_played: set = field(default_factory=set)  # names of opponents so far this run
     sessions_played: int = 0
