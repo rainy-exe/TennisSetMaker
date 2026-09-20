@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SetMaker | Create Session</title>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <div class="app-shell">
+
+        <aside class="sidebar">
+
+            <!-- SetMaker Logo -->
+            <div class="brand">
+
+                <div class="logo-mark">
+                    S
+                </div>
+
+                <span>SetMaker</span>
+
+            </div>
+
+
+            <!-- Navigation -->
+            <nav class="nav">
+
+                <a href="dashboard.html" class="nav-link">
+                    Dashboard
+                </a>
+
+                <a href="create-session.html" class="nav-link active">
+                    Sessions
+                </a>
+
+                <a href="#" class="nav-link">
+                    Players
+                </a>
+
+                <a href="#" class="nav-link">
+                    Courts
+                </a>
+
+                <a href="#" class="nav-link">
+                    Templates
+                </a>
+
+                <a href="#" class="nav-link">
+                    History
+                </a>
+
+                <a href="#" class="nav-link">
+                    Settings
+                </a>
+
+            </nav>
+
+
+            <!-- Admin Card -->
+            <div class="admin-card">
+
+                <div class="avatar">
+                </div>
+
+                <div class="admin-copy">
+                    <strong>Club Admin</strong>
+                    <span id="adminEmail"></span>
+                </div>
+
+            </div>
+
+
+        </aside>
+
+        <main class="main create-main">
+
+            <!-- Create Session Header -->
+            <div class="page-topline">
+
+                <div>
+
+                    <div class="eyebrow">
+                        Sessions / Create Session
+                    </div>
+
+                    <h1 class="page-title">
+                        Create Session
+                    </h1>
+
+                    <p class="page-subtitle">
+                        Configure a new tennis session.
+                    </p>
+
+                </div>
+
+            </div>
+            <!-- Create Session Form -->
+            <form class="card form-card">
+
+                <div class="form-grid">
+
+                    <!-- Left Column -->
+                    <section>
+
+                        <!-- Basic Configuration -->
+                        <div class="form-section-title">
+                            Basic Configuration
+                        </div>
+
+                        <!-- Session Name -->
+                        <div class="field">
+
+                            <label for="sessionName">
+                                Session Name
+                            </label>
+
+                            <input type="text" id="sessionName" name="sessionName" class="input">
+
+                        </div>
+                        <!-- Date and Start Time -->
+                        <div class="two-col">
+
+                            <!-- Date -->
+                            <div class="field">
+
+                                <label for="sessionDate">
+                                    Date
+                                </label>
+
+                                <input type="date" id="sessionDate" name="sessionDate" class="input">
+
+                            </div>
+
+
+                            <!-- Start Time -->
+                            <div class="field">
+
+                                <label for="startTime">
+                                    Start Time
+                                </label>
+
+                                <input type="time" id="startTime" name="startTime" class="input">
+
+                            </div>
+
+                        </div>
+                        <!-- Venue / Location -->
+                        <div class="field">
+
+                            <label for="venue">
+                                Venue / Location
+                            </label>
+
+                            <select id="venue" name="venue" class="select">
+                                <option value="">
+                                    Select a venue
+                                </option>
+                            </select>
+
+                        </div>
+                        <!-- Number of Rounds and Round Duration -->
+                        <div class="two-col">
+
+                            <!-- Number of Rounds -->
+                            <div class="field">
+
+                                <label for="roundCount">
+                                    Number of Rounds
+                                </label>
+
+                                <div class="number-stepper">
+
+                                    <button type="button">
+                                        −
+                                    </button>
+
+                                    <span id="roundCount">
+                                        1
+                                    </span>
+
+                                    <button type="button">
+                                        +
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- Round Duration -->
+                            <div class="field">
+
+                                <label for="roundDuration">
+                                    Round Duration
+                                </label>
+
+                                <select id="roundDuration" name="roundDuration" class="select">
+                                    <option value="">
+                                        Select duration
+                                    </option>
+                                </select>
+
+                            </div>
+
+                        </div>
+                        <!-- Session Mode -->
+                        <div class="field">
+
+                            <label>
+                                Session Mode
+                            </label>
+
+                            <div class="segmented">
+
+                                <button type="button" class="active">
+                                    Social Play
+                                </button>
+
+                                <button type="button">
+                                    Competitive Ladder
+                                </button>
+
+                            </div>
+
+                        </div>
+                    </section>
+
+
+                    <!-- Right Column -->
+                    <section>
+                        <!-- Format and Priority Courts -->
+                        <div class="form-section-title">
+                            Format &amp; Priority Courts
+                        </div>
+
+                        <!-- Match Format -->
+                        <div class="field">
+
+                            <label>
+                                Match Format
+                            </label>
+
+                            <div class="radio-group">
+
+                                <label class="choice">
+                                    <input type="radio" name="matchFormat" value="mixedDoubles">
+
+                                    Mixed Doubles
+                                </label>
+
+                                <label class="choice">
+                                    <input type="radio" name="matchFormat" value="sameGenderDoubles">
+
+                                    Same-Gender Doubles
+                                </label>
+
+                                <label class="choice">
+                                    <input type="radio" name="matchFormat" value="openPlay">
+
+                                    Open Play
+                                </label>
+
+                            </div>
+
+                        </div>
+                        <!-- Court Allocation -->
+                        <div class="field">
+
+                            <label>
+                                Court Allocation (Priority Reordering)
+                            </label>
+
+                            <div class="court-options" id="courtOptions">
+
+                                <div class="court-option selected">
+
+                                    <div class="fake-check">
+                                        ✓
+                                    </div>
+
+                                    <span>
+                                        Court 1
+                                    </span>
+
+                                    <span class="drag">
+                                        ⋮⋮
+                                    </span>
+
+                                </div>
+
+
+                                <div class="court-option selected">
+
+                                    <div class="fake-check">
+                                        ✓
+                                    </div>
+
+                                    <span>
+                                        Court 2
+                                    </span>
+
+                                    <span class="drag">
+                                        ⋮⋮
+                                    </span>
+
+                                </div>
+
+
+                                <div class="court-option selected">
+
+                                    <div class="fake-check">
+                                        ✓
+                                    </div>
+
+                                    <span>
+                                        Court 3
+                                    </span>
+
+                                    <span class="drag">
+                                        ⋮⋮
+                                    </span>
+
+                                </div>
+
+
+                                <div class="court-option">
+
+                                    <div class="fake-check">
+                                    </div>
+
+                                    <span>
+                                        Court 4
+                                    </span>
+
+                                    <span class="drag">
+                                        ⋮⋮
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </section>
+
+                </div>
+                <!-- Divider -->
+                <div class="form-divider"></div>
+
+                <!-- Allow Format Relaxation -->
+                <div class="relax-row">
+
+                    <div>
+
+                        <div class="relax-title">
+                            Allow Format Relaxation
+                        </div>
+
+                        <div class="relax-copy">
+                            If odd player numbers occur, the system can automatically
+                            adapt the match format to keep everyone playing.
+                        </div>
+
+                    </div>
+
+                    <label class="switch">
+
+                        <input type="checkbox" id="allowRelaxation" name="allowRelaxation">
+
+                        <span class="slider"></span>
+
+                    </label>
+
+                </div>
+                <!-- Form Actions -->
+                <div class="form-actions">
+
+                    <a href="dashboard.html" class="btn">
+                        Cancel
+                    </a>
+
+                    <button type="submit" class="btn btn-primary">
+                        Create &amp; Generate Session
+                    </button>
+
+                </div>
+            </form>
+
+        </main>
+
+    </div>
+
+</body>
+
+</html>
