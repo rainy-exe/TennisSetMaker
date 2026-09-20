@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SetMaker | Active Session</title>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <div class="app-shell">
+
+        <aside class="sidebar">
+            <!-- SetMaker Logo -->
+            <div class="brand">
+
+                <div class="logo-mark">
+                    S
+                </div>
+
+                <span>SetMaker</span>
+
+            </div>
+
+
+            <!-- Navigation -->
+            <nav class="nav">
+
+                <a href="dashboard.html" class="nav-link">
+                    Dashboard
+                </a>
+
+                <a href="create-session.html" class="nav-link active">
+                    Sessions
+                </a>
+
+                <a href="#" class="nav-link">
+                    Players
+                </a>
+
+                <a href="#" class="nav-link">
+                    Courts
+                </a>
+
+                <a href="#" class="nav-link">
+                    Templates
+                </a>
+
+                <a href="#" class="nav-link">
+                    History
+                </a>
+
+                <a href="#" class="nav-link">
+                    Settings
+                </a>
+
+            </nav>
+
+
+            <!-- Admin Card -->
+            <div class="admin-card">
+
+                <div class="avatar">
+                </div>
+
+                <div class="admin-copy">
+                    <strong>Club Admin</strong>
+                    <span id="adminEmail"></span>
+                </div>
+
+            </div>
+
+        </aside>
+
+        <main class="main active-main">
+
+            <!-- Active Session Header -->
+            <div class="active-top">
+
+                <div>
+
+                    <div class="eyebrow">
+                        Sessions / Active Session
+                    </div>
+
+                    <div class="active-title-row">
+
+                        <h1 id="sessionTitle">
+                        </h1>
+
+                        <span class="timer-pill" id="sessionTimer">
+                        </span>
+
+                    </div>
+
+                </div>
+
+                <button type="button" class="btn">
+                    End Session
+                </button>
+
+            </div>
+            <!-- Active Session Statistics -->
+            <section class="active-stats">
+
+                <!-- Players -->
+                <div class="card active-stat">
+
+                    <div class="stat-icon green">
+                        P
+                    </div>
+
+                    <div>
+                        <div class="active-stat-label">
+                            PLAYERS
+                        </div>
+
+                        <div class="active-stat-value" id="playerCount">
+                        </div>
+                    </div>
+
+                </div>
+
+
+                <!-- Courts -->
+                <div class="card active-stat">
+
+                    <div class="stat-icon blue">
+                        C
+                    </div>
+
+                    <div>
+                        <div class="active-stat-label">
+                            COURTS
+                        </div>
+
+                        <div class="active-stat-value" id="courtCount">
+                        </div>
+                    </div>
+
+                </div>
+
+
+                <!-- Current Round -->
+                <div class="card active-stat">
+
+                    <div class="stat-icon orange">
+                        R
+                    </div>
+
+                    <div>
+                        <div class="active-stat-label">
+                            CURRENT ROUND
+                        </div>
+
+                        <div class="active-stat-value" id="currentRound">
+                        </div>
+                    </div>
+
+                </div>
+
+
+                <!-- Matches -->
+                <div class="card active-stat">
+
+                    <div class="stat-icon green">
+                        M
+                    </div>
+
+                    <div>
+                        <div class="active-stat-label">
+                            MATCHES
+                        </div>
+
+                        <div class="active-stat-value" id="matchCount">
+                        </div>
+                    </div>
+
+                </div>
+
+            </section>
+            <!-- Round Selector -->
+            <section>
+
+                <div class="round-title">
+                    Rounds
+                </div>
+
+                <div class="rounds">
+
+                    <button type="button" class="round-btn completed">
+                        <span class="round-dot">✓</span>
+                        Round 1
+                    </button>
+
+                    <button type="button" class="round-btn completed">
+                        <span class="round-dot">✓</span>
+                        Round 2
+                    </button>
+
+                    <button type="button" class="round-btn current">
+                        <span class="round-dot">3</span>
+                        Round 3
+                    </button>
+
+                    <button type="button" class="round-btn">
+                        <span class="round-dot">4</span>
+                        Round 4
+                    </button>
+
+                    <button type="button" class="round-btn">
+                        <span class="round-dot">5</span>
+                        Round 5
+                    </button>
+
+                </div>
+
+            </section>
+            <!-- Matches and Sitting Out -->
+            <div class="match-layout">
+
+                <!-- Matches -->
+                <section class="matches-wrap">
+
+                    <h2 class="section-title">
+                        Current Matches
+                    </h2>
+
+                    <!-- Matches will be inserted here later -->
+                    <div class="match-grid" id="matchGrid">
+                    </div>
+
+                </section>
+
+
+                <!-- Sitting Out -->
+                <aside class="sitout-wrap">
+
+                    <h2 class="section-title">
+                        Sitting Out
+                    </h2>
+
+                    <div class="card sitout-card">
+
+                        <div class="sitout-head">
+
+                            <strong>
+                                Players
+                            </strong>
+
+                            <span id="sitoutCount">
+                            </span>
+
+                        </div>
+
+                        <!-- Sitting-out players will be inserted here later -->
+                        <div class="sitout-list" id="sitoutList">
+                        </div>
+
+                    </div>
+
+                </aside>
+
+            </div>
+            <!-- Match Explanation -->
+            <section class="card why-card">
+
+                <div class="why-head">
+
+                    <div class="why-head-left">
+
+                        <span>
+                            ✓
+                        </span>
+
+                        <span>
+                            Why were these sets chosen?
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Explanation points can be added dynamically later -->
+                <div class="check-list" id="matchReasons">
+                </div>
+
+
+                <!-- Additional explanation from backend -->
+                <div class="why-note" id="matchExplanation">
+                </div>
+
+            </section>
+            <!-- Bottom Actions -->
+            <div class="card bottom-actions">
+
+                <div class="bottom-left">
+
+                    <button type="button" class="btn">
+                        Undo Changes
+                    </button>
+
+                    <button type="button" class="btn">
+                        Reset Matches
+                    </button>
+
+                </div>
+
+
+                <div class="save-side">
+
+                    <span class="save-note">
+                        Manual changes become official on save.
+                    </span>
+
+                    <button type="button" class="btn btn-primary">
+                        Save Changes
+                    </button>
+
+                </div>
+
+            </div>
+        </main>
+
+    </div>
+
+</body>
+
+</html>
