@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Add Court{% endblock %}
+{% block content %}
+<main class="main courts-main">
+  <div class="page-topline">
+    <div>
+      <h1 class="page-title">Add Court</h1>
+      <p class="page-subtitle">Add a new court to your club's available list.</p>
+    </div>
+  </div>
+
+  <div class="card" style="padding: 24px; max-width: 480px;">
+    <form>
+      <div class="field">
+        <label for="court-name">Court Name</label>
+        <input class="input" type="text" id="court-name" name="court-name" placeholder="e.g. Court 7" required />
+      </div>
+
+      <div class="field">
+        <label for="surface">Surface</label>
+        <select class="select" id="surface" name="surface" required>
+          <option value="" disabled selected>Select a surface</option>
+          <option value="Clay">Clay</option>
+          <option value="Hard">Hard</option>
+          <option value="Grass">Grass</option>
+          <option value="Synthetic">Synthetic</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="cover">Cover / Shade</label>
+        <input class="input" type="text" id="cover" name="cover" placeholder="e.g. Full Sun, Part Shade, Full Shade (Covered)" />
+      </div>
+
+      <div class="field">
+        <label for="priority">Priority Order</label>
+        <input class="input" type="number" id="priority" name="priority" min="1" placeholder="e.g. 1" />
+      </div>
+
+      <div class="form-divider"></div>
+
+      <div class="relax-row">
+        <div>
+          <div class="relax-title">Active</div>
+          <div class="relax-copy">Inactive courts are excluded from round scheduling and marked as under maintenance.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <a class="btn" href="{{ url_for('courts') }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">Add Court</button>
+      </div>
+    </form>
+  </div>
+</main>
+{% endblock %}

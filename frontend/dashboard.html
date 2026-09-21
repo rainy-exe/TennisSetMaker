@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SetMaker | Dashboard</title>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <div class="app-shell">
+
+        <aside class="sidebar">
+
+            <!-- SetMaker logo -->
+            <div class="brand">
+
+                <div class="logo-mark">
+                    S
+                </div>
+
+                <span>SetMaker</span>
+
+            </div>
+
+
+            <!-- Navigation -->
+            <nav class="nav">
+
+                <a href="dashboard.html" class="nav-link active">
+                    Dashboard
+                </a>
+
+                <a href="create-session.html" class="nav-link">
+                    Sessions
+                </a>
+
+                <a href="#" class="nav-link">
+                    Players
+                </a>
+
+                <a href="#" class="nav-link">
+                    Courts
+                </a>
+
+                <a href="#" class="nav-link">
+                    Templates
+                </a>
+
+                <a href="#" class="nav-link">
+                    History
+                </a>
+
+                <a href="#" class="nav-link">
+                    Settings
+                </a>
+
+            </nav>
+
+
+            <!-- Admin information -->
+            <div class="admin-card">
+
+                <div class="avatar">
+                </div>
+
+                <div class="admin-copy">
+                    <strong>Club Admin</strong>
+
+                    <!-- Backend can fill this later -->
+                    <span id="adminEmail"></span>
+                </div>
+
+            </div>
+
+        </aside>
+
+        <main class="main dashboard-main">
+
+            <!-- Dashboard Header -->
+            <div class="page-topline dashboard-heading">
+
+                <div>
+
+                    <h1 class="page-title">
+                        Welcome back, Admin
+                    </h1>
+
+                    <p class="page-subtitle">
+                        Here is the state of your tennis club today.
+                    </p>
+
+                </div>
+
+                <a href="create-session.html" class="btn btn-primary">
+                    <span class="btn-icon">+</span>
+                    Create Session
+                </a>
+
+            </div>
+            <!-- Dashboard Statistics -->
+            <section class="dashboard-stats">
+
+                <!-- Active Sessions -->
+                <div class="card stat-card">
+
+                    <div class="stat-icon green">
+                        ●
+                    </div>
+
+                    <div>
+                        <div class="stat-label">
+                            ACTIVE SESSIONS
+                        </div>
+
+                        <div class="stat-value" id="activeSessions">
+                        </div>
+                    </div>
+
+                </div>
+
+
+                <!-- Registered Players -->
+                <div class="card stat-card">
+
+                    <div class="stat-icon blue">
+                        ●
+                    </div>
+
+                    <div>
+                        <div class="stat-label">
+                            REGISTERED PLAYERS
+                        </div>
+
+                        <div class="stat-value" id="registeredPlayers">
+                        </div>
+                    </div>
+
+                </div>
+
+
+                <!-- Available Courts -->
+                <div class="card stat-card">
+
+                    <div class="stat-icon green">
+                        ●
+                    </div>
+
+                    <div>
+                        <div class="stat-label">
+                            AVAILABLE COURTS
+                        </div>
+
+                        <div class="stat-value" id="availableCourts">
+                        </div>
+                    </div>
+
+                </div>
+
+
+                <!-- Next Round -->
+                <div class="card stat-card">
+
+                    <div class="stat-icon orange">
+                        ●
+                    </div>
+
+                    <div>
+                        <div class="stat-label">
+                            NEXT ROUND
+                        </div>
+
+                        <div class="stat-value" id="nextRound">
+                        </div>
+                    </div>
+
+                </div>
+
+            </section>
+            <!-- Dashboard Content -->
+            <div class="dashboard-columns">
+
+                <!-- Active & Upcoming Sessions -->
+                <section>
+
+                    <h2 class="section-title">
+                        Active &amp; Upcoming Sessions
+                    </h2>
+
+                    <!-- Sessions will be added here from the backend -->
+                    <div class="session-list" id="sessionList">
+                    </div>
+
+                </section>
+
+
+                <!-- Recent Activity -->
+                <aside class="card activity-card">
+
+                    <h2 class="section-title">
+                        Recent Activity
+                    </h2>
+
+                    <!-- Activity will be added here from the backend -->
+                    <div id="recentActivity">
+                    </div>
+
+                </aside>
+
+            </div>
+        </main>
+
+    </div>
+
+</body>
+
+</html>
