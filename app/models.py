@@ -18,12 +18,168 @@ class TimestampMixin:
         db.DateTime, nullable=False, default=utc_now, onupdate=utc_now
     )
 
+# Club roles:
+# Owner: full club access, can manage players and accounts,
+#        invite admins/staff, and remove admins/staff.
+# Admin: can manage players, courts and sessions, invite/remove staff,
+#        but cannot manage the owner account.
+# Staff: can view club information and add players,
+#        but cannot delete players or manage accounts.
+
+class Club(TimestampMixin, db.Model):
+    __tablename__ = "clubs"
+
+    id = db.Column(db.String(36), primary_key=True, default=new_id)
+    name = db.Column(db.String(120), nullable=False)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+
+    users = db.relationship(
+        "User",
+        back_populates="club",
+        cascade="all, delete-orphan",
+    )
+
+    invitations = db.relationship(
+        "Invitation",
+        back_populates="club",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "length(trim(name)) > 0",
+            name="ck_club_name_nonempty",
+        ),
+    )
+
+
+class User(TimestampMixin, db.Model):
+    __tablename__ = "users"
+
+    id = db.Column(db.String(36), primary_key=True, default=new_id)
+
+    club_id = db.Column(
+        db.String(36),
+        db.ForeignKey("clubs.id"),
+        nullable=False,
+        index=True,
+    )
+
+    email = db.Column(
+        db.String(255),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    password_hash = db.Column(
+        db.String(255),
+        nullable=False,
+    )
+
+    role = db.Column(
+        db.String(20),
+        nullable=False,
+    )
+
+    active = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=True,
+    )
+
+    club = db.relationship(
+        "Club",
+        back_populates="users",
+    )
+
+    invitations_sent = db.relationship(
+        "Invitation",
+        back_populates="inviter",
+        foreign_keys="Invitation.invited_by",
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "role IN ('owner', 'admin', 'staff')",
+            name="ck_user_role",
+        ),
+    )
+
+
+class Invitation(TimestampMixin, db.Model):
+    __tablename__ = "invitations"
+
+    id = db.Column(db.String(36), primary_key=True, default=new_id)
+
+    club_id = db.Column(
+        db.String(36),
+        db.ForeignKey("clubs.id"),
+        nullable=False,
+        index=True,
+    )
+
+    email = db.Column(
+        db.String(255),
+        nullable=False,
+    )
+
+    role = db.Column(
+        db.String(20),
+        nullable=False,
+    )
+
+    invited_by = db.Column(
+        db.String(36),
+        db.ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    token = db.Column(
+        db.String(255),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    expires_at = db.Column(
+        db.DateTime,
+        nullable=False,
+    )
+
+    accepted_at = db.Column(
+        db.DateTime,
+        nullable=True,
+    )
+
+    club = db.relationship(
+        "Club",
+        back_populates="invitations",
+    )
+
+    inviter = db.relationship(
+        "User",
+        back_populates="invitations_sent",
+        foreign_keys=[invited_by],
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "role IN ('admin', 'staff')",
+            name="ck_invitation_role",
+        ),
+    )
 
 class Player(TimestampMixin, db.Model):
     __tablename__ = "players"
 
     id = db.Column(db.String(36), primary_key=True, default=new_id)
-    club_id = db.Column(db.String(128), nullable=False, index=True)
+    club_id = db.Column(
+        db.String(36),
+        db.ForeignKey("clubs.id"),
+        nullable=False,
+        index=True,
+    )
     name = db.Column(db.String(120), nullable=False)
     normalized_name = db.Column(db.String(120), nullable=False)
     gender = db.Column(db.String(20), nullable=False)
@@ -43,7 +199,14 @@ class Court(TimestampMixin, db.Model):
     __tablename__ = "courts"
 
     id = db.Column(db.String(36), primary_key=True, default=new_id)
-    club_id = db.Column(db.String(128), nullable=False, index=True)
+
+    club_id = db.Column(
+        db.String(36),
+        db.ForeignKey("clubs.id"),
+        nullable=False,
+        index=True,
+    )
+
     number = db.Column(db.Integer, nullable=False)
     court_type = db.Column(db.String(80), nullable=False)
     active = db.Column(db.Boolean, nullable=False, default=True)
@@ -54,7 +217,8 @@ class Court(TimestampMixin, db.Model):
         db.CheckConstraint("number > 0", name="ck_court_number_positive"),
         db.CheckConstraint("priority >= 0", name="ck_court_priority_nonnegative"),
         db.CheckConstraint(
-            "length(trim(court_type)) > 0", name="ck_court_type_nonempty"
+            "length(trim(court_type)) > 0",
+            name="ck_court_type_nonempty"
         ),
     )
 
@@ -63,7 +227,13 @@ class SessionTemplate(TimestampMixin, db.Model):
     __tablename__ = "session_templates"
 
     id = db.Column(db.String(36), primary_key=True, default=new_id)
-    club_id = db.Column(db.String(128), nullable=False, index=True)
+    club_id = db.Column(
+        db.String(36),
+        db.ForeignKey("clubs.id"),
+        nullable=False,
+        index=True,
+    )
+    
     name = db.Column(db.String(120), nullable=False)
     number_of_rounds = db.Column(db.Integer, nullable=False, default=6)
     session_duration_minutes = db.Column(db.Integer, nullable=False, default=180)
@@ -123,7 +293,12 @@ class TennisSession(TimestampMixin, db.Model):
     __tablename__ = "tennis_sessions"
 
     id = db.Column(db.String(36), primary_key=True, default=new_id)
-    club_id = db.Column(db.String(128), nullable=False, index=True)
+    club_id = db.Column(
+        db.String(36),
+        db.ForeignKey("clubs.id"),
+        nullable=False,
+        index=True,
+    )
     template_id = db.Column(
         db.String(36), db.ForeignKey("session_templates.id"), nullable=True
     )
@@ -136,7 +311,11 @@ class TennisSession(TimestampMixin, db.Model):
     strict_format = db.Column(db.Boolean, nullable=False, default=False)
     tea_break_after_round = db.Column(db.Integer, nullable=True)
     status = db.Column(db.String(20), nullable=False, default="draft")
-    created_by = db.Column(db.String(128), nullable=False)
+    created_by = db.Column(
+        db.String(36),
+        db.ForeignKey("users.id"),
+        nullable=False,
+    )
 
     template = db.relationship("SessionTemplate")
     courts = db.relationship(
@@ -224,7 +403,11 @@ class Round(TimestampMixin, db.Model):
     reopened_at = db.Column(db.DateTime, nullable=True)
     override_revision = db.Column(db.Integer, nullable=False, default=0)
     overridden_at = db.Column(db.DateTime, nullable=True)
-    overridden_by = db.Column(db.String(128), nullable=True)
+    overridden_by = db.Column(
+        db.String(36),
+        db.ForeignKey("users.id"),
+        nullable=True,
+    )
 
     session = db.relationship("TennisSession", back_populates="rounds")
     eligibility = db.relationship(
