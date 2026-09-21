@@ -1,7 +1,10 @@
-from flask import Flask, jsonify
+from flask import Flask, app, jsonify
 
 from app.extensions import db, migrate
 
+from app.auth import session_actor_provider
+
+app.config["CURRENT_ACTOR_PROVIDER"] = session_actor_provider
 
 def create_app(config=None):
     app = Flask(__name__)
