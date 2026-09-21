@@ -21,7 +21,10 @@ from app.models import (
 )
 from app.permissions import (
     Role,
+    can_add_player,
+    can_delete_player,
     can_manage_skill,
+    can_view_skill,
     current_actor,
     require_authenticated,
     require_roles,
@@ -29,7 +32,7 @@ from app.permissions import (
 from app.round_service import apply_override, generate_next_round, next_round_number
 
 api = Blueprint("api", __name__)
-MANAGERS = (Role.OWNER, Role.ADMINISTRATOR)
+MANAGERS = (Role.OWNER, Role.ADMIN)
 
 
 def body():
@@ -155,7 +158,7 @@ def serialize_player(player):
         "created_at": player.created_at.isoformat(),
         "updated_at": player.updated_at.isoformat(),
     }
-    if can_manage_skill():
+    if can_view_skill():
         result["skill"] = player.skill
     return result
 
@@ -296,6 +299,13 @@ def list_players():
 @require_authenticated
 def create_player():
     actor = current_actor()
+    if not can_add_player(actor):
+        raise ApiError(
+            "You do not have permission to add players.",
+            403,
+            "forbidden",
+        )
+        
     data = body()
     name = clean_text(data.get("name"), "name")
     warnings = duplicate_warnings(actor.club_id, name)
@@ -312,7 +322,7 @@ def create_player():
     skill = data.get("skill")
     if not can_manage_skill(actor):
         if "skill" in data:
-            raise ApiError("Users cannot view or set player skill.", 403, "forbidden")
+            raise ApiError("You don't have permission to set player skill.", 403, "forbidden")
         skill = None
     elif skill is not None:
         skill = positive_int(skill, "skill", 10)
@@ -343,7 +353,7 @@ def update_player(player_id):
     player = player_for_club(player_id)
     data = body()
     if "skill" in data and not can_manage_skill(actor):
-        raise ApiError("Users cannot view or set player skill.", 403, "forbidden")
+        raise ApiError("You don't have permission to set player skill.", 403, "forbidden")
     warnings = []
     if "name" in data:
         name = clean_text(data["name"], "name")
@@ -367,13 +377,19 @@ def update_player(player_id):
             None if data["skill"] is None else positive_int(data["skill"], "skill", 10)
         )
     if "active" in data:
+        if not can_delete_player(actor):
+            raise ApiError(
+                "You do not have permission to activate or deactivate players.",
+                403,
+                "forbidden",
+            )
         player.active = parse_bool(data["active"], "active")
     db.session.commit()
     return jsonify({"player": serialize_player(player), "duplicate_warnings": warnings})
 
 
 @api.delete("/players/<player_id>")
-@require_authenticated
+@require_roles(Role.OWNER, Role.ADMIN)
 def deactivate_player(player_id):
     player = player_for_club(player_id)
     player.active = False
