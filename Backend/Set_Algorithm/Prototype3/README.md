@@ -137,6 +137,48 @@ skill gradient) — five in total:
 
 See `tests/` for automated coverage of all five fixes (`pip install -r requirements-dev.txt`, then `python3 -m pytest`).
 
+## PR-review follow-ups (confirmed working as designed, tooling added)
+
+Review of the fixes above raised two observations from a 5-round
+demo run. Both were investigated and confirmed to be the algorithm
+working as designed, not bugs — but each got a follow-up so the same
+question doesn't come up again from raw output alone:
+
+- **"Some players sat out repeatedly."** Confirmed cause:
+  `seed_sit_out_history` seeds each player's starting count independently
+  at random in 0-4, purely for demo purposes (the real system starts
+  everyone at 0 and accrues from actual history). A worst-case seeded gap
+  of 4 needs up to ~4 consecutive sit-outs to close, and a 5-round demo
+  doesn't give that enough runway — not a fairness defect.
+  `tests/test_sitout_prolonged_convergence.py` simulates a realistic
+  prolonged timeframe (20 sessions of 6 rounds = 120 rounds, the same
+  demo-seeding mechanism) and confirms the sit-out *ratio* (not just raw
+  count) converges to within 5% of fair for every player, and that the
+  single worst-case seeded gap (4 vs 0) fully recovers within one
+  6-round session. This is a ratio-language confirmation, not an
+  implementation of the real system's rolling 4-month ratio — that needs
+  persisted cross-session history and belongs in the backend/database,
+  tracked separately as the open  sit-out-ratio contract item.
+- **"Skewed skill diff — a foursome split 3+3 vs 4+5 instead of the
+  fairer 3+4 vs 3+5."** Confirmed cause: `raw_skill_spread` is identical
+  across all 3 splits of a fixed foursome, so it can never itself favour
+  "same-skill partners" — under `mixed_mode=0` with no history, the
+  lowest-diff split is mathematically guaranteed to win. A worse-diff
+  split only gets chosen when a strictly higher-priority criterion
+  (format compliance or social variety) rules the better split out —
+  exactly the tradeoff the team's own priority-ranking doc calls for
+  ("deliberately stops perfect skill-matching if cost is social mixing").
+  Added `explain_split_choice` (`algorithm.py`) so this is checkable
+  instead of a mystery: given a foursome, it reports whether the chosen
+  split compromised skill balance and, if so, which criterion (format or
+  which kind of variety) forced it. See
+  `tests/test_skill_diff_explainability.py` for worked examples of both
+  the unconstrained case and each forcing mechanism. If the team wants a
+  softer tradeoff than the current hard hierarchy, `algorithm_weighted.py`
+  already exists for exactly that (a moderate skill weight can outweigh a
+  small variety cost) — worth a look before changing the lexicographic
+  engine's priority order itself.
+
 ## Known prototype limitations (intentional, out of scope for this pass)
 - Court preferences (priority 6) and "requested number of sets" (priority 7) are not
   implemented — no data for them yet, scored as always-0/disabled per the default preset.
