@@ -463,15 +463,3 @@ def forgot_password():
     )
 
 
-# ---------------------------------------------------------
-# Home
-# ---------------------------------------------------------
-
-@auth_bp.route("/", methods=["GET"])
-def home():
-    form = RegisterForm()
-
-    return render_template(
-        "signup.html",
-        form=form,
-    )
