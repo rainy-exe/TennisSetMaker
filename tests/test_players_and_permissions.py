@@ -45,16 +45,16 @@ def test_distinct_unicode_names_do_not_collapse_to_one_duplicate(client, create_
     assert second.status_code == 201
 
 
-def test_user_cannot_see_or_write_skill_but_can_manage_players(client, set_actor):
+def test_user_can_see_skill_but_cannot_write_skill_or_delete(client, set_actor):
     set_actor(Role.OWNER)
     created = client.post(
         "/api/players", json={"name": "Skilled Player", "gender": "M", "skill": 8}
     ).get_json()["player"]
 
-    set_actor(Role.USER)
+    set_actor(Role.STAFF)
     fetched = client.get(f"/api/players/{created['id']}")
     assert fetched.status_code == 200
-    assert "skill" not in fetched.get_json()["player"]
+    assert fetched.get_json()["player"]["skill"] == 8
     assert (
         client.patch(f"/api/players/{created['id']}", json={"skill": 2}).status_code
         == 403
@@ -65,7 +65,7 @@ def test_user_cannot_see_or_write_skill_but_can_manage_players(client, set_actor
     )
     assert provisional.status_code == 201
     assert provisional.get_json()["player"]["skill_ready"] is False
-    assert "skill" not in provisional.get_json()["player"]
+    assert provisional.get_json()["player"]["skill"] is None
 
 
 def test_club_isolation_returns_not_found(client, create_player, set_actor):

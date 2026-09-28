@@ -10,14 +10,14 @@ def test_court_crud_active_priority_and_permissions(client, set_actor):
     court = created.get_json()["court"]
     assert court["priority"] == 2
 
-    set_actor(Role.USER)
+    set_actor(Role.STAFF)
     assert (
         client.post("/api/courts", json={"number": 4, "court_type": "hard"}).status_code
         == 403
     )
     assert client.get("/api/courts").status_code == 200
 
-    set_actor(Role.ADMINISTRATOR)
+    set_actor(Role.ADMIN)
     updated = client.patch(f"/api/courts/{court['id']}", json={"active": False})
     assert updated.status_code == 200
     assert updated.get_json()["court"]["active"] is False
@@ -51,7 +51,7 @@ def test_template_persistence_and_validation(client, set_actor):
     )
     assert invalid.status_code == 400
 
-    set_actor(Role.USER)
+    set_actor(Role.STAFF)
     assert (
         client.patch(
             f"/api/session-templates/{response.get_json()['session_template']['id']}",
@@ -111,7 +111,7 @@ def test_user_can_create_session_but_provisional_player_is_not_algorithm_eligibl
     client, create_player, set_actor, app
 ):
     players = [create_player() for _ in range(4)]
-    set_actor(Role.USER)
+    set_actor(Role.STAFF)
     provisional = client.post(
         "/api/players", json={"name": "Needs rating", "gender": "F"}
     ).get_json()["player"]
@@ -119,11 +119,11 @@ def test_user_can_create_session_but_provisional_player_is_not_algorithm_eligibl
     court = client.post(
         "/api/courts", json={"number": 1, "court_type": "hard"}
     ).get_json()["court"]
-    set_actor(Role.USER)
+    set_actor(Role.STAFF)
     session = client.post(
         "/api/sessions",
         json={
-            "name": "User session",
+            "name": "STAFF session",
             "starts_at": "2026-09-12T13:00:00",
             "number_of_rounds": 2,
             "round_duration_minutes": 30,

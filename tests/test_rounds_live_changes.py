@@ -156,9 +156,9 @@ def test_completed_round_lock_and_manager_only_reopen(client, session_setup, set
         == 409
     )
 
-    set_actor(Role.USER)
+    set_actor(Role.STAFF)
     assert client.post(f"/api/rounds/{generated['id']}/reopen").status_code == 403
-    set_actor(Role.ADMINISTRATOR)
+    set_actor(Role.ADMIN)
     assert client.post(f"/api/rounds/{generated['id']}/reopen").status_code == 200
     assert (
         client.put(f"/api/rounds/{generated['id']}/final", json=payload).status_code
