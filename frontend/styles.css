@@ -2178,22 +2178,22 @@ select {
 .login-body {
   min-height: 100vh;
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin: 0;
+  padding: 0;
 
-  padding: 40px;
-
-  background: var(--bg);
+  background: white;
 }
 
 .login-page {
   width: 100%;
-  max-width: 1100px;
+  min-height: 100vh;
+
+  max-width: none;
 }
 
 .login-card {
-  min-height: 650px;
+  width: 100%;
+  min-height: 100vh;
 
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2202,10 +2202,9 @@ select {
 
   background: white;
 
-  border: 1px solid var(--border);
-  border-radius: 16px;
-
-  box-shadow: 0 8px 30px rgba(20, 30, 25, 0.08);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 
