@@ -2128,3 +2128,45 @@ select {
   }
 
 }
+
+/* =========================
+   LANDING CALL TO ACTION
+========================= */
+
+.landing-cta {
+  padding: 42px 20px;
+
+  text-align: center;
+
+  background: var(--green);
+  color: white;
+}
+
+.landing-cta h2 {
+  margin: 0 0 8px;
+
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.landing-cta p {
+  margin: 0 0 20px;
+
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cta-button {
+  min-width: 145px;
+
+  background: white;
+  color: var(--green-dark);
+
+  border-color: white;
+
+  font-weight: 700;
+}
+
+.cta-button:hover {
+  background: #f4f7f4;
+}
