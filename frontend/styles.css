@@ -2170,3 +2170,112 @@ select {
 .cta-button:hover {
   background: #f4f7f4;
 }
+
+/* =========================
+   LOGIN PAGE
+========================= */
+
+.login-body {
+  min-height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 40px;
+
+  background: var(--bg);
+}
+
+.login-page {
+  width: 100%;
+  max-width: 1100px;
+}
+
+.login-card {
+  min-height: 650px;
+
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+
+  overflow: hidden;
+
+  background: white;
+
+  border: 1px solid var(--border);
+  border-radius: 16px;
+
+  box-shadow: 0 8px 30px rgba(20, 30, 25, 0.08);
+}
+
+
+/* Left image */
+
+.login-image {
+  position: relative;
+
+  background-image: url("assets/tennis-hero.png");
+  background-size: cover;
+  background-position: center;
+}
+
+.login-image-overlay {
+  position: absolute;
+  inset: 0;
+
+  background: linear-gradient(180deg,
+      rgba(9, 33, 20, 0.15),
+      rgba(9, 33, 20, 0.75));
+}
+
+.login-image-content {
+  position: relative;
+  z-index: 1;
+
+  height: 100%;
+
+  padding: 34px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  color: white;
+}
+
+.login-image-content .landing-brand {
+  color: white;
+}
+
+.login-image-text {
+  max-width: 380px;
+}
+
+.login-image-text h2 {
+  margin: 0 0 10px;
+
+  font-size: 34px;
+  font-weight: 800;
+}
+
+.login-image-text p {
+  margin: 0;
+
+  font-size: 15px;
+  line-height: 1.6;
+
+  color: rgba(255, 255, 255, 0.85);
+}
+
+
+/* Right panel */
+
+.login-panel {
+  padding: 60px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  background: white;
+}
