@@ -13,123 +13,145 @@
 <body class="login-body">
 
     <main class="login-page">
-        <main class="login-page">
 
-            <!-- Login Card -->
-            <div class="login-card">
+        <!-- Login Card -->
+        <div class="login-card">
 
-                <!-- Left Image -->
-                <section class="login-image">
+            <!-- Left Image -->
+            <section class="login-image">
 
-                    <div class="login-image-overlay"></div>
+                <div class="login-image-overlay"></div>
 
-                    <div class="login-image-content">
+                <div class="login-image-content">
 
-                        <div class="landing-brand">
+                    <!-- SetMaker Brand -->
+                    <div class="landing-brand">
 
-                            <div class="logo-mark">
-                                S
-                            </div>
-
-                            <span>SetMaker</span>
-
+                        <div class="logo-mark">
+                            S
                         </div>
 
-                        <div class="login-image-text">
-
-                            <h2>
-                                Welcome Back
-                            </h2>
-
-                            <p>
-                                Log in to continue creating and managing tennis sessions.
-                            </p>
-
-                        </div>
+                        <span>SetMaker</span>
 
                     </div>
 
-                </section>
+
+                    <!-- Image Text -->
+                    <div class="login-image-text">
+
+                        <h2>
+                            Welcome Back
+                        </h2>
+
+                        <p>
+                            Log in to continue creating and managing tennis sessions.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </section>
 
 
-                <!-- Right Login Panel -->
-                <section class="login-panel">
-                    <section class="login-panel">
+            <!-- Right Login Panel -->
+            <section class="login-panel">
 
-                        <div class="login-form-wrap">
-                            <a href="main.html" class="back-home">
-                                ← Back to SetMaker
-                            </a>
-                            <h1>
-                                Log In
-                            </h1>
+                <div class="login-form-wrap">
 
-                            <p class="login-subtitle">
-                                Enter your details to access your account.
-                            </p>
+                    <!-- Back to Main Page -->
+                    <a href="main.html" class="back-home">
+                        ← Back to SetMaker
+                    </a>
 
 
-                            <form>
+                    <h1>
+                        Log In
+                    </h1>
 
-                                <!-- Email -->
-                                <div class="field">
-
-                                    <label for="email">
-                                        Email
-                                    </label>
-
-                                    <input type="email" id="email" name="email" class="input"
-                                        placeholder="you@example.com">
-
-                                </div>
+                    <p class="login-subtitle">
+                        Enter your details to access your account.
+                    </p>
 
 
-                                <!-- Password -->
-                                <div class="field">
+                    <!-- Login Form -->
+                    <form action="dashboard.html">
 
-                                    <label for="password">
-                                        Password
-                                    </label>
+                        <!-- Email -->
+                        <div class="field">
 
-                                    <input type="password" id="password" name="password" class="input"
-                                        placeholder="Enter your password">
+                            <label for="email">
+                                Email
+                            </label>
 
-                                </div>
-
-
-                                <!-- Options -->
-                                <div class="login-options">
-
-                                    <label class="remember-me">
-
-                                        <input type="checkbox" name="rememberMe">
-
-                                        Remember me
-
-                                    </label>
-
-                                    <a href="#">
-                                        Forgot password?
-                                    </a>
-
-                                </div>
-
-
-                                <!-- Login Button -->
-                                <button type="submit" class="btn btn-primary login-submit">
-                                    Log In
-                                </button>
-
-                            </form>
+                            <input
+                                type="email"
+                                id="email"
+                                name="email"
+                                class="input"
+                                placeholder="you@example.com"
+                                required
+                            >
 
                         </div>
 
-                    </section>
-                </section>
 
-            </div>
+                        <!-- Password -->
+                        <div class="field">
 
-        </main>
+                            <label for="password">
+                                Password
+                            </label>
+
+                            <input
+                                type="password"
+                                id="password"
+                                name="password"
+                                class="input"
+                                placeholder="Enter your password"
+                                required
+                            >
+
+                        </div>
+
+
+                        <!-- Login Options -->
+                        <div class="login-options">
+
+                            <label class="remember-me">
+
+                                <input
+                                    type="checkbox"
+                                    name="rememberMe"
+                                >
+
+                                Remember me
+
+                            </label>
+
+                            <a href="#">
+                                Forgot password?
+                            </a>
+
+                        </div>
+
+
+                        <!-- Login Button -->
+                        <button
+                            type="submit"
+                            class="btn btn-primary login-submit"
+                        >
+                            Log In
+                        </button>
+
+                    </form>
+
+                </div>
+
+            </section>
+
+        </div>
+
     </main>
 
 </body>
