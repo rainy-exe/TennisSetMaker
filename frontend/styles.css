@@ -2016,3 +2016,115 @@ select {
   width: 24px;
   height: 24px;
 }
+
+/* =========================
+   HOW IT WORKS
+========================= */
+
+.how-it-works {
+  padding: 60px 70px 70px;
+
+  background: var(--bg);
+
+  text-align: center;
+}
+
+.how-it-works h2 {
+  margin: 0 0 38px;
+
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.steps-grid {
+  max-width: 980px;
+
+  margin: 0 auto;
+
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+
+  gap: 28px;
+}
+
+.step-card {
+  position: relative;
+
+  padding: 38px 26px 28px;
+
+  background: white;
+
+  border: 1px solid var(--border);
+  border-radius: 12px;
+
+  box-shadow: var(--shadow);
+}
+
+.step-number {
+  position: absolute;
+
+  top: -17px;
+  left: 50%;
+
+  transform: translateX(-50%);
+
+  width: 34px;
+  height: 34px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: var(--green);
+  color: white;
+
+  font-weight: 800;
+}
+
+.step-icon {
+  width: 50px;
+  height: 50px;
+
+  margin: 4px auto 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.step-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.step-card h3 {
+  margin: 0 0 9px;
+
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.step-card p {
+  margin: 0;
+
+  color: var(--muted);
+
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+@media (max-width: 850px) {
+
+  .steps-grid {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+
+}
