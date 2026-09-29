@@ -708,11 +708,11 @@ select {
   transition: 0.2s;
 }
 
-.switch input:checked + .slider {
+.switch input:checked+.slider {
   background: var(--green);
 }
 
-.switch input:checked + .slider:before {
+.switch input:checked+.slider:before {
   transform: translateX(20px);
 }
 
@@ -1193,6 +1193,7 @@ select {
 }
 
 @media (max-width: 560px) {
+
   .dashboard-stats,
   .active-stats,
   .two-col {
@@ -1770,142 +1771,141 @@ select {
   align-items: flex-start;
   gap: 4px;
 }
+
 /* =========================
    LANDING PAGE
 ========================= */
 
 .landing-body {
-    margin: 0;
-    min-height: 100vh;
-    background: var(--bg);
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
 }
 
 .landing-header {
-    height: 78px;
-    padding: 0 52px;
+  height: 78px;
+  padding: 0 52px;
 
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 
-    background: white;
-    border-bottom: 1px solid var(--border-soft);
+  background: white;
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .landing-brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 
-    font-size: 18px;
-    font-weight: 800;
-    color: #173f21;
+  font-size: 18px;
+  font-weight: 800;
+  color: #173f21;
 }
 
 .landing-brand .logo-mark {
-    width: 30px;
-    height: 30px;
+  width: 30px;
+  height: 30px;
 }
 
 .landing-nav {
-    display: flex;
-    align-items: center;
-    gap: 34px;
+  display: flex;
+  align-items: center;
+  gap: 34px;
 }
 
 .landing-nav a {
-    color: var(--text);
-    font-size: 12px;
-    font-weight: 600;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .landing-nav a:hover {
-    color: var(--green);
+  color: var(--green);
 }
 
 .landing-actions {
-    display: flex;
-    gap: 10px;
+  display: flex;
+  gap: 10px;
 }
 
 
 /* Hero */
 
 .hero-section {
-    position: relative;
+  position: relative;
 
-    min-height: 620px;
+  min-height: 620px;
 
-    display: flex;
-    align-items: center;
+  display: flex;
+  align-items: center;
 
-    background-image: url("assets/tennis-hero.png");
-    background-size: cover;
-    background-position: center;
+  background-image: url("assets/tennis-hero.png");
+  background-size: cover;
+  background-position: center;
 }
 
 .hero-overlay {
-    position: absolute;
-    inset: 0;
+  position: absolute;
+  inset: 0;
 
-    background: linear-gradient(
-        90deg,
-        rgba(10, 30, 20, 0.82) 0%,
-        rgba(10, 30, 20, 0.55) 40%,
-        rgba(10, 30, 20, 0.08) 75%
-    );
+  background: linear-gradient(90deg,
+      rgba(10, 30, 20, 0.82) 0%,
+      rgba(10, 30, 20, 0.55) 40%,
+      rgba(10, 30, 20, 0.08) 75%);
 }
 
 .hero-content {
-    position: relative;
-    z-index: 1;
+  position: relative;
+  z-index: 1;
 
-    max-width: 600px;
+  max-width: 600px;
 
-    padding-left: 80px;
+  padding-left: 80px;
 
-    color: white;
+  color: white;
 }
 
 .hero-content h1 {
-    margin: 0;
+  margin: 0;
 
-    font-size: 54px;
-    line-height: 1.05;
-    letter-spacing: -1.5px;
-    font-weight: 800;
+  font-size: 54px;
+  line-height: 1.05;
+  letter-spacing: -1.5px;
+  font-weight: 800;
 }
 
 .hero-content p {
-    max-width: 480px;
+  max-width: 480px;
 
-    margin: 22px 0 28px;
+  margin: 22px 0 28px;
 
-    font-size: 18px;
-    line-height: 1.6;
+  font-size: 18px;
+  line-height: 1.6;
 
-    color: rgba(255, 255, 255, 0.88);
+  color: rgba(255, 255, 255, 0.88);
 }
 
 .hero-actions {
-    display: flex;
-    gap: 12px;
+  display: flex;
+  gap: 12px;
 }
 
 .hero-btn {
-    min-width: 130px;
+  min-width: 130px;
 }
 
 .hero-secondary {
-    min-width: 120px;
+  min-width: 120px;
 
-    color: white;
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.65);
+  color: white;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.65);
 }
 
 .hero-secondary:hover {
-    background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 
@@ -1913,45 +1913,106 @@ select {
 
 @media (max-width: 850px) {
 
-    .landing-header {
-        padding: 0 20px;
-    }
+  .landing-header {
+    padding: 0 20px;
+  }
 
-    .landing-nav {
-        display: none;
-    }
+  .landing-nav {
+    display: none;
+  }
 
-    .hero-section {
-        min-height: 560px;
-    }
+  .hero-section {
+    min-height: 560px;
+  }
 
-    .hero-content {
-        padding: 40px 24px;
-    }
+  .hero-content {
+    padding: 40px 24px;
+  }
 
-    .hero-content h1 {
-        font-size: 40px;
-    }
+  .hero-content h1 {
+    font-size: 40px;
+  }
 
-    .hero-content p {
-        font-size: 16px;
-    }
+  .hero-content p {
+    font-size: 16px;
+  }
 
 }
 
 @media (max-width: 560px) {
 
-    .landing-actions .btn:first-child {
-        display: none;
-    }
+  .landing-actions .btn:first-child {
+    display: none;
+  }
 
-    .hero-content h1 {
-        font-size: 34px;
-    }
+  .hero-content h1 {
+    font-size: 34px;
+  }
 
-    .hero-actions {
-        flex-direction: column;
-        align-items: flex-start;
-    }
+  .hero-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 
+}
+
+/* =========================
+   LANDING FEATURES
+========================= */
+
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+
+  gap: 30px;
+
+  padding: 48px 70px;
+
+  background: white;
+}
+
+.feature-item {
+  text-align: center;
+}
+
+.feature-icon {
+  width: 52px;
+  height: 52px;
+
+  margin: 0 auto 14px;
+
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: var(--green-soft);
+  color: var(--green);
+
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.feature-item h3 {
+  margin: 0 0 8px;
+
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.feature-item p {
+  margin: 0 auto;
+
+  max-width: 190px;
+
+  color: var(--muted);
+
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.feature-icon svg {
+  width: 24px;
+  height: 24px;
 }
