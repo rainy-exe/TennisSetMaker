@@ -2353,3 +2353,343 @@ select {
 .back-home:hover {
   text-decoration: underline;
 }
+
+/* =========================
+   ACCOUNTS PAGE
+========================= */
+
+.accounts-main {
+  padding-top: 38px;
+}
+
+
+/* Search and filters */
+
+.account-filters {
+  margin-bottom: 22px;
+  padding: 16px 18px;
+
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) 190px 190px auto;
+
+  gap: 18px;
+  align-items: end;
+}
+
+.account-search {
+  position: relative;
+}
+
+.account-search .input {
+  padding-left: 40px;
+}
+
+.account-search-icon {
+  position: absolute;
+
+  left: 14px;
+  top: 50%;
+
+  transform: translateY(-50%);
+
+  color: var(--muted);
+
+  font-size: 20px;
+
+  pointer-events: none;
+}
+
+.account-filter-field label {
+  display: block;
+
+  margin-bottom: 6px;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  color: #575e64;
+}
+
+
+/* =========================
+   TABLE
+========================= */
+
+.accounts-table-card {
+  overflow: hidden;
+}
+
+.accounts-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.accounts-table {
+  width: 100%;
+
+  border-collapse: collapse;
+
+  background: white;
+}
+
+.accounts-table th {
+  height: 48px;
+
+  padding: 0 18px;
+
+  text-align: left;
+
+  border-bottom: 1px solid var(--border);
+
+  color: #626971;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+
+.accounts-table td {
+  height: 57px;
+
+  padding: 0 18px;
+
+  border-bottom: 1px solid var(--border-soft);
+
+  font-size: 11px;
+
+  vertical-align: middle;
+}
+
+.accounts-table tbody tr:hover {
+  background: #fafbfb;
+}
+
+.account-actions-heading {
+  text-align: right !important;
+}
+
+
+/* =========================
+   ACCOUNT PERSON
+========================= */
+
+.account-person {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+}
+
+.account-avatar {
+  width: 32px;
+  height: 32px;
+
+  flex: 0 0 32px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 50%;
+
+  background: var(--green-soft);
+  color: var(--green-dark);
+
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.account-name {
+  font-weight: 700;
+
+  color: var(--text);
+}
+
+
+/* =========================
+   ROLE BADGES
+========================= */
+
+.account-role {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 25px;
+
+  padding: 0 11px;
+
+  border-radius: 999px;
+
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.account-role.owner {
+  background: #fff3d5;
+  color: #946500;
+}
+
+.account-role.admin {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
+.account-role.staff {
+  background: #eee8ff;
+  color: #6540c9;
+}
+
+
+/* =========================
+   STATUS BADGES
+========================= */
+
+.account-status {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 6px;
+
+  min-height: 25px;
+
+  padding: 0 11px;
+
+  border-radius: 999px;
+
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.account-status::before {
+  content: "";
+
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+}
+
+.account-status.active {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
+.account-status.active::before {
+  background: var(--green);
+}
+
+.account-status.pending {
+  background: #fff5d9;
+  color: #9a6a00;
+}
+
+.account-status.pending::before {
+  background: #d99a00;
+}
+
+.account-status.disabled {
+  background: #ffe7e7;
+  color: #c93434;
+}
+
+.account-status.disabled::before {
+  background: #e13e3e;
+}
+
+
+/* =========================
+   ACTION BUTTON
+========================= */
+
+.account-menu-button {
+  width: 32px;
+  height: 32px;
+
+  border: 1px solid var(--border);
+
+  border-radius: 7px;
+
+  background: white;
+
+  cursor: pointer;
+
+  font-size: 18px;
+  line-height: 1;
+}
+
+.account-menu-button:hover {
+  background: #f6f7f8;
+}
+
+
+/* =========================
+   EMPTY STATE
+========================= */
+
+.accounts-empty {
+  padding: 38px;
+
+  text-align: center;
+
+  color: var(--muted);
+
+  font-size: 12px;
+}
+
+
+/* =========================
+   FOOTER / PAGINATION
+========================= */
+
+.accounts-table-footer {
+  min-height: 66px;
+
+  padding: 0 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  color: var(--muted);
+
+  font-size: 10px;
+}
+
+.account-pagination {
+  display: flex;
+
+  gap: 7px;
+}
+
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 1000px) {
+
+  .account-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .account-search {
+    grid-column: 1 / -1;
+  }
+
+}
+
+@media (max-width: 650px) {
+
+  .account-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .account-search {
+    grid-column: auto;
+  }
+
+  .accounts-table-footer {
+    gap: 20px;
+  }
+
+}
