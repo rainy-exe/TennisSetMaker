@@ -1,83 +1,59 @@
 # CITS3200-Group 5-TennisSetMaker-Project
 
-
 ## Team Members
 
 | UWA ID | Name | Github Username |
 |--------|------|----------------|
-| 23887375 | Kate Fu | Kateefu |
+| 23887375 | Kate Fu | KateeFu |
 | 23958717 | Rai Levinson | rainy-exe |
 | 23993135 | Kimi Chong | KimiChong |
 | 24220855 | Eric Townsend | yamato1327 |
 | 24470644 | Lena Nguyen | lenanguyen401 |
 | 24623266 | Zongrui Ma | Wssb6662333 |
 
-## Getting Started
+## Getting started
 
-All users are expected to use the latest stable version of Python to run the application and execute the testing procedures.
+Use Python 3.11 or newer; the backend has been tested with Python 3.12.
+The integration changes are on `backend-integration-followups`, not necessarily
+on `main` or your current feature branch.
 
-## How to run the app in VScode
-** 1. Make sure VS Code opened the repository folder
-```bash
-pwd
-```
-** 2. Create a Virtual Environment in VSCode
-```bash
-python3 -m venv venv
-```
-** 3. Activate the Virtual Environment
-```bash
-source venv/bin/activate
-```
-** 4. Install dependencies
-```bash
-pip install -r requirements.txt
-```
-5. ...
+- [Run the backend and a synthetic session demo](Documents/backend-quickstart.md)
+- [Frontend API guide: login, CSRF, permissions and session requests](Documents/backend-session-api.md)
+- [Algorithm adapter contract for Rai/Eric](Documents/backend-algorithm-contract.md)
+- [Backend integration notes and remaining dependencies](Documents/backend-integration-followups.md)
 
-## Session-management backend
+Start the persistent backend through **`run.py`**, which uses Kate's Flask
+factory. The root `app.py` is an older CSV/in-memory demo and is not this API.
+Login already connects Kate's accounts and roles to the session backend.
+Prototype3 is bundled; a separate algorithm export is not needed.
 
-The Players, Courts, Session Configuration, Live Changes, Round Persistence,
-and Manual Override API is documented in
-[`Documents/backend-session-api.md`](Documents/backend-session-api.md).
-For a Bash-based copy-and-run team demo, use
-[`Documents/backend-quickstart.md`](Documents/backend-quickstart.md).
+Before using an existing database, back it up and read the migration notes.
+Old populated pre-Accounts databases need a real club/user mapping; the migration
+refuses unsafe conversion rather than inventing accounts. Do not delete data to
+bypass this check.
 
-Before using a persistent database, run:
+## Backend checks
+
+After activating the virtual environment:
 
 ```bash
-flask --app run.py db upgrade
-```
-
-Protected API routes require the Accounts/Club integration to configure a
-`CURRENT_ACTOR_PROVIDER`. The matching adapter can be pointed at the team's
-Prototype3 checkout with `TENNIS_ALGORITHM_PATH`.
-
-For backend development and tests, install `requirements-dev.txt`, then run:
-
-```bash
+python -m pip install -r requirements-dev.txt
 python -m pytest
-ruff check app tests migrations/versions
+python -m flask --app run.py db check
 ```
 
+`db check` needs an upgraded database. Ruff is available through the development
+requirements (`python -m ruff check app tests migrations/versions`); existing
+lint findings are separate from the test results.
 
-## How to makesure your repository is up-to-date
-** 1. Branch Check - check which branch you are in
-```bash
-git branch
-```
-** 2. Check whether you have any local changes
+## Before updating a checkout
+
 ```bash
 git status
+git branch --show-current
+git fetch origin
 ```
-** 3. Update your local main
-```bash
-git pull origin main
-```
-Make sure you see: Already up to date.
 
-** 4. Update dependencies to the newest version
-```bash
-pip install -r requirements.txt
-```
-If there's any depency is needed to update, follow the procedures.
+Fetching does not merge branches. Keep local changes and coordinate integration
+before switching or merging. In particular, do not run `git pull origin main`
+from a teammate's feature branch just to update it.

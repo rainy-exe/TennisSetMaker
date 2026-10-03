@@ -1,209 +1,179 @@
 # Backend quick start
 
-Use Git Bash on Windows or Terminal on macOS. This guide runs the existing
-backend and its main session flow.
+Branch: `backend-integration-followups`. Python 3.11+ (tested: 3.12).
+Use a separate checkout if you have local work; no branch merge is needed.
 
-## 1. Set up
+## 1. Set up a separate checkout
 
 ```bash
-git fetch origin
-git switch backend-session-management
+git clone --branch backend-integration-followups --single-branch https://github.com/rainy-exe/TennisSetMaker.git TennisSetMaker-backend-test
+cd TennisSetMaker-backend-test
+```
 
-PYTHON=python3
-command -v "$PYTHON" >/dev/null 2>&1 || PYTHON=python
-"$PYTHON" -m venv .venv
+Already on this branch? Skip the clone. Private-repo access is required.
 
+Git Bash on Windows or Terminal on macOS/Linux:
+
+```bash
+python3 -m venv .venv  # use python instead if that is your Python 3 command
 if [ -f .venv/Scripts/activate ]; then
   source .venv/Scripts/activate
 else
   source .venv/bin/activate
 fi
-
 python -m pip install -r requirements.txt
-export DATABASE_URL="sqlite:///quickstart-$(date +%s).db"
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+export DATABASE_URL="sqlite:///quickstart-$(python -c 'import uuid; print(uuid.uuid4().hex)').db"
 python -m flask --app run.py db upgrade
+python -m flask --app run.py run --host 127.0.0.1 --port 5000
 ```
 
-Prototype3 is currently on `main`. Keep it in a separate worktree; do not
-merge it into this branch.
+PowerShell alternative, from the same repository folder:
 
-```bash
-if [ ! -d ../TennisSetMaker-main ]; then
-  git worktree add ../TennisSetMaker-main origin/main
-fi
-export TENNIS_ALGORITHM_PATH="$(cd ../TennisSetMaker-main/Backend/Set_Algorithm/Prototype3 && pwd)"
+```powershell
+python -m venv .venv
+# Using the interpreter directly does not need script execution-policy changes.
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+$env:SECRET_KEY = & .\.venv\Scripts\python.exe -c "import secrets; print(secrets.token_hex(32))"
+$env:DATABASE_URL = "sqlite:///quickstart-$([guid]::NewGuid().ToString('N')).db"
+.\.venv\Scripts\python.exe -m flask --app run.py db upgrade
+.\.venv\Scripts\python.exe -m flask --app run.py run --host 127.0.0.1 --port 5000
 ```
 
-## 2. Start the local API
+- Keep this terminal open. The commands create a fresh database under `instance`.
+  Back up existing data and check [migration safety](backend-integration-followups.md#migration-safety)
+  before upgrading a populated database; do not delete it to bypass migration checks.
+- Use `run.py`, not root `app.py`. Prototype3 is bundled; no export/path setup needed.
+- Keep `SECRET_KEY` stable across restarts; never commit secrets or deploy the default.
+- The demo assumes local registration without reCAPTCHA configured. If configured,
+  registration also needs a valid `recaptcha_token`.
 
-Until Accounts is connected, use this local-only Owner. Do not deploy this
-development actor.
+## 2. Run a session through the API
 
-```bash
-export PYTHONDONTWRITEBYTECODE=1
-python -c 'from app import create_app; from app.permissions import CurrentActor, Role; app=create_app({"CURRENT_ACTOR_PROVIDER": lambda: CurrentActor("demo-owner", "demo-club", Role.OWNER)}); app.run(debug=False)'
-```
+Activate the same environment in a second terminal. Save the Python block below
+as a local script **outside the repository**, then run `python path/to/demo.py`
+(or `.\.venv\Scripts\python.exe path/to/demo.py` in PowerShell). In Git Bash,
+you can instead wrap the block with `python - <<'PY'` and a closing `PY`.
 
-Keep this terminal open. Activate the same virtual environment in a second
-terminal, then run the next block.
+The demo uses real login/cookies/CSRF and synthetic data. It checks saved pairing
+and sit-out changes, reload, late arrival, early departure and round two.
+Run only against a local test server.
 
-## 3. Run the session flow
+<details>
+<summary>Full Python demo (click to expand)</summary>
 
-This creates players, courts, a template and a session. It then generates a
-round, changes a pairing, completes the round, records player availability
-changes and generates the next round.
-
-```bash
-python - <<'PY'
+```python
+import copy
 import json
+import os
+import secrets
 from datetime import datetime
-from urllib.request import Request, urlopen
+from http.cookiejar import CookieJar
+from urllib.request import HTTPCookieProcessor, Request, build_opener
+from uuid import uuid4
 
-
-BASE = "http://127.0.0.1:5000/api"
+BASE = os.environ.get("SETMAKER_URL", "http://127.0.0.1:5000")
+client = build_opener(HTTPCookieProcessor(CookieJar()))
 
 
 def call(method, path, body=None):
-    data = None if body is None else json.dumps(body).encode()
+    headers = {"Content-Type": "application/json"}
+    if method not in {"GET", "HEAD"}:
+        # Fetch before each write so login's rotated session is handled too.
+        headers["X-CSRFToken"] = call("GET", "/csrf-token")["csrf_token"]
     request = Request(
         BASE + path,
-        data=data,
+        data=None if body is None else json.dumps(body).encode(),
+        headers=headers,
         method=method,
-        headers={"Content-Type": "application/json"},
     )
-    with urlopen(request) as response:
-        if response.status == 204:
-            return None
-        return json.load(response)
+    with client.open(request, timeout=30) as response:
+        return None if response.status == 204 else json.load(response)
 
 
-player_data = [
-    ("Alex", "M", 5),
-    ("Ben", "M", 6),
-    ("Chris", "M", 4),
-    ("David", "M", 5),
-    ("Emma", "F", 5),
-    ("Fiona", "F", 6),
-    ("Grace", "F", 4),
-    ("Helen", "F", 5),
-]
+email = f"demo-{uuid4().hex}@example.invalid"
+password = secrets.token_urlsafe(24)
+call("POST", "/register", {
+    "email": email, "password": password, "club_name": "Synthetic demo club"
+})
+client = build_opener(HTTPCookieProcessor(CookieJar()))
+account = call("POST", "/login", {"email": email, "password": password})
+assert account["user"]["role"] == "owner"
+assert call("GET", "/check-session")["logged_in"]
+
+names = ["Alex", "Ben", "Chris", "David", "Emma", "Fiona", "Grace", "Helen", "Iris"]
 players = [
-    call("POST", "/players", {"name": name, "gender": gender, "skill": skill})["player"]
-    for name, gender, skill in player_data
+    call("POST", "/api/players", {
+        "name": name, "gender": "M" if index < 4 else "F", "skill": 5
+    })["player"]
+    for index, name in enumerate(names)
 ]
-
-court1 = call(
-    "POST", "/courts", {"number": 1, "court_type": "hard", "priority": 0}
-)["court"]
-court2 = call(
-    "POST", "/courts", {"number": 2, "court_type": "hard", "priority": 1}
-)["court"]
-
-template = call(
-    "POST",
-    "/session-templates",
-    {
-        "name": "Saturday Social",
-        "number_of_rounds": 6,
-        "session_duration_minutes": 180,
-        "round_duration_minutes": 30,
-        "start_time": "13:00",
-        "round_format": "open",
-        "strict_format": False,
-        "tea_break_after_round": 3,
-        "court_ids": [court1["id"], court2["id"]],
-    },
-)["session_template"]
-
-session = call(
-    "POST",
-    "/sessions",
-    {
-        "name": "Saturday Social Demo",
-        "starts_at": datetime.now().replace(microsecond=0).isoformat(),
-        "template_id": template["id"],
-        "player_ids": [player["id"] for player in players],
-    },
-)["session"]
-
-round1 = call("POST", f"/sessions/{session['id']}/rounds/generate")["round"]
-generated_before = round1["generated"]
-
-# Manual override: swap one player between the two courts.
-first = round1["final"]["assignments"][0]
-second = round1["final"]["assignments"][1]
+courts = [
+    call("POST", "/api/courts", {
+        "number": number, "court_type": "hard", "priority": number - 1
+    })["court"]
+    for number in (1, 2)
+]
+template = call("POST", "/api/session-templates", {
+    "name": "Saturday Social", "number_of_rounds": 6,
+    "session_duration_minutes": 180, "round_duration_minutes": 30,
+    "start_time": "13:00", "round_format": "open", "strict_format": False,
+    "tea_break_after_round": 3, "court_ids": [court["id"] for court in courts]
+})["session_template"]
+session = call("POST", "/api/sessions", {
+    "name": "Saturday demo", "template_id": template["id"],
+    "starts_at": datetime.now().replace(microsecond=0).isoformat(),
+    "player_ids": [player["id"] for player in players]
+})["session"]
+round1 = call("POST", f"/api/sessions/{session['id']}/rounds/generate")["round"]
+original = copy.deepcopy(round1["generated"])
+final = copy.deepcopy(round1["final"])
+first, second = final["assignments"]
 first["team_a_player_ids"][1], second["team_a_player_ids"][1] = (
-    second["team_a_player_ids"][1],
-    first["team_a_player_ids"][1],
+    second["team_a_player_ids"][1], first["team_a_player_ids"][1]
 )
-round1 = call(
-    "PUT",
-    f"/rounds/{round1['id']}/final",
-    {
-        "assignments": round1["final"]["assignments"],
-        "sit_out_player_ids": round1["final"]["sit_out_player_ids"],
-    },
-)["round"]
-assert round1["generated"] == generated_before
-call("POST", f"/rounds/{round1['id']}/complete")
-
-late = call(
-    "POST", "/players", {"name": "Late Player", "gender": "F", "skill": 5}
-)["player"]
-call("POST", f"/sessions/{session['id']}/players", {"player_id": late["id"]})
-call(
-    "PATCH",
-    f"/sessions/{session['id']}/players/{players[0]['id']}",
-    {"reason": "Left early"},
+first["team_a_player_ids"][0], final["sit_out_player_ids"][0] = (
+    final["sit_out_player_ids"][0], first["team_a_player_ids"][0]
 )
-round2 = call("POST", f"/sessions/{session['id']}/rounds/generate")["round"]
+saved = call("PUT", f"/api/rounds/{round1['id']}/final", final)["round"]
+reloaded = call("GET", f"/api/rounds/{round1['id']}")["round"]
+assert reloaded["final"] == saved["final"]
+assert reloaded["generated"] == original
+assert reloaded["override_revision"] == 1
+call("POST", f"/api/rounds/{round1['id']}/complete")
 
+late = call("POST", "/api/players", {
+    "name": "Late Player", "gender": "F", "skill": 5
+})["player"]
+call("POST", f"/api/sessions/{session['id']}/players", {"player_id": late["id"]})
+departed = first["team_a_player_ids"][0]
+call("PATCH", f"/api/sessions/{session['id']}/players/{departed}", {
+    "reason": "Left early"
+})
+round2 = call("POST", f"/api/sessions/{session['id']}/rounds/generate")["round"]
 statuses = {item["player_id"]: item["status"] for item in round2["eligibility"]}
-print(
-    json.dumps(
-        {
-            "session_id": session["id"],
-            "rounds_generated": [round1["number"], round2["number"]],
-            "generated_result_preserved": round1["generated"] == generated_before,
-            "late_player": statuses[late["id"]],
-            "departed_player": statuses[players[0]["id"]],
-        },
-        indent=2,
-    )
-)
-PY
+assert statuses[late["id"]] == "eligible"
+assert statuses[departed] == "unavailable"
+assigned = [
+    player_id for assignment in round2["final"]["assignments"]
+    for team in ("team_a_player_ids", "team_b_player_ids")
+    for player_id in assignment[team]
+] + round2["final"]["sit_out_player_ids"]
+assert departed not in assigned
+assert len(assigned) == len(set(assigned)) == 9
+assert len(call("GET", f"/api/sessions/{session['id']}")["session"]["rounds"]) == 2
+print("OK: login, saved pairing/sit-out override, reload, late arrival and next round")
 ```
 
-Keep the stable IDs returned by the API. Never use player names as IDs.
+</details>
 
-## 4. Connect Accounts and the frontend
+Do not use private ratings CSV data. Demo credentials are generated, not printed or committed.
 
-Accounts only needs to provide the logged-in actor:
+## 3. Connect your part
 
-```python
-from app.permissions import CurrentActor, Role
+- **Kimi/Lena:** [API guide](backend-session-api.md) — login/CSRF, routes, final-round flow.
+- **Rai/Eric:** [adapter contract](backend-algorithm-contract.md) — IDs, actual history, ratio/courts.
 
-# Import current_user from the team's authentication implementation.
-
-
-def current_actor_provider():
-    return CurrentActor(
-        actor_id=str(current_user.id),
-        club_id=str(current_user.club_id),
-        role=Role(current_user.role),
-    )
-
-
-app.config["CURRENT_ACTOR_PROVIDER"] = current_actor_provider
-```
-
-The frontend should call the `/api` routes. Run
-`python -m flask --app run.py db upgrade` when a migration is added. Do not
-write to these tables directly from frontend or Accounts code.
-
-The private ratings CSV is not loaded automatically and must not be committed.
-Create players through `POST /api/players`; review duplicate warnings before
-using `confirm_duplicate: true`.
-
-See [`backend-session-api.md`](backend-session-api.md) for the route list,
-permissions and integration boundaries.
+For backend checks, install `requirements-dev.txt` in the same environment, then
+run `python -m pytest` and `python -m flask --app run.py db check` with the same
+`DATABASE_URL` used for the upgrade.
