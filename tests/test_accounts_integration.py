@@ -10,162 +10,6 @@ from app.extensions import db
 from app.models import Club, Invitation, Round, User
 
 
-def test_management_pages_use_real_club_data_and_stable_ids(real_app):
-    owner = real_app.test_client()
-    register(owner)
-    for path in ("/players", "/courts", "/templates", "/accounts", "/sessions/create"):
-        response = owner.get(path)
-        assert response.status_code == 200, (path, response.data)
-        assert response.headers["Cache-Control"] == "no-store"
-    assert owner.get("/frontend/styles.css").status_code == 200
-    assert owner.get("/frontend/../app/config.py").status_code == 404
-    player = write(
-        owner,
-        "POST",
-        "/api/players",
-        {
-            "name": '<script>alert("synthetic")</script>',
-            "gender": "F",
-            "skill": 10,
-        },
-    ).get_json()["player"]
-    court = write(
-        owner,
-        "POST",
-        "/api/courts",
-        {
-            "number": 8,
-            "court_type": "Synthetic hard",
-            "priority": 2,
-        },
-    ).get_json()["court"]
-    template = write(
-        owner,
-        "POST",
-        "/api/session-templates",
-        {
-            "name": "Synthetic template",
-            "court_ids": [court["id"]],
-        },
-    ).get_json()["session_template"]
-    roster = owner.get("/players").get_data(as_text=True)
-    assert player["id"] in roster
-    assert '<script>alert("synthetic")</script>' not in roster
-    assert "&lt;script&gt;" in roster
-    for path in (
-        "/players/add",
-        f"/players/{player['id']}/edit",
-        "/courts/add",
-        f"/courts/{court['id']}/edit",
-        "/templates/add",
-        f"/templates/{template['id']}/edit",
-        f"/sessions/create?template={template['id']}",
-    ):
-        assert owner.get(path).status_code == 200, path
-    assert "/api/players" in owner.get("/players/add").get_data(as_text=True)
-    assert 'max="50"' in owner.get("/templates/add").get_data(as_text=True)
-    other = real_app.test_client()
-    register(other, "other@example.invalid", "Other synthetic club")
-    for path in (
-        f"/players?selected={player['id']}",
-        f"/players/{player['id']}/edit",
-        f"/courts/{court['id']}/edit",
-        f"/templates/{template['id']}/edit",
-        f"/sessions/create?template={template['id']}",
-    ):
-        assert other.get(path).status_code == 404, path
-    assert "Synthetic template" not in other.get("/templates").get_data(as_text=True)
-
-
-def test_management_pages_keep_kate_staff_permissions(real_app):
-    owner, staff = real_app.test_client(), real_app.test_client()
-    register(owner)
-    invite(owner, staff, "staff", "staff@example.invalid")
-    for path in (
-        "/players",
-        "/players/add",
-        "/courts",
-        "/templates",
-        "/sessions/create",
-    ):
-        assert staff.get(path).status_code == 200, path
-    for path in ("/courts/add", "/templates/add", "/accounts"):
-        assert staff.get(path).status_code == 403, path
-    form = staff.get("/players/add").get_data(as_text=True)
-    assert 'name="skill" data-number disabled' in form
-    assert "Owner or Admin must assign skill" in form
-    assert "Deactivate Player" not in staff.get("/players").get_data(as_text=True)
-    anonymous = real_app.test_client()
-    for path in ("/players", "/courts", "/templates", "/accounts", "/sessions/create"):
-        response = anonymous.get(path)
-        assert response.status_code == 302
-        assert response.headers["Location"].endswith("/login-page")
-
-
-def test_session_page_reload_uses_saved_final_round_and_lock(real_app):
-    client = real_app.test_client()
-    register(client)
-    players = []
-    for name, gender in [
-        ("Aster", "F"),
-        ("Birch", "M"),
-        ("Cedar", "F"),
-        ("Dogwood", "M"),
-        ("Elm", "F"),
-    ]:
-        response = write(
-            client, "POST", "/api/players", {"name": name, "gender": gender, "skill": 5}
-        )
-        assert response.status_code == 201
-        players.append(response.get_json()["player"])
-    court = write(
-        client, "POST", "/api/courts", {"number": 1, "court_type": "hard"}
-    ).get_json()["court"]
-    session = write(
-        client,
-        "POST",
-        "/api/sessions",
-        {
-            "name": "Synthetic Social",
-            "starts_at": "2026-10-03T13:00:00",
-            "number_of_rounds": 2,
-            "round_duration_minutes": 20,
-            "court_ids": [court["id"]],
-            "player_ids": [player["id"] for player in players],
-        },
-    ).get_json()["session"]
-    page_path = f"/sessions/{session['id']}"
-    assert client.get(page_path).status_code == 200
-    round_ = write(
-        client, "POST", f"/api/sessions/{session['id']}/rounds/generate"
-    ).get_json()["round"]
-    final = deepcopy(round_["final"])
-    former_playing = final["assignments"][0]["team_a_player_ids"][0]
-    former_sitting = final["sit_out_player_ids"][0]
-    final["assignments"][0]["team_a_player_ids"][0] = former_sitting
-    final["sit_out_player_ids"][0] = former_playing
-    assert (
-        write(client, "PUT", f"/api/rounds/{round_['id']}/final", final).status_code
-        == 200
-    )
-    page = client.get(page_path).get_data(as_text=True)
-    assert "override revision 1" in page
-    assert f'value="{former_sitting}" selected' in page
-    assert f'data-sit-out value="{former_playing}" checked' in page
-    assert "Original generated result (audit)" in page
-    assert "Save Final Round" in page
-    assert (
-        write(client, "POST", f"/api/rounds/{round_['id']}/complete").status_code == 200
-    )
-    page = client.get(page_path).get_data(as_text=True)
-    assert "Save Final Round" not in page
-    assert "Reopen Round 1" in page
-    assert "Generate Next Round" in page
-    other = real_app.test_client()
-    register(other, "different@example.invalid")
-    assert other.get(page_path).status_code == 404
-
-
 @pytest.fixture
 def real_app(tmp_path):
     application = create_app(
@@ -326,6 +170,8 @@ def test_invitation_duplicate_expiry_revoke_one_use_and_no_token_leak(real_app):
     register(owner)
     data = {"role": "staff", "email": "member@example.invalid"}
     created = write(owner, "POST", "/api/invitations", data).get_json()
+    assert created["accept_endpoint"] == "/accept-invitation"
+    assert "accept_path" not in created
     assert write(owner, "POST", "/api/invitations", data).status_code == 409
     assert created["token"] not in owner.get("/api/invitations").get_data(as_text=True)
     assert "password_hash" not in owner.get("/api/users").get_data(as_text=True)
@@ -612,20 +458,29 @@ def test_real_session_generation_override_live_changes_and_isolation(real_app):
         assert db.session.query(Round).count() == 2
 
 
-def test_account_pages_and_no_fake_reset_claim(real_app):
+def test_missing_account_frontend_is_explicit_and_no_fake_reset_claim(real_app):
     client = real_app.test_client()
-    for path in (
-        "/login-page",
-        "/signup-page",
-        "/forgot-password",
-        "/invitation-page?token=synthetic",
-    ):
-        assert client.get(path).status_code == 200
-    assert client.get("/dashboard").status_code == 302
-    register(client)
-    assert client.get("/dashboard").status_code == 200
+    assert client.get("/").status_code == 200
+    for path in ("/login-page", "/signup-page"):
+        response = client.get(path)
+        assert response.status_code == 503
+        assert response.get_json()["error"] == "frontend_unavailable"
+    for path in ("/dashboard", "/accounts", "/players", "/invitation-page"):
+        assert client.get(path).status_code == 404
+    assert client.get("/forgot-password").status_code == 503
     response = write(
         client, "POST", "/forgot-password", {"email": "owner@example.invalid"}
     )
     assert response.status_code == 503
     assert b"No reset email has been sent" in response.data
+
+
+def test_login_rejects_get_and_missing_csrf(real_app):
+    client = real_app.test_client()
+    assert client.get("/login").status_code == 405
+    response = client.post(
+        "/login",
+        json={"email": "owner@example.invalid", "password": "Synthetic-password"},
+    )
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "csrf_failed"

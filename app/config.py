@@ -20,5 +20,4 @@ class Config:
     ALGORITHM_RANDOM_SEED = None
     HISTORY_WINDOW_DAYS = int(os.environ.get("HISTORY_WINDOW_DAYS", "120"))
     RECAPTCHA_SECRET_KEY = os.environ.get("RECAPTCHA_SECRET_KEY")
-    RECAPTCHA_SITE_KEY = os.environ.get("RECAPTCHA_SITE_KEY")
     CURRENT_ACTOR_PROVIDER = None

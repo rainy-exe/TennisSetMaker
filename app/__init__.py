@@ -38,7 +38,6 @@ def create_app(config=None):
     # This also avoids circular import problems.
     from app.api import api
     from app.auth import auth_bp, session_actor_provider
-    from app.pages import pages
     from app.routes import main
     from app.team import team
 
@@ -51,17 +50,13 @@ def create_app(config=None):
 
     # Register routes
     app.register_blueprint(main)
-    app.register_blueprint(pages)
     app.register_blueprint(auth_bp)
     app.register_blueprint(api, url_prefix="/api")
     app.register_blueprint(team, url_prefix="/api")
 
     @app.after_request
     def private_response_headers(response):
-        if (
-            request.blueprint in {"api", "team", "auth", "pages"}
-            or request.endpoint == "main.dashboard"
-        ):
+        if request.blueprint in {"api", "team", "auth"}:
             response.headers["Cache-Control"] = "no-store"
         return response
 

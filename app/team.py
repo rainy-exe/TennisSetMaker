@@ -147,7 +147,7 @@ def create_invitation():
         {
             "invitation": invitation_payload(invitation),
             "token": invitation.token,
-            "accept_path": url_for("auth.invitation_page", token=invitation.token),
+            "accept_endpoint": url_for("auth.accept_invitation"),
         }
     )
     response.headers["Cache-Control"] = "no-store"

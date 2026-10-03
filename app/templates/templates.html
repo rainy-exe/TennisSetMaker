@@ -3,21 +3,90 @@
 {% block content %}
 <main class="main templates-main">
   <div class="page-topline">
-    <div><h1 class="page-title">Session Templates</h1><p class="page-subtitle">Reusable setup for club sessions.</p></div>
-    {% if can_manage_records %}<a class="btn btn-primary" href="{{ url_for('pages.template_form') }}">+ Create Template</a>{% endif %}
+    <div>
+      <h1 class="page-title">Session Templates</h1>
+      <p class="page-subtitle">Instantly load custom match setups for standard social or ladder days.</p>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('add_template') }}">
+      <span class="btn-icon">+</span> Create Template
+    </a>
   </div>
+
   <div class="template-grid">
-    {% for template in templates %}
     <div class="card template-card">
-      <div class="template-card-header"><h2 class="template-name">{{ template.name }}</h2></div>
-      <p>{{ template.round_format|title }} doubles · {{ template.number_of_rounds }} rounds · {{ template.round_duration_minutes }} minutes each</p>
-      <p>Start {{ template.start_time.strftime('%H:%M') }} · {{ 'Active' if template.active else 'Inactive' }}</p>
+      <div class="template-card-header">
+        <div class="template-name">Wednesday Social</div>
+      </div>
+      <div class="template-row">
+        <span class="template-label">Format</span>
+        <span class="template-value">Mixed Doubles</span>
+      </div>
+      <div class="template-row">
+        <span class="template-label">Number of Rounds</span>
+        <span class="template-value">5</span>
+      </div>
+      <div class="template-row">
+        <span class="template-label">Round Length</span>
+        <span class="template-value">20 minutes</span>
+      </div>
       <div class="template-actions">
-        {% if template.active %}<a class="btn btn-primary" href="{{ url_for('pages.create_session', template=template.id) }}">Use Template</a>{% endif %}
-        {% if can_manage_records %}<a class="btn" href="{{ url_for('pages.template_form', template_id=template.id) }}">Edit {{ template.name }}</a>{% endif %}
+        <button class="btn btn-primary" type="button">Use Template</button>
+      </div>
+      <div class="template-actions template-actions-secondary">
+        <a class="btn btn-sm" href="{{ url_for('edit_template') }}">Edit</a>
+        <button class="btn btn-sm" type="button">Duplicate</button>
       </div>
     </div>
-    {% else %}<p>No templates yet.</p>{% endfor %}
+
+    <div class="card template-card">
+      <div class="template-card-header">
+        <div class="template-name">Competitive Ladder</div>
+      </div>
+      <div class="template-row">
+        <span class="template-label">Format</span>
+        <span class="template-value">Same-Gender Doubles</span>
+      </div>
+      <div class="template-row">
+        <span class="template-label">Number of Rounds</span>
+        <span class="template-value">4</span>
+      </div>
+      <div class="template-row">
+        <span class="template-label">Round Length</span>
+        <span class="template-value">30 minutes</span>
+      </div>
+      <div class="template-actions">
+        <button class="btn btn-primary" type="button">Use Template</button>
+      </div>
+      <div class="template-actions template-actions-secondary">
+        <a class="btn btn-sm" href="{{ url_for('edit_template') }}">Edit</a>
+        <button class="btn btn-sm" type="button">Duplicate</button>
+      </div>
+    </div>
+
+    <div class="card template-card">
+      <div class="template-card-header">
+        <div class="template-name">Weekend Open Play</div>
+      </div>
+      <div class="template-row">
+        <span class="template-label">Format</span>
+        <span class="template-value">Open Play (Any Gender)</span>
+      </div>
+      <div class="template-row">
+        <span class="template-label">Number of Rounds</span>
+        <span class="template-value">3</span>
+      </div>
+      <div class="template-row">
+        <span class="template-label">Round Length</span>
+        <span class="template-value">25 minutes</span>
+      </div>
+      <div class="template-actions">
+        <button class="btn btn-primary" type="button">Use Template</button>
+      </div>
+      <div class="template-actions template-actions-secondary">
+        <a class="btn btn-sm" href="{{ url_for('edit_template') }}">Edit</a>
+        <button class="btn btn-sm" type="button">Duplicate</button>
+      </div>
+    </div>
   </div>
 </main>
 {% endblock %}

@@ -13,6 +13,7 @@ from flask import (
     url_for,
 )
 from flask_wtf.csrf import generate_csrf
+from jinja2 import TemplateNotFound
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -66,6 +67,19 @@ def password_from(data):
     if not isinstance(password, str) or not password or len(password) > 128:
         raise ApiError("Password must be a non-empty string of at most 128 characters.")
     return password
+
+
+def render_account_page(template, **context):
+    # Keep Kate's page endpoints ready for team-owned templates, without
+    # building a second frontend or returning an unhandled missing-template 500.
+    try:
+        return render_template(template, **context)
+    except TemplateNotFound as error:
+        raise ApiError(
+            "This account page has not been integrated yet. Use the JSON API.",
+            503,
+            "frontend_unavailable",
+        ) from error
 
 
 def session_actor_provider():
@@ -431,7 +445,7 @@ def accept_invitation():
 
 @auth_bp.route("/login-page", methods=["GET"])
 def login_page():
-    return render_template("login.html")
+    return render_account_page("login.html")
 
 
 # ---------------------------------------------------------
@@ -443,7 +457,7 @@ def login_page():
 def signup_page():
     form = RegisterForm()
 
-    return render_template(
+    return render_account_page(
         "signup.html",
         form=form,
     )
@@ -476,24 +490,17 @@ def api_signup():
     methods=["GET", "POST"],
 )
 def forgot_password():
-    if request.method == "POST":
-        # No mail/reset service exists yet. Do not enumerate accounts or claim
-        # an email was sent when nothing was sent.
-        return render_template("forgot_password.html"), 503
-
-    return render_template("forgot_password.html")
+    # No mail/reset service exists yet. Do not enumerate accounts or claim
+    # an email was sent when nothing was sent.
+    raise ApiError(
+        "Password reset is not configured. No reset email has been sent.",
+        503,
+        "password_reset_unavailable",
+    )
 
 
 @auth_bp.get("/csrf-token")
 def csrf_token():
     response = jsonify({"csrf_token": generate_csrf()})
-    response.headers["Cache-Control"] = "no-store"
-    return response
-
-
-@auth_bp.get("/invitation-page")
-def invitation_page():
-    response = current_app.make_response(render_template("accept_invitation.html"))
-    response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Cache-Control"] = "no-store"
     return response

@@ -2,7 +2,123 @@
 {% block title %}Create Template{% endblock %}
 {% block content %}
 <main class="main templates-main">
-  <div class="page-topline"><h1 class="page-title">Create Template</h1></div>
-  {% include "template_form.html" %}
+  <div class="page-topline">
+    <div>
+      <h1 class="page-title">Create Template</h1>
+      <p class="page-subtitle">Save a reusable match setup for standard social or ladder days.</p>
+    </div>
+  </div>
+
+  <div class="card" style="padding: 24px; max-width: 480px;">
+    <form>
+      <div class="field">
+        <label for="template-name">Template Name</label>
+        <input class="input" type="text" id="template-name" name="template-name" placeholder="e.g. Wednesday Social" required />
+      </div>
+
+      <div class="field">
+        <label for="format">Format</label>
+        <select class="select" id="format" name="format" required>
+          <option value="" disabled selected>Select a format</option>
+          <option value="Mixed Doubles">Mixed Doubles</option>
+          <option value="Same-Gender Doubles">Same-Gender Doubles</option>
+          <option value="Open Play (Any Gender)">Open Play (Any Gender)</option>
+        </select>
+      </div>
+
+      <div class="two-col">
+        <div class="field">
+          <label for="rounds">Number of Rounds</label>
+          <input class="input" type="number" id="rounds" name="rounds" min="1" placeholder="e.g. 5" required />
+        </div>
+        <div class="field">
+          <label for="round-length">Round Length (minutes)</label>
+          <input class="input" type="number" id="round-length" name="round-length" min="1" placeholder="e.g. 20" required />
+        </div>
+      </div>
+
+      <div class="form-divider"></div>
+
+      <div class="relax-row">
+        <div>
+          <div class="relax-title">Set as default priority order</div>
+          <div class="relax-copy">Uses the priority order from Court Management. Turn off to customize it for this template only.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="use-default-priority" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="template-priority-panel" id="template-priority-panel" style="display: none;">
+        <div class="template-priority-title">Custom Court Priority for This Template</div>
+        <div class="card courts-scroll-card template-priority-list">
+          <div class="court-list">
+            <div class="court-row template-priority-row">
+              <span class="drag">⠿</span>
+              <span class="priority-dot">1</span>
+              <div class="court-info">
+                <div class="court-name">Court 1 (Primary)</div>
+                <span class="badge orange">Clay</span>
+              </div>
+              <label class="choice">
+                <input type="checkbox" checked /> Include
+              </label>
+            </div>
+
+            <div class="court-row template-priority-row">
+              <span class="drag">⠿</span>
+              <span class="priority-dot">2</span>
+              <div class="court-info">
+                <div class="court-name">Court 2</div>
+                <span class="badge orange">Clay</span>
+              </div>
+              <label class="choice">
+                <input type="checkbox" checked /> Include
+              </label>
+            </div>
+
+            <div class="court-row template-priority-row">
+              <span class="drag">⠿</span>
+              <span class="priority-dot">3</span>
+              <div class="court-info">
+                <div class="court-name">Court 3</div>
+                <span class="badge blue">Hard</span>
+              </div>
+              <label class="choice">
+                <input type="checkbox" /> Include
+              </label>
+            </div>
+
+            <div class="court-row template-priority-row">
+              <span class="drag">⠿</span>
+              <span class="priority-dot">4</span>
+              <div class="court-info">
+                <div class="court-name">Court 5</div>
+                <span class="badge green">Grass</span>
+              </div>
+              <label class="choice">
+                <input type="checkbox" /> Include
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a class="btn" href="{{ url_for('templates') }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">Create Template</button>
+      </div>
+    </form>
+  </div>
 </main>
+
+<script>
+  var priorityToggle = document.getElementById('use-default-priority');
+  var priorityPanel = document.getElementById('template-priority-panel');
+
+  priorityToggle.addEventListener('change', function () {
+    priorityPanel.style.display = priorityToggle.checked ? 'none' : 'block';
+  });
+</script>
 {% endblock %}
