@@ -1,0 +1,21 @@
+{% extends "auth_base.html" %}
+{% block title %}Create a club | SetMaker{% endblock %}
+{% block content %}
+<h1>Create a club account</h1>
+<p>This creates a club and its Owner account. Team members join through invitations.</p>
+<form method="post" action="{{ url_for('auth.register') }}" data-auth-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label for="club_name">Club name</label>
+  <input id="club_name" name="club_name" maxlength="120" required>
+  <label for="email">Email</label>
+  <input id="email" name="email" type="email" autocomplete="username" required>
+  <label for="password">Password</label>
+  <input id="password" name="password" type="password" autocomplete="new-password" maxlength="128" required>
+  {% if config.RECAPTCHA_SITE_KEY %}
+  <div class="g-recaptcha" data-sitekey="{{ config.RECAPTCHA_SITE_KEY }}"></div>
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+  {% endif %}
+  <button type="submit">Create club</button>
+</form>
+<p><a href="{{ url_for('auth.login_page') }}">Back to log in</a></p>
+{% endblock %}

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 
 class Config:
@@ -7,9 +8,17 @@ class Config:
         "DATABASE_URL", "sqlite:///tennis_set_maker.db"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    ALGORITHM_PATH = os.environ.get("TENNIS_ALGORITHM_PATH")
-    HISTORY_WINDOW_DAYS = int(os.environ.get("HISTORY_WINDOW_DAYS", "120"))
-    RECAPTCHA_SECRET_KEY = os.environ.get(
-        "RECAPTCHA_SECRET_KEY"
+    ALGORITHM_PATH = os.environ.get(
+        "TENNIS_ALGORITHM_PATH",
+        str(
+            Path(__file__).resolve().parent.parent
+            / "Backend"
+            / "Set_Algorithm"
+            / "Prototype3"
+        ),
     )
+    ALGORITHM_RANDOM_SEED = None
+    HISTORY_WINDOW_DAYS = int(os.environ.get("HISTORY_WINDOW_DAYS", "120"))
+    RECAPTCHA_SECRET_KEY = os.environ.get("RECAPTCHA_SECRET_KEY")
+    RECAPTCHA_SITE_KEY = os.environ.get("RECAPTCHA_SITE_KEY")
     CURRENT_ACTOR_PROVIDER = None

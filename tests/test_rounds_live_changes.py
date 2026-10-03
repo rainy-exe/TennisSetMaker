@@ -1,5 +1,6 @@
 from copy import deepcopy
 
+import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
@@ -173,3 +174,44 @@ def test_inactive_court_is_not_sent_to_generation(app, client, session_setup):
     assert response.status_code == 201
     assert app.fake_algorithm.calls[-1]["court_ids"] == [courts[1]["id"]]
     assert len(response.get_json()["round"]["final"]["sit_out_player_ids"]) == 4
+
+
+def test_history_keeps_a_partner_who_left_before_the_next_round(
+    app, client, session_setup
+):
+    session, _, _ = session_setup(player_count=8, court_count=2)
+    first = client.post(f"/api/sessions/{session['id']}/rounds/generate").get_json()[
+        "round"
+    ]
+    staying, leaving = first["final"]["assignments"][0]["team_a_player_ids"]
+    client.post(f"/api/rounds/{first['id']}/complete")
+    client.patch(
+        f"/api/sessions/{session['id']}/players/{leaving}",
+        json={"reason": "Left early"},
+    )
+    assert (
+        client.post(f"/api/sessions/{session['id']}/rounds/generate").status_code == 201
+    )
+    history = {player.id: player for player in app.fake_algorithm.calls[-1]["players"]}
+    assert leaving not in history
+    assert leaving in history[staying].partner_ids
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"assignments": [None], "sit_out_player_ids": []},
+        {"assignments": [{"court_id": {}}], "sit_out_player_ids": []},
+        {"assignments": [], "sit_out_player_ids": [{}]},
+    ],
+)
+def test_malformed_override_leaves_final_unchanged(client, session_setup, bad):
+    session, _, _ = session_setup(player_count=8, court_count=2)
+    first = client.post(f"/api/sessions/{session['id']}/rounds/generate").get_json()[
+        "round"
+    ]
+    assert client.put(f"/api/rounds/{first['id']}/final", json=bad).status_code == 400
+    assert (
+        client.get(f"/api/rounds/{first['id']}").get_json()["round"]["final"]
+        == first["final"]
+    )

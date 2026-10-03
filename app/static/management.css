@@ -1,0 +1,9 @@
+/* Small integration fixes; keep the team's main stylesheet unchanged. */
+[hidden] { display: none !important; }
+#page-message { padding: 0 24px; color: #a12424; }
+[data-message] { overflow-wrap: anywhere; }
+fieldset { border: 1px solid var(--border); margin: 16px 0; padding: 16px; }
+fieldset .choice { display: flex; margin: 8px 0; }
+.player-detail-card { padding: 24px; }
+.players-search { margin-bottom: 16px; }
+button:disabled { cursor: not-allowed; opacity: .6; }

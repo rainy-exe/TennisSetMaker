@@ -31,6 +31,8 @@ def _history_for(session, eligible_players, round_number):
             "last_sit_out_round": -1,
             "partners": set(),
             "opponents": set(),
+            "consecutive_sit_outs": 0,
+            "rounds_played": 0,
         }
         for player in eligible_players
     }
@@ -48,14 +50,26 @@ def _history_for(session, eligible_players, round_number):
     for prior in prior_rounds:
         final = [item for item in prior.outcomes if item.version == "final"]
         playing_by_court = defaultdict(lambda: defaultdict(list))
+        if prior.session_id == session.id:
+            # A missed/unavailable round interrupts an actual sit-out streak.
+            outcome_ids = {item.player_id for item in final}
+            for player_id in player_ids - outcome_ids:
+                stats[player_id]["consecutive_sit_outs"] = 0
         for outcome in final:
-            if outcome.player_id not in player_ids:
-                continue
+            player_stats = stats.get(outcome.player_id)
             if outcome.outcome == "sit_out":
-                stats[outcome.player_id]["sit_out_count"] += 1
-                if prior.session_id == session.id:
-                    stats[outcome.player_id]["last_sit_out_round"] = prior.number
+                if player_stats is not None:
+                    player_stats["sit_out_count"] += 1
+                    if prior.session_id == session.id:
+                        player_stats["last_sit_out_round"] = prior.number
+                        player_stats["consecutive_sit_outs"] += 1
             else:
+                if player_stats is not None:
+                    player_stats["rounds_played"] += 1
+                    if prior.session_id == session.id:
+                        player_stats["consecutive_sit_outs"] = 0
+                # Include former partners/opponents even if they are no
+                # longer eligible for the upcoming round.
                 playing_by_court[outcome.court_id][outcome.team].append(
                     outcome.player_id
                 )
@@ -86,6 +100,8 @@ def _history_for(session, eligible_players, round_number):
             last_sit_out_round=stats[player.id]["last_sit_out_round"],
             partner_ids=stats[player.id]["partners"],
             opponent_ids=stats[player.id]["opponents"],
+            consecutive_sit_outs=stats[player.id]["consecutive_sit_outs"],
+            rounds_played=stats[player.id]["rounds_played"],
         )
         for player in eligible_players
     ]
@@ -267,11 +283,15 @@ def validate_override(round_, assignments, sit_out_ids):
 
     if not isinstance(assignments, list) or not isinstance(sit_out_ids, list):
         raise ApiError("assignments and sit_out_player_ids must be lists.")
+    if any(not isinstance(player_id, str) for player_id in sit_out_ids):
+        raise ApiError("sit_out_player_ids must contain player ID strings.")
     for assignment in assignments:
+        if not isinstance(assignment, dict):
+            raise ApiError("Each assignment must be an object.")
         court_id = assignment.get("court_id")
         team_a = assignment.get("team_a_player_ids")
         team_b = assignment.get("team_b_player_ids")
-        if court_id not in selected_court_ids:
+        if not isinstance(court_id, str) or court_id not in selected_court_ids:
             raise ApiError("An assignment uses a court outside this session.")
         if court_id in seen_courts:
             raise ApiError("A court can only appear once in a round.")
@@ -279,6 +299,8 @@ def validate_override(round_, assignments, sit_out_ids):
             raise ApiError("Each team must be a list of two player IDs.")
         if len(team_a) != 2 or len(team_b) != 2:
             raise ApiError("Each court must contain two teams of two players.")
+        if any(not isinstance(player_id, str) for player_id in team_a + team_b):
+            raise ApiError("Teams must contain player ID strings.")
         seen_courts.add(court_id)
         seen_players.extend(team_a + team_b)
         normalized.append((court_id, team_a, team_b))
@@ -322,7 +344,15 @@ def apply_override(round_, assignments, sit_out_ids, actor):
     for outcome in list(round_.outcomes):
         if outcome.version == "final":
             db.session.delete(outcome)
-    db.session.flush()
+    try:
+        db.session.flush()
+    except SQLAlchemyError as error:
+        db.session.rollback()
+        raise ApiError(
+            "The override could not be saved; the previous final round is unchanged.",
+            500,
+            "override_persistence_failed",
+        ) from error
     for court_id, team_a, team_b in normalized:
         for team_number, team in ((1, team_a), (2, team_b)):
             for slot, player_id in enumerate(team, start=1):

@@ -90,6 +90,9 @@ def app(tmp_path):
 
             # Disable CSRF only during automated tests.
             "WTF_CSRF_ENABLED": False,
+            # These unit fixtures use opaque fake club/actor IDs. Real account
+            # integration tests use the production FK and CSRF defaults.
+            "SQLITE_FOREIGN_KEYS": False,
 
             "SQLALCHEMY_DATABASE_URI": (
                 f"sqlite:///{tmp_path / 'test.db'}"

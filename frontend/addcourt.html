@@ -1,59 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Add Court{% endblock %}
+{% block title %}{{ 'Edit' if court else 'Add' }} Court{% endblock %}
 {% block content %}
 <main class="main courts-main">
-  <div class="page-topline">
-    <div>
-      <h1 class="page-title">Add Court</h1>
-      <p class="page-subtitle">Add a new court to your club's available list.</p>
-    </div>
-  </div>
-
-  <div class="card" style="padding: 24px; max-width: 480px;">
-    <form>
-      <div class="field">
-        <label for="court-name">Court Name</label>
-        <input class="input" type="text" id="court-name" name="court-name" placeholder="e.g. Court 7" required />
-      </div>
-
-      <div class="field">
-        <label for="surface">Surface</label>
-        <select class="select" id="surface" name="surface" required>
-          <option value="" disabled selected>Select a surface</option>
-          <option value="Clay">Clay</option>
-          <option value="Hard">Hard</option>
-          <option value="Grass">Grass</option>
-          <option value="Synthetic">Synthetic</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="cover">Cover / Shade</label>
-        <input class="input" type="text" id="cover" name="cover" placeholder="e.g. Full Sun, Part Shade, Full Shade (Covered)" />
-      </div>
-
-      <div class="field">
-        <label for="priority">Priority Order</label>
-        <input class="input" type="number" id="priority" name="priority" min="1" placeholder="e.g. 1" />
-      </div>
-
-      <div class="form-divider"></div>
-
-      <div class="relax-row">
-        <div>
-          <div class="relax-title">Active</div>
-          <div class="relax-copy">Inactive courts are excluded from round scheduling and marked as under maintenance.</div>
-        </div>
-        <label class="switch">
-          <input type="checkbox" checked />
-          <span class="slider"></span>
-        </label>
-      </div>
-
-      <div class="form-actions">
-        <a class="btn" href="{{ url_for('courts') }}">Cancel</a>
-        <button class="btn btn-primary" type="submit">Add Court</button>
-      </div>
+  <div class="page-topline"><h1 class="page-title">{{ 'Edit' if court else 'Add' }} Court</h1></div>
+  <div class="card" style="padding:24px;max-width:480px">
+    <form method="post" data-api-form action="{{ url_for('api.update_court', court_id=court.id) if court else url_for('api.create_court') }}" data-method="{{ 'PATCH' if court else 'POST' }}" data-redirect="{{ url_for('pages.courts') }}">
+      <div class="field"><label for="number">Court Number</label><input class="input" id="number" name="number" type="number" min="1" value="{{ court.number if court else '' }}" required></div>
+      <div class="field"><label for="court_type">Surface</label><input class="input" id="court_type" name="court_type" maxlength="80" value="{{ court.court_type if court else '' }}" placeholder="e.g. Hard, Clay, Grass" required></div>
+      <div class="field"><label for="priority">Priority</label><input class="input" id="priority" name="priority" type="number" min="0" value="{{ court.priority if court else 0 }}" required></div>
+      <label><input name="active" type="checkbox" {{ 'checked' if not court or court.active else '' }}> Active</label>
+      <p data-message role="status"></p>
+      <div class="form-actions"><a class="btn" href="{{ url_for('pages.courts') }}">Cancel</a><button class="btn btn-primary" type="submit">Save Court</button></div>
     </form>
   </div>
 </main>

@@ -2,62 +2,7 @@
 {% block title %}Add Player{% endblock %}
 {% block content %}
 <main class="main players-main">
-  <div class="page-topline">
-    <div>
-      <h1 class="page-title">Add Player</h1>
-      <p class="page-subtitle">Add a new player to your club roster.</p>
-    </div>
-  </div>
-
-  <div class="card" style="padding: 24px; max-width: 480px;">
-    {% if errors %}
-    <div class="card dup-alert" style="margin-bottom: 16px;">
-      {% for error in errors %}
-      <div>{{ error }}</div>
-      {% endfor %}
-    </div>
-    {% endif %}
-
-    <form method="POST">
-      <div class="field">
-        <label for="name">Name</label>
-        <input class="input" type="text" id="name" name="name" value="{{ form.name|default('') }}" required />
-      </div>
-      <div class="field">
-        <label for="rating">Rating</label>
-        <select class="select" id="rating" name="rating" required>
-          <option value="" disabled {{ 'selected' if not form.rating|default('') }}>Select a rating</option>
-          {% for r in range(1, 8) %}
-          <option value="{{ r }}" {{ 'selected' if form.rating|default('')|string == r|string }}>{{ r }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field">
-        <label for="gender">Gender</label>
-        <select class="select" id="gender" name="gender">
-          <option value="Male" {{ 'selected' if form.gender|default('Male') == 'Male' }}>MALE</option>
-          <option value="Female" {{ 'selected' if form.gender|default('Male') == 'Female' }}>FEMALE</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="notes">Notes</label>
-        <textarea class="input" id="notes" name="notes" rows="4" style="height: auto; padding: 10px 12px; resize: vertical;">{{ form.notes|default('') }}</textarea>
-      </div>
-      <div class="field">
-        <label for="court_preference">Court Preference</label>
-        <select class="select" id="court_preference" name="court_preference">
-          <option value="">Not set</option>
-          <option value="Clay" {{ 'selected' if form.court_preference|default('') == 'Clay' }}>Clay</option>
-          <option value="Hard" {{ 'selected' if form.court_preference|default('') == 'Hard' }}>Hard</option>
-          <option value="Grass" {{ 'selected' if form.court_preference|default('') == 'Grass' }}>Grass</option>
-          <option value="Synthetic" {{ 'selected' if form.court_preference|default('') == 'Synthetic' }}>Synthetic</option>
-        </select>
-      </div>
-      <div class="form-actions">
-        <a class="btn" href="{{ url_for('players') }}">Cancel</a>
-        <button class="btn btn-primary" type="submit">Add Player</button>
-      </div>
-    </form>
-  </div>
+  <div class="page-topline"><h1 class="page-title">Add Player</h1></div>
+  {% include "player_form.html" %}
 </main>
 {% endblock %}

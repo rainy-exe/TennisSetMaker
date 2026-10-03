@@ -6,5 +6,7 @@
   </head>
   <body>
     <h1>{{ message }}</h1>
+    <a href="{{ url_for('auth.login_page') }}">Log in</a>
+    <a href="{{ url_for('auth.signup_page') }}">Create a club account</a>
   </body>
 </html>

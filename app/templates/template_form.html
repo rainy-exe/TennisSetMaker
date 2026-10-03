@@ -1,0 +1,10 @@
+<div class="card" style="padding:24px;max-width:640px">
+  <form method="post" data-api-form action="{{ url_for('api.update_template', template_id=template.id) if template else url_for('api.create_template') }}" data-method="{{ 'PATCH' if template else 'POST' }}" data-redirect="{{ url_for('pages.templates') }}" data-lists="court_ids">
+    <div class="field"><label for="name">Template Name</label><input class="input" id="name" name="name" maxlength="120" value="{{ template.name if template else '' }}" required></div>
+    <div class="field"><label for="start_time">Start Time</label><input class="input" id="start_time" name="start_time" type="time" value="{{ template.start_time if template else '13:00' }}" required></div>
+    {% set config = template %}{% include "configuration_fields.html" %}
+    <label><input type="checkbox" name="active" {{ 'checked' if not template or template.active else '' }}> Active template</label>
+    <p data-message role="status"></p>
+    <div class="form-actions"><a class="btn" href="{{ url_for('pages.templates') }}">Cancel</a><button class="btn btn-primary" type="submit">Save Template</button></div>
+  </form>
+</div>

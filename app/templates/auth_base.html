@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}SetMaker{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='auth.css') }}">
+  <script src="{{ url_for('static', filename='auth.js') }}" defer></script>
+</head>
+<body>
+  <main class="auth-card">
+    <a href="{{ url_for('main.home') }}">SetMaker</a>
+    {% block content %}{% endblock %}
+    <p id="form-message" role="status"></p>
+  </main>
+</body>
+</html>

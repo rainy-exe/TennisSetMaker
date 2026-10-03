@@ -1,0 +1,23 @@
+<div class="card" style="padding:24px;max-width:480px">
+  <form method="post" data-api-form action="{{ url_for('api.update_player', player_id=player.id) if player else url_for('api.create_player') }}" data-method="{{ 'PATCH' if player else 'POST' }}" data-redirect="{{ url_for('pages.players') }}">
+    <div class="field"><label for="name">Name</label><input class="input" id="name" name="name" maxlength="120" value="{{ player.name if player else '' }}" required></div>
+    <div class="field"><label for="skill">Skill (1–10)</label>
+      <select class="select" id="skill" name="skill" data-number {{ 'disabled' if not can_edit_skill else '' }}>
+        <option value="">Awaiting rating</option>
+        {% for rating in range(1, 11) %}<option value="{{ rating }}" {{ 'selected' if player and player.skill == rating else '' }}>{{ rating }}</option>{% endfor %}
+      </select>
+    </div>
+    {% if not can_edit_skill %}<p>An Owner or Admin must assign skill before this player can enter generated rounds.</p>{% endif %}
+    <div class="field"><label for="gender">Gender</label><select class="select" id="gender" name="gender">
+      <option value="M" {{ 'selected' if player and player.gender == 'M' else '' }}>Male</option>
+      <option value="F" {{ 'selected' if player and player.gender == 'F' else '' }}>Female</option>
+    </select></div>
+    <p>Player notes and individual court preferences are not connected yet.</p>
+    <p data-message role="status" aria-live="polite"></p>
+    <div class="form-actions">
+      <a class="btn" href="{{ url_for('pages.players') }}">Cancel</a>
+      <button class="btn btn-primary" type="submit">{{ 'Save Changes' if player else 'Add Player' }}</button>
+      <button class="btn" type="submit" data-confirm-duplicate hidden>Confirm different player with this name</button>
+    </div>
+  </form>
+</div>
