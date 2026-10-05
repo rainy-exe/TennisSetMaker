@@ -1,4 +1,5 @@
 import importlib.util
+import inspect
 import random
 import sys
 from dataclasses import dataclass, field
@@ -23,6 +24,9 @@ class AlgorithmPlayer:
     opponent_ids: set = field(default_factory=set)
     consecutive_sit_outs: int = 0
     rounds_played: int = 0
+    session_sit_outs: int = 0
+    recent_sit_outs: int | None = None
+    recent_rounds: int | None = None
 
 
 @dataclass
@@ -39,7 +43,7 @@ class AlgorithmRound:
 
 
 class PrototypeAlgorithmEngine:
-    """Adapter for the current Prototype3 contract on origin/main.
+    """Adapter for Prototype3 and the optional Prototype4 history fields.
 
     Stable database IDs are explicitly supplied as ``player_id``. The
     prototype's display name is also an ID; client names never cross this
@@ -108,7 +112,15 @@ class PrototypeAlgorithmEngine:
     def generate(self, players, court_ids, round_number, mixed_mode, strict_format):
         self._load()
         temporary = []
+        player_fields = inspect.signature(self._helpers.Player).parameters
         for source in players:
+            # Prototype3 does not accept these fields. Keep its constructor
+            # working while supplying actual facts to compatible Prototype4.
+            recent_history = {
+                name: getattr(source, name)
+                for name in ("session_sit_outs", "recent_sit_outs", "recent_rounds")
+                if name in player_fields
+            }
             player = self._helpers.Player(
                 name=source.id,
                 player_id=source.id,
@@ -120,6 +132,7 @@ class PrototypeAlgorithmEngine:
                 opponents_played=set(source.opponent_ids),
                 consecutive_sit_outs=source.consecutive_sit_outs,
                 sessions_played=source.rounds_played,
+                **recent_history,
             )
             temporary.append(player)
 

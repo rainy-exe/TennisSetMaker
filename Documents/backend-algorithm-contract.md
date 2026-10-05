@@ -33,6 +33,8 @@ def generate(self, players, court_ids, round_number, mixed_mode, strict_format):
 | `rounds_played` | Actual playing-round count, **not eligible-round count** |
 | `last_sit_out_round` | Last sit-out number in this session, or -1 |
 | `consecutive_sit_outs` | Actual sit-out streak in this session |
+| `session_sit_outs` | Actual sit-outs in this session only; resets in a new session |
+| `recent_sit_outs`, `recent_rounds` | Sit-outs and attended rounds in the last 50 completed final outcomes |
 
 `court_ids` is an ordered list of stable IDs, not Court objects.
 Session court order is saved from priority/number; inactive courts are filtered
@@ -89,6 +91,10 @@ the backend builds round history and validates strict mixed after matching.
 
 Optional `TENNIS_ALGORITHM_PATH` points to compatible
 `helpers.py`, `refinement.py`, `algorithm.py`.
+It can select the Prototype4 checkout from PR #25 without copying or merging
+algorithm files into this backend branch. The adapter passes the three new
+history fields when the selected Player constructor accepts them; Prototype3
+continues to work without them. Prototype3 remains the default.
 Errors: missing dependency 503 `algorithm_unavailable`; strict mixed failure
 422 `no_valid_solution`; invalid output 502 `invalid_algorithm_result`.
 Prototype3 has no separate structured no-solution result.
@@ -102,18 +108,32 @@ Prototype3 has no separate structured no-solution result.
 - Departed partners/opponents remain in others' history.
 - Last sit-out round and streak are session-local. Playing or a missed/unavailable
   round breaks the streak; unavailable is not a sit-out.
+- Prototype4's recent window is **50 attended rounds per player**, even when
+  those rounds are older than 120 days. Playing and actual sit-outs count as
+  attendance; unavailable, not-arrived and unrated rounds do not. Reopened or
+  uncompleted rounds contribute nothing until completed again. The backend
+  supplies counts, not a ratio formula; Prototype4 owns newcomer padding and scoring.
 - Algorithm-side Player mutations are temporary, never persistent history.
 
 ## Integration notes
 
-1. **Dynamic ratio:** Prototype3 still uses `sit_out_count`. Eligible/outcome/
-   unavailable/time facts are stored, but ratio formula/window and new engine
-   fields need agreement. Count alone does not satisfy the final requirement.
+1. **Dynamic ratio:** Prototype3 still uses `sit_out_count`. Prototype4 from PR #25
+   now receives session and last-50-round counts from the backend. Its formula
+   and client-facing behaviour still need team/client confirmation; this does
+   not switch production to an unmerged algorithm automatically.
 2. **Court type/preference:** backend stores type and handles availability/order;
    engine receives IDs only. Richer court input/scoring needs an agreed contract.
 3. **Future contract changes:** keep stable IDs and update the adapter together
    when changing Player constructors or output shape; routes should not import
    algorithm internals.
+4. **Unchanged decisions:** variety mode stays at 2, formats stay open/mixed,
+   and partner/opponent history stays club-wide over 120 days. Changing the
+   default mode, adding same-gender semantics or resetting that history per
+   session needs agreement first. Court preference scoring remains algorithm work.
 
 Run `python -m pytest` for real Prototype3 and override/history/availability tests.
 Tests can inject `ALGORITHM_ENGINE`; normal startup uses the bundled engine.
+Set `TENNIS_PROTOTYPE4_PATH` to the Prototype4 directory when running tests to
+also exercise the real Prototype4 adapter and overridden sit-out history.
+Without that external checkout, these optional integration tests are skipped;
+the history-builder and bundled Prototype3 tests still run.

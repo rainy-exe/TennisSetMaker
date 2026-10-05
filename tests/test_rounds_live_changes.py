@@ -50,7 +50,13 @@ def test_odd_count_round_save_override_reload_and_final_history(
     assert second.status_code == 201
     history = {player.id: player for player in app.fake_algorithm.calls[-1]["players"]}
     assert history[replacement].sit_out_count == 1
+    assert history[replacement].session_sit_outs == 1
+    assert history[replacement].recent_sit_outs == 1
+    assert history[replacement].recent_rounds == 1
     assert history[old_sitout].sit_out_count == 0
+    assert history[old_sitout].session_sit_outs == 0
+    assert history[old_sitout].recent_sit_outs == 0
+    assert history[old_sitout].recent_rounds == 1
     first_team = payload["assignments"][1]["team_a_player_ids"]
     assert first_team[1] in history[first_team[0]].partner_ids
 
@@ -80,6 +86,9 @@ def test_late_arrival_and_unavailable_change_only_future_pool(
     input_ids = {player.id for player in app.fake_algorithm.calls[-1]["players"]}
     assert late_player["id"] in input_ids
     assert players[0]["id"] not in input_ids
+    history = {player.id: player for player in app.fake_algorithm.calls[-1]["players"]}
+    assert history[late_player["id"]].session_sit_outs == 0
+    assert history[late_player["id"]].recent_rounds == 0
     statuses = {
         item["player_id"]: item["status"]
         for item in second.get_json()["round"]["eligibility"]

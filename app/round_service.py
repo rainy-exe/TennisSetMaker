@@ -2,7 +2,7 @@ from collections import defaultdict
 from datetime import timedelta
 
 from flask import current_app
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.algorithm_adapter import AlgorithmPlayer, get_algorithm_engine
@@ -22,6 +22,50 @@ def next_round_number(session):
     return max((round_.number for round_ in session.rounds), default=0) + 1
 
 
+# Prototype4's ratio contract uses the last 50 attended rounds, not 50 days.
+RECENT_HISTORY_ROUNDS = 50
+
+
+def _recent_history_for(club_id, player_ids):
+    """Count completed final outcomes, including those outside the day window."""
+    stats = {player_id: {"sit_outs": 0, "rounds": 0} for player_id in player_ids}
+    if not player_ids:
+        return stats
+    ranked = (
+        select(
+            RoundPlayerOutcome.player_id,
+            RoundPlayerOutcome.outcome,
+            func.row_number()
+            .over(
+                partition_by=RoundPlayerOutcome.player_id,
+                order_by=(
+                    Round.completed_at.desc(),
+                    Round.number.desc(),
+                    Round.id.desc(),
+                ),
+            )
+            .label("position"),
+        )
+        .join(Round, Round.id == RoundPlayerOutcome.round_id)
+        .join(TennisSession, TennisSession.id == Round.session_id)
+        .where(
+            TennisSession.club_id == club_id,
+            Round.status == "completed",
+            RoundPlayerOutcome.version == "final",
+            RoundPlayerOutcome.player_id.in_(player_ids),
+        )
+        .subquery()
+    )
+    for player_id, outcome in db.session.execute(
+        select(ranked.c.player_id, ranked.c.outcome).where(
+            ranked.c.position <= RECENT_HISTORY_ROUNDS
+        )
+    ):
+        stats[player_id]["rounds"] += 1
+        stats[player_id]["sit_outs"] += int(outcome == "sit_out")
+    return stats
+
+
 def _history_for(session, eligible_players, round_number):
     cutoff = utc_now() - timedelta(days=current_app.config["HISTORY_WINDOW_DAYS"])
     player_ids = {player.id for player in eligible_players}
@@ -33,6 +77,7 @@ def _history_for(session, eligible_players, round_number):
             "opponents": set(),
             "consecutive_sit_outs": 0,
             "rounds_played": 0,
+            "session_sit_outs": 0,
         }
         for player in eligible_players
     }
@@ -43,11 +88,12 @@ def _history_for(session, eligible_players, round_number):
         .where(
             TennisSession.club_id == session.club_id,
             Round.status == "completed",
-            Round.completed_at >= cutoff,
+            or_(Round.completed_at >= cutoff, Round.session_id == session.id),
         )
         .order_by(Round.completed_at, Round.number)
     ).all()
     for prior in prior_rounds:
+        in_history_window = prior.completed_at >= cutoff
         final = [item for item in prior.outcomes if item.version == "final"]
         playing_by_court = defaultdict(lambda: defaultdict(list))
         if prior.session_id == session.id:
@@ -59,20 +105,24 @@ def _history_for(session, eligible_players, round_number):
             player_stats = stats.get(outcome.player_id)
             if outcome.outcome == "sit_out":
                 if player_stats is not None:
-                    player_stats["sit_out_count"] += 1
+                    if in_history_window:
+                        player_stats["sit_out_count"] += 1
                     if prior.session_id == session.id:
+                        player_stats["session_sit_outs"] += 1
                         player_stats["last_sit_out_round"] = prior.number
                         player_stats["consecutive_sit_outs"] += 1
             else:
                 if player_stats is not None:
-                    player_stats["rounds_played"] += 1
+                    if in_history_window:
+                        player_stats["rounds_played"] += 1
                     if prior.session_id == session.id:
                         player_stats["consecutive_sit_outs"] = 0
                 # Include former partners/opponents even if they are no
                 # longer eligible for the upcoming round.
-                playing_by_court[outcome.court_id][outcome.team].append(
-                    outcome.player_id
-                )
+                if in_history_window:
+                    playing_by_court[outcome.court_id][outcome.team].append(
+                        outcome.player_id
+                    )
 
         for teams in playing_by_court.values():
             team_a = teams.get(1, [])
@@ -91,6 +141,7 @@ def _history_for(session, eligible_players, round_number):
                     if second in stats:
                         stats[second]["opponents"].add(first)
 
+    recent = _recent_history_for(session.club_id, player_ids)
     return [
         AlgorithmPlayer(
             id=player.id,
@@ -102,6 +153,9 @@ def _history_for(session, eligible_players, round_number):
             opponent_ids=stats[player.id]["opponents"],
             consecutive_sit_outs=stats[player.id]["consecutive_sit_outs"],
             rounds_played=stats[player.id]["rounds_played"],
+            session_sit_outs=stats[player.id]["session_sit_outs"],
+            recent_sit_outs=recent[player.id]["sit_outs"],
+            recent_rounds=recent[player.id]["rounds"],
         )
         for player in eligible_players
     ]
