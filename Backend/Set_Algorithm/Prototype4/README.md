@@ -2,117 +2,129 @@
 
 ## Prototype4 changes (read this first)
 
-Prototype4 is Prototype3 with three changes, made to match the client's
-priorities for a social club:
+Prototype4 is Prototype3 with these changes, made to match the client's
+priorities for a social club.
 
-1. **Gender policy is the lock, with a new same-gender option.**
-   `mixed_mode` now takes `0` = open, `1` = mixed pairs, `2` = same-gender
-   courts (all four players the same gender; when the pool forces a
-   2-and-2 court, men vs ladies is preferred over two mixed pairs). It is
-   still the first thing scored, so nothing below it can override it. It
-   only relaxes when the people available make it impossible (e.g. the
-   last court of a round).
+### 1. Sit-outs: everyone takes a turn, nobody plays catch-up
 
-2. **Two skill limits that sit above partner/opponent rotation.**
-   - `max_team_diff` (default **2**): the gap between the two teams'
-     rating totals. Stops matches like 5+7 vs 2+2 (12 vs 4).
-   - `max_court_spread` (default **3**): highest minus lowest rating on a
-     court. Keeps partners AND opponents near the same standard.
+Rules, in order (`algorithm.select_round_players`):
+1. **Nobody sits out a second time in a session until everyone there has
+   sat out once** (the client's rule). If there are more sit-out slots than
+   players, nobody sits a third time until everyone has sat twice.
+2. **No back-to-back sit-outs** unless the numbers make it unavoidable.
+3. **Ties go to whoever has sat out least of their share lately:** the
+   lowest sit-out ratio over the player's **last 50 rounds**
+   (`RATIO_WINDOW_ROUNDS`). A player with fewer than 50 rounds has the
+   missing rounds counted at the room's average, so a newcomer starts
+   exactly average and is judged on their own record from round 50.
+4. Remaining ties are random (seeded).
 
-   Inside both limits they score 0, so rotation decides who plays whom
-   exactly as it did in Prototype3. They only override rotation when the
-   alternative would break a limit. Pass `None` to switch either one off.
+Prototype3 ranked players by their raw sit-out *count*. That made a
+newcomer sit out 5–6 rounds a session until they "caught up" to the
+regulars' totals, and made occasional players sit out a bigger share of
+their rounds than regulars.
 
-3. **A repair step after the court fill.** The greedy fill takes the best
-   court first, so the last court of a round gets whoever is left. Checked
-   against the 50-day simulation: every over-limit court it produced could
-   have been avoided with the same players. `refinement.repair_guardrails`
-   now swaps players between courts to fix them. It may accept a repeat
-   partner or opponent to do so, but never makes the gender lock worse.
+### 2. Gender policy is the lock, with a new same-gender option
 
-New scoring order in `algorithm._score_candidate`:
+`mixed_mode`: `0` = open, `1` = mixed pairs, `2` = same-gender courts (all
+four the same gender; when the turnout forces 2 men + 2 women, men v
+ladies beats two mixed pairs). Scored first, so nothing overrides it. It
+only relaxes when the turnout makes it impossible.
 
-```
-(gender, team_gap_over_limit, court_range_over_limit,
- partner_repeats, opponent_repeats, court_range, team_gap, court_pref)
-```
+### 3. Variety mode = how rotation and skill are traded off
 
-### This deviates from the Scope of Work, so it needs client sign-off
+Each mode now gives a genuinely different result (`algorithm.MODE_PROFILES`):
 
-The Scope of Work's default preset lists social variety (3, 4) above skill
-balance (5). Prototype4 puts the two skill limits above variety, and only
-those limits; ordinary skill balance stays below variety. That is the
-client's stated priority for a social club ("rotating partners and
-opponents, but never a lopsided match"). It still needs to be confirmed
-with the client and recorded.
+| Mode | Priority | Team gap | Partners apart | Then |
+|---|---|---|---|---|
+| 1 Hard avoid repeats | rotation first | up to 4 | up to 4 | tries to keep both gaps within 2, team gap 1 |
+| 2 Soft | skill first | up to 2, **1 preferred** | up to 2 | avoids repeats where that holds |
+| 3 Round-robin | middle | up to 2 | up to 2 | avoids anyone met today, then prefers team gap 1 |
 
-### Results on the club's own roster
+"Up to" is a hard limit: it's only broken when no combination of the
+players available avoids it, and then by as little as possible. When
+the team-gap and partner-gap limits can't both be met, the option that
+breaks either one by the least wins, so the two gaps stay similar. For
+example, 5+7 v 2+2 loses to 5+2 v 7+2. In mode 2, 3, 4, 5, 6 gives 3+5 v
+4+6 (gap 2, partners 2 apart), not 3+6 v 4+5 (the 6 carrying the 3).
 
-Settings: 25 of the 75 players attend each day, 6 courts, 6 rounds, 50
-days, round-robin variety, seed 2026, partner/opponent memory reset each
-session. That's 1,800 courts.
+Mode 2 also keeps the four players on a court within 3 rating points.
+After the greedy court fill, a repair step (`refinement.repair_guardrails`)
+swaps players between courts to fix any court left outside its mode's
+hard limits. It may accept a repeat to do so, but never makes the gender
+lock worse.
 
-| | Prototype3 | Prototype4 |
-|---|---|---|
-| Worst team gap | 10 | **2** |
-| Courts with a team gap of 3+ | 9.2% | **0%** |
-| Courts with a rating range of 4+ | 18.9% | **0%** |
-| Widest partnership (ratings apart) | 5 | **3** |
-| Same-session repeat partner | 0.1% | 0.5% |
-| Same-session repeat opponent | 2.9% | 7.3% |
-| Sit-out ratio, worst player | 0.067 | 0.067 (unchanged) |
-| Run time | 34 s | 47 s |
+The full scoring tuple is in `algorithm.court_score()`. Any setting can be
+overridden per call (`max_team_diff=...`), and `NO_SKILL_LIMITS` switches
+them all off (Prototype3 court scoring).
 
-**Gender lock check, same settings.** The roster is 42 men and 33 women,
-so on many days the turnout makes some courts impossible to fill to the
-policy. The minimum number of such courts for these 1,800 was 381 for
-mixed and 227 for same-gender. Prototype4 hits exactly that minimum in both
-modes, so the lock never gives way when it doesn't have to. In mixed mode
-the skill limits still held on every court. In same-gender mode, 2 courts
-(0.1%) had a range of 5: gender wins over skill when a single-gender group
-doesn't have enough players at that level.
+### Needs client sign-off
 
-**The cost lands on the players at the top and bottom of the ratings.**
-There are only a few 2s and 7s at a session, and a "same standard" court
-means they mostly play each other. Same-session repeat-opponent rate by
-rating:
+Every mode now ranks some skill limit above rotation, which deviates from
+the Scope of Work's default preset order (variety 3/4 above skill 5).
+Which mode becomes the club default is also the client's call. See the
+open-questions doc in the project.
 
-| Rating | 2 | 3 | 4 | 5 | 6 | 7 |
-|---|---|---|---|---|---|---|
-| Prototype3 | 9% | 5% | 1% | 1% | 2% | 10% |
-| Prototype4 (range 3) | 25% | 8% | 1% | 1% | 5% | 30% |
-| Prototype4 (range 2) | 37% | 15% | 3% | 2% | 12% | 36% |
+### Results on the club's roster
 
-`max_court_spread=2` gives tighter courts: no partnership more than 2
-apart, against 30% of courts having a 3-apart partnership at range 3. The
-cost is the extra repeats in the last row. The default is 3, the
-middle option. Which one to use is the client's call.
+Settings: 26 of the 75 players attend each day, 6 courts, 6 rounds, 50
+days, mixed pairs, partner/opponent memory reset each session. That's
+1,800 courts per run.
 
-### Backend notes
-- `app/algorithm_adapter.py` calls `assign_courts_for_round(playing,
-  n_courts, 1 if mixed_mode else 0, 2)`. That still works unchanged, and
-  the guardrails apply automatically with their defaults. To use it,
-  point `ALGORITHM_PATH` at Prototype4. The same-gender option needs the
-  backend to pass `2`, which the adapter can't do yet (it only has a
-  mixed/not-mixed flag).
-- Partner/opponent memory is the backend's job, not the algorithm's.
-  `round_service._history_for()` currently pulls 120 days of history across
-  every session. In the simulation, carrying memory across all sessions
-  makes same-session repeats worse (they rise to ~20% for everyone),
-  because after a few weeks everyone has played everyone and the algorithm
-  can't tell today's repeats from last month's. This is already on the
-  open-questions list for the client.
-- `algorithm_weighted.py` (the `--weights` engine) is unchanged and does
-  not have the guardrails.
+| | Mode 1 (rotation first) | Mode 3 (middle) | Mode 2 (skill first) |
+|---|---|---|---|
+| Same-session repeat opponents | **5.0%** | 10.5% | 15.8% |
+| Same-session repeat partners | **0.5%** | 4.1% | 5.4% |
+| Courts with team gap 0–1 | 76% | 76% | **99.6%** |
+| Courts with team gap 3–4 | 12% | 0% | 0% |
+| Courts with partners 3–4 apart | 24% | 0.2% | 0.1% |
+| Repeat opponents, rating-2 / rating-7 players | 12% / 20% | 30% / 32% | 40% / 40% |
+
+For comparison, the first Prototype4 (Prototype3's ordering, team gap up to
+2 and no partner limit) had 7.2% repeat opponents and partners 3 apart on
+31% of courts.
+
+Sit-outs are the same in every mode: every player within 1 sit-out of
+their exact fair share (32 / 75 before), a ratio range of 6.9%–9.1%
+(5.3%–13.6% before), casual and regular players at 0.48 / 0.46 sit-outs
+per day attended (0.61 / 0.38 before), at most 1 sit-out per player per
+day, and no back-to-back sit-outs.
+
+### Backend changes needed
+
+The adapter's existing call (`assign_courts_for_round(playing, n, 0|1, 2)`)
+works unchanged, and the court rules apply automatically. Point
+`ALGORITHM_PATH` at Prototype4. For the full sit-out rules,
+`round_service._history_for()` should also pass:
+- `session_sit_outs`: the player's sit-outs so far in **this** session. It
+  already loops over this session's rounds, so add a counter next to
+  `consecutive_sit_outs`. Without it, rule 1 isn't enforced.
+- `recent_sit_outs` and `recent_rounds`: sit-outs and rounds attended over
+  the player's last 50 rounds. Without them, the ratio uses everything in
+  the 120-day window (`sit_out_count`, `rounds_played`).
+
+`AlgorithmPlayer` and the adapter's `Player(...)` call need the same
+fields. They're optional on `helpers.Player`, so nothing breaks before
+then. Same-gender courts also need the adapter to pass `2`.
+
+Other notes:
+- `algorithm_weighted.py` (the `--weights` engine) is unchanged and has
+  none of the above.
+- `generate_round.py` in `simulation_test` doesn't track sessions, so it
+  runs without rule 1. `simulate.py` has all of it.
+- The backend adapter currently always passes variety mode 2, so the app
+  uses skill-first until the mode is made configurable.
 
 ### Tests
-`tests/test_prototype4_guardrails.py` covers the real Mark L / Gerry K /
-Ceclie L / Suzanne B diff-8 case, gender outranking the limits,
-same-gender courts, the repair step, and the adapter's call shape. Two
-Prototype3 tests in `test_skill_pairing.py` now run with the guardrails
-switched off. They check the Prototype3 clustering mechanism, which
-Prototype4 deliberately overrides in those two extreme pools; see the
-note in each docstring.
+
+`tests/test_prototype4_sitouts_and_partners.py` covers everyone-once-
+before-twice, no back-to-back, newcomers, the lucky-regular case, the
+50-round window, backend-field fallback, and the partner-gap cases
+(3/4/5/6, the day-18 3+3 v 2+2 court). `tests/test_prototype4_guardrails.py`
+covers the diff-8 case, the gender lock, same-gender courts and the repair
+step. A few Prototype3 tests now pass `NO_SKILL_LIMITS` to keep checking
+the Prototype3 clustering mechanism underneath. Their docstrings explain
+why.
 
 ---
 

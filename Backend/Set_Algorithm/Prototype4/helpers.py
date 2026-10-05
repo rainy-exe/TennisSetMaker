@@ -30,7 +30,11 @@ class Player:
     consecutive_sit_outs: int = 0   # rounds sat out in a row, ending at the most recent round; reset to 0 the instant they play
     partners_played: set = field(default_factory=set)   # player_ids of partners so far this run
     opponents_played: set = field(default_factory=set)  # player_ids of opponents so far this run
-    sessions_played: int = 0
+    sessions_played: int = 0        # rounds played (the backend passes its rounds_played here)
+    # Prototype4 sit-out fairness inputs (all optional, so existing callers keep working):
+    session_sit_outs: int = 0       # sit-outs so far in TODAY's session; the caller resets it each session
+    recent_sit_outs: Optional[int] = None  # sit-outs within the player's last RATIO_WINDOW_ROUNDS rounds
+    recent_rounds: Optional[int] = None    # rounds attended (played + sat out) within that same window
 
     def __post_init__(self):
         if self.player_id is None:

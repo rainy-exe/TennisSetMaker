@@ -21,7 +21,7 @@ class RunConfig:
     num_courts: int
     num_rounds: int
     mixed_mode: int          # gender policy: 0 = open, 1 = enforce mixed pairs, 2 = same-gender courts (lock, relaxes only when the pool makes it impossible)
-    variety_mode: int        # 1 = hard avoid repeats, 2 = soft penalty, 3 = round-robin bias
+    variety_mode: int        # 1 = rotation first (gaps <= 4), 2 = skill first (gaps <= 2), 3 = round-robin middle (gaps <= 2, rotation before gap-1 preference)
     seed: Optional[int]      # None = generate a fresh random seed and report it
 
 
@@ -79,7 +79,9 @@ def gather_config_interactive(csv_path: str = "NTC_ratings_data.csv") -> RunConf
     )
     variety_mode = _prompt_choice(
         "Variety mode",
-        {1: "hard avoid repeats", 2: "soft penalty for repeats", 3: "round-robin bias"},
+        {1: "hard avoid repeats (rotation first, gaps up to 4)",
+         2: "soft (skill first, gaps up to 2)",
+         3: "round-robin (middle: gaps up to 2, avoid anyone met today)"},
         default=2,
     )
 

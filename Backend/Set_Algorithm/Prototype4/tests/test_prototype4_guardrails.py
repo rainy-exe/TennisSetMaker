@@ -11,6 +11,8 @@ import random
 
 from helpers import Player
 from algorithm import (
+    NO_SKILL_LIMITS,
+    court_score,
     _mixed_score,
     _score_candidate,
     assign_courts_for_round,
@@ -50,7 +52,7 @@ def test_prototype3_behaviour_reproduced_when_guardrails_off():
     """With both guardrails switched off we get Prototype3's choice back:
     variety wins, and the match is 12 vs 4."""
     four = _real_blowout_foursome()
-    _, team_a, team_b = _score_candidate(four, 0, 3, max_team_diff=None, max_court_spread=None)
+    _, team_a, team_b = _score_candidate(four, 0, 3, **NO_SKILL_LIMITS)
     assert raw_skill_diff(team_a, team_b) == 8
 
 
@@ -63,19 +65,17 @@ def test_guardrail_prevents_the_real_diff_8_blowout():
 
 
 def test_guardrails_are_silent_inside_the_limits():
-    """When every option is within the limits, variety decides exactly as
-    before: a fresh partnership is chosen over a 0-diff repeat."""
-    a, b, c, d = P("a", 5), P("b", 5), P("c", 4), P("d", 6)
-    # a+b have partnered before; the two no-repeat splits pair a with c or d.
+    """When every option is within all the limits (and at the ideal team
+    gap), rotation decides exactly as in Prototype3: a fresh partnership
+    is chosen over a repeat."""
+    a, b, c, d = P("a", 5), P("b", 5), P("c", 5), P("d", 6)
+    # a+b have partnered before; every split is team gap 1, partners <= 1 apart.
     a.partners_played.add(b.player_id)
     b.partners_played.add(a.player_id)
-    _, team_a, team_b = _score_candidate((a, b, c, d), 0, 2)
-    for team in (team_a, team_b):
-        ids = {p.player_id for p in team}
-        assert ids != {"a", "b"}
-    # identical choice with guardrails off
-    off = _score_candidate((a, b, c, d), 0, 2, max_team_diff=None, max_court_spread=None)
     on = _score_candidate((a, b, c, d), 0, 2)
+    off = _score_candidate((a, b, c, d), 0, 2, **NO_SKILL_LIMITS)
+    for team in on[1:]:
+        assert {p.player_id for p in team} != {"a", "b"}
     assert {frozenset(p.player_id for p in t) for t in off[1:]} == {frozenset(p.player_id for p in t) for t in on[1:]}
 
 
@@ -114,27 +114,30 @@ def test_same_gender_mode_builds_single_gender_courts():
 
 def test_guardrails_hold_across_realistic_rounds():
     """24 players with a club-like rating spread, 12 rounds of accumulating
-    history under round-robin bias. Every court must stay within both
+    history in skill-first mode (2). Every court must stay within both
     limits when the pool makes that possible (this pool does)."""
     ratings = [2, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7]
     rng = random.Random(3)
     players = [P(f"p{i}", r, rng.choice(["MALE", "FEMALE"])) for i, r in enumerate(ratings)]
     worst_diff = worst_spread = 0
     for _ in range(12):
-        for r in assign_courts_for_round(players, 6, 0, 3):
+        for r in assign_courts_for_round(players, 6, 0, 2):  # skill-first mode
             worst_diff = max(worst_diff, abs(r["team_a_sum"] - r["team_b_sum"]))
             worst_spread = max(worst_spread, raw_skill_spread(tuple(r["players"])))
     assert worst_diff <= DEFAULT_MAX_TEAM_DIFF
     assert worst_spread <= DEFAULT_MAX_COURT_SPREAD
 
 
-def test_repair_and_refinement_never_regress_gender_or_total_guardrail_excess():
+def test_repair_and_refinement_never_regress_gender_or_skill_limits():
     """Steps 2-3 (repair + refinement) versus greedy-only, from identical
-    history: the gender lock must never get worse on any court, and the
-    round's total guardrail excess must never go up."""
-    def total_excess(results):
-        return (sum(raw_team_diff_excess(r["team_a"], r["team_b"], DEFAULT_MAX_TEAM_DIFF) for r in results),
-                sum(raw_court_spread_excess(tuple(r["players"]), DEFAULT_MAX_COURT_SPREAD) for r in results))
+    history: the round's total gender score must never go up, and its
+    summed skill-limit tiers must never get worse (compared in priority
+    order)."""
+    def totals(results, mixed_mode, variety_mode):
+        scores = [court_score(r["team_a"], r["team_b"], mixed_mode, variety_mode) for r in results]
+        gender = sum(s[0] for s in scores)
+        limits = tuple(sum(s[i] for s in scores) for i in range(1, 5))
+        return gender, limits
 
     rng = random.Random(11)
     for _ in range(8):
@@ -148,11 +151,11 @@ def test_repair_and_refinement_never_regress_gender_or_total_guardrail_excess():
             before_players = copy.deepcopy(after_players)  # identical starting history
             before = assign_courts_for_round(before_players, n_courts, mixed_mode, variety_mode, refine_max_iterations=0)
             after = assign_courts_for_round(after_players, n_courts, mixed_mode, variety_mode)
-            assert total_excess(after) <= total_excess(before)
-            # gender: compare the multiset of court scores (courts can trade players)
-            b_g = sorted(_mixed_score(r["team_a"], r["team_b"], mixed_mode) for r in before)
-            a_g = sorted(_mixed_score(r["team_a"], r["team_b"], mixed_mode) for r in after)
-            assert sum(a_g) <= sum(b_g)
+            g_before, l_before = totals(before, mixed_mode, variety_mode)
+            g_after, l_after = totals(after, mixed_mode, variety_mode)
+            assert g_after <= g_before
+            if g_after == g_before:
+                assert l_after <= l_before
 
 
 def test_guardrails_share_out_extremes():

@@ -9,6 +9,7 @@ import pytest
 
 from helpers import Player
 from algorithm import (
+    NO_SKILL_LIMITS,
     raw_skill_spread,
     _score_candidate,
     assign_courts_for_round,
@@ -42,10 +43,14 @@ def test_raw_skill_spread_basic_range():
 def test_fallback_split_preserved_in_isolation():
     """Given exactly the foursome {1, 2, 8, 9}, the chosen split must still
     be (2,8) vs (1,9) — proving raw_skill_spread (constant across splits)
-    can't override raw_skill_diff's choice of split."""
+    can't override raw_skill_diff's choice of split.
+
+    Prototype4: run with the skill limits OFF. With them on, Prototype4
+    picks (1,8) v (2,9) instead -- team gap 2 with partners 7 apart beats
+    team gap 0 with partners 8 apart, keeping the two gaps similar."""
     p1, p2, p8, p9 = (make_player("p1", 1), make_player("p2", 2),
                       make_player("p8", 8), make_player("p9", 9))
-    score, team_a, team_b = _score_candidate((p1, p2, p8, p9), mixed_mode=0, variety_mode=2)
+    score, team_a, team_b = _score_candidate((p1, p2, p8, p9), 0, 2, **NO_SKILL_LIMITS)
     chosen = {frozenset(ratings_of(team_a)), frozenset(ratings_of(team_b))}
     assert chosen == {frozenset({2, 8}), frozenset({1, 9})}
 
@@ -70,7 +75,7 @@ def test_skill_clustering_beats_sum_balanced_mismatch(order_seed):
     random.Random(order_seed).shuffle(players)
 
     results = assign_courts_for_round(players, num_courts=2, mixed_mode=0, variety_mode=2,
-                                      max_team_diff=None, max_court_spread=None)
+                                      **NO_SKILL_LIMITS)
     assert len(results) == 2
 
     fives_court = next((r for r in results if all(p.rating == 5 for p in r["players"])), None)
@@ -101,7 +106,7 @@ def test_skewed_small_pool_minimizes_spread_without_crashing():
         make_player("nine", 9), make_player("ten", 10),
     ]
     results = assign_courts_for_round(players, num_courts=2, mixed_mode=0, variety_mode=2,
-                                      max_team_diff=None, max_court_spread=None)
+                                      **NO_SKILL_LIMITS)
     assert len(results) == 2
 
     twos_court = next((r for r in results if all(p.rating == 2 for p in r["players"])), None)

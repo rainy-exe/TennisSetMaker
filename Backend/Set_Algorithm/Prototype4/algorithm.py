@@ -1,55 +1,64 @@
-"""
+'''
 algorithm.py  (Prototype4)
 
-The set-matching algorithm: priority blocks applied as a lexicographic
-scoring chain. Python compares tuples left-to-right, so the tuple order in
-_score_candidate IS the priority hierarchy.
+The set-matching algorithm. Two stages per round:
 
-What changed from Prototype3, and why
--------------------------------------
-Prototype3 ranked skill balance BELOW partner/opponent variety, exactly as
-the Scope of Work's default preset lists them. In long simulations that
-produced courts like (5+7) vs (2+2) -- a 12-vs-4 match, rating diff 8 --
-whenever avoiding a repeat opponent was "worth more" than a fair match.
-Measured on a 25-player / 6-court / 6-round / 50-day run, ~19% of courts
-were not on their best available split and most of those were on their
-WORST split.
+  A. WHO PLAYS  -- select_round_players (sit-out fairness, Scope of Work
+     priority 1).
+  B. WHO PLAYS WHOM -- assign_courts_for_round, scoring every candidate
+     court as a tuple. Python compares tuples left-to-right, so the tuple
+     order in _score_candidate IS the priority hierarchy.
 
-The client's priorities for a social club are:
-  1. Gender policy (open / mixed / same-gender) behaves as a lock.
-  2. Matches are never lopsided, and the four players on a court are
-     roughly the same standard (partners close in skill AND the two teams
-     close in skill -- not "two 2s vs a 5 and a 7").
-  3. Within those limits, partners and opponents rotate as much as possible.
+A. Sit-outs (client rules)
+--------------------------
+  1. Nobody sits out a second time in a session until everyone there has
+     sat out once (then nobody sits a third time until everyone has sat
+     twice, and so on).                               -- hard rule
+  2. Nobody sits out two rounds in a row, unless the numbers make it
+     unavoidable.                                     -- hard rule
+  3. Among players still level on 1 and 2, the one with the LOWEST sit-out
+     ratio over their last RATIO_WINDOW_ROUNDS rounds sits first. A player
+     with fewer rounds than that has the missing rounds filled in at the
+     room's average ratio, so a newcomer starts exactly average and is
+     judged fully on their own record once they have a full window.
+  4. Remaining ties: random (seeded).
 
-So Prototype4 adds two skill GUARDRAILS that sit above variety, but only
-bite when a limit is exceeded:
+Prototype3 instead ranked players by their raw sit-out COUNT. That made a
+newcomer (count 0, regulars on 10+) sit out round after round until they
+"caught up", and made occasional players sit out a bigger share of their
+rounds than regulars.
 
-    (gender_score,            1. lock: open / mixed / same-gender
-     team_diff_excess,        2. guardrail: how far the team-sum gap is OVER max_team_diff
-     court_spread_excess,     3. guardrail: how far the court's rating range is OVER max_court_spread
-     partner_score,           4. rotate partners
-     opponent_score,          5. rotate opponents
-     skill_spread,            6. then: tightest-possible court
-     skill_diff,              7. then: most even split
-     court_pref)              8. not implemented (always 0)
+B. Courts -- the variety mode picks the trade-off
+-------------------------------------------------
+Gender (open / mixed / same-gender) is always first and acts as a lock.
+After that, each variety mode balances rotation and skill differently
+(MODE_PROFILES):
 
-Inside the limits both guardrails score 0, so variety decides exactly as it
-did in Prototype3 -- rotation is still the main driver of who plays whom.
-A guardrail only overrides variety when the alternative would be a match
-outside the limit, and it is graded (excess, not pass/fail), so when no
-option fits the limit the least-bad one is still chosen rather than
-failing.
+  1  Hard avoid repeats -- ROTATION FIRST. Hard limits: team gap <= 4,
+     partners <= 4 apart. Inside those, avoiding repeat partners/opponents
+     decides; skill targets (gaps within 2, team gap 1) only choose between
+     options rotation leaves level.
+  2  Soft -- SKILL FIRST. Hard limits: team gap <= 2, partners <= 2 apart,
+     court range <= 3, and team gap 1 preferred -- all above rotation.
+     Repeats are avoided only among options that keep those.
+  3  Round-robin -- MIDDLE. Same hard limits as mode 2 (team gap <= 2,
+     partners <= 2 apart), but rotation comes BEFORE the team-gap-1
+     preference, and it counts anyone you've met today at all (partner or
+     opponent), not just exact repeats. (A version with limits of 3 was
+     tried: it rotated no better than mode 1 and matched worse.)
 
-This is a deliberate deviation from the Scope of Work's documented default
-order (variety 3/4 above skill 5) and needs client sign-off -- see
+"Hard limit" means it is only broken when no combination avoids it; it is
+graded (how far over), and when the team-gap and partner-gap limits can't
+both be met, the option breaking either by the least wins, so the two
+gaps stay similar (5+7 v 2+2 loses to 5+2 v 7+2). The full tuple layout is
+in court_score().
+
+Ranking these skill limits above partner/opponent variety deviates from
+the Scope of Work's default preset order and needs client sign-off -- see
 README.md "Prototype4 changes".
 
-Sit-out fairness (priority 1 in the Scope of Work) is unchanged: it is
-decided before court scoring, in select_round_players.
-
 This module knows nothing about CSV files, printing, or user input.
-"""
+'''
 
 import itertools
 import random
@@ -64,35 +73,114 @@ GENDER_OPEN = 0
 GENDER_MIXED = 1
 GENDER_SAME = 2
 
-# Skill guardrails. Ratings are 1-10; team sums are 2-20.
-#   max_team_diff=2     -> e.g. 9 vs 11 is fine, 8 vs 11 is over the limit
-#   max_court_spread=3  -> e.g. a court of 3,4,5,6 is fine, 2,3,5,6 is over
-# Pass None to switch a guardrail off (Prototype3 behaviour for that term).
-DEFAULT_MAX_TEAM_DIFF = 2
-DEFAULT_MAX_COURT_SPREAD = 3
+# Variety modes. Each one is a different trade-off between rotation and
+# skill, not just a different repeat penalty:
+VARIETY_HARD = 1         # rotation first: avoid repeats; gaps allowed up to 4
+VARIETY_SOFT = 2         # skill first: gaps kept within 2; repeats avoided where that holds
+VARIETY_ROUND_ROBIN = 3  # middle: gaps capped at 2, then avoid anyone met today at all
+
+# Per-mode skill settings. Ratings are 1-10; team sums are 2-20.
+#   max_team_diff     team totals at most this far apart            } hard limits: only broken
+#   max_partner_gap   partners at most this far apart               } when no combination
+#   max_court_spread  highest minus lowest rating on the court      } avoids it
+#   ideal_team_diff   preferred team gap (skill-first mode: still ranked above rotation)
+#   rotation_first    True: after the hard limits, rotation decides, and the skill
+#                     TARGETS below only choose between options rotation leaves level
+MODE_PROFILES = {
+    VARIETY_HARD: dict(max_team_diff=4, max_partner_gap=4, max_court_spread=None,
+                       ideal_team_diff=None, rotation_first=True),
+    VARIETY_SOFT: dict(max_team_diff=2, max_partner_gap=2, max_court_spread=3,
+                       ideal_team_diff=1, rotation_first=False),
+    VARIETY_ROUND_ROBIN: dict(max_team_diff=2, max_partner_gap=2, max_court_spread=None,
+                              ideal_team_diff=None, rotation_first=True),
+}
+# Skill targets used as tie-breakers below rotation in the rotation-first modes:
+# "try" to keep team gap and partner gap within 2, team gap 1 preferred.
+TARGET_TEAM_DIFF = 2
+TARGET_PARTNER_GAP = 2
+TARGET_IDEAL_TEAM_DIFF = 1
+
+# Skill-first (mode 2) values, kept under their old names for existing imports.
+DEFAULT_MAX_TEAM_DIFF = MODE_PROFILES[VARIETY_SOFT]["max_team_diff"]
+DEFAULT_MAX_PARTNER_GAP = MODE_PROFILES[VARIETY_SOFT]["max_partner_gap"]
+DEFAULT_MAX_COURT_SPREAD = MODE_PROFILES[VARIETY_SOFT]["max_court_spread"]
+DEFAULT_IDEAL_TEAM_DIFF = MODE_PROFILES[VARIETY_SOFT]["ideal_team_diff"]
+
+_MODE_DEFAULT = object()  # "use the variety mode's own setting"
+
+
+def skill_profile(variety_mode: int) -> dict:
+    """The skill settings a variety mode uses (unknown modes -> skill first)."""
+    return dict(MODE_PROFILES.get(variety_mode, MODE_PROFILES[VARIETY_SOFT]))
+
+
+# Everything off = Prototype3's court scoring (used by tests and for comparison).
+NO_SKILL_LIMITS = dict(max_team_diff=None, max_court_spread=None, max_partner_gap=None,
+                       ideal_team_diff=None, skill_targets=False)
+
+# Sit-out ratio window: each player's last N rounds attended.
+RATIO_WINDOW_ROUNDS = 50
 
 
 # ---------------------------------------------------------------------------
-# Sit-out ratio (round-level, not per-court) -- unchanged from Prototype3
+# A. Who plays: sit-out fairness
 # ---------------------------------------------------------------------------
+
+def _window_counts(p: Player) -> Tuple[int, int]:
+    """(sit-outs, rounds attended) inside the player's ratio window. Uses
+    recent_sit_outs/recent_rounds when the caller supplies them; otherwise
+    falls back to the all-history totals (sit_out_count, and sit-outs plus
+    rounds played) -- which is what the backend passes today."""
+    if p.recent_rounds is not None and p.recent_sit_outs is not None:
+        return p.recent_sit_outs, p.recent_rounds
+    return p.sit_out_count, p.sit_out_count + p.sessions_played
+
+
+def room_average_ratio(active_pool: List[Player]) -> float:
+    """Pooled sit-out ratio of everyone present who has any history."""
+    sits = rounds = 0
+    for p in active_pool:
+        s, r = _window_counts(p)
+        sits += s
+        rounds += r
+    return sits / rounds if rounds else 0.0
+
+
+def sit_out_ratio(p: Player, room_average: float, window: int = RATIO_WINDOW_ROUNDS) -> float:
+    """Sit-out ratio over the player's last `window` rounds. Missing rounds
+    (a player with fewer than `window` rounds of history) count at the
+    room's average, so a brand-new player is exactly average and nobody is
+    judged on a handful of rounds."""
+    sits, rounds = _window_counts(p)
+    if rounds >= window:
+        return sits / rounds
+    return (sits + (window - rounds) * room_average) / window
+
 
 def select_round_players(active_pool: List[Player], num_to_play: int, rng: random.Random) -> Tuple[List[Player], List[Player]]:
-    """Chooses who plays this round vs who sits out, based on sit-out
-    fairness: players who have sat out MORE in the past get priority to
-    play now; players who have sat out LEAST are the fairest candidates
-    to sit out this round (their count then rises to catch up).
+    """Chooses who plays this round and who sits out (rules A1-A4 above).
 
-    A player's `consecutive_sit_outs` streak adds a soft, escalating
-    penalty to their effective count, so nobody gets stuck sitting out
-    round after round. Ties are broken by shuffling with the run's seeded
-    `rng` before a stable sort (reproducible, never biased toward a name).
+    Players are ranked for a court spot by, in order:
+      - most sit-outs already today        (A1: everyone sits once before anyone sits twice)
+      - sat out last round                 (A2: no back-to-back)
+      - highest sit-out ratio              (A3: whoever has sat out least of their share sits)
+      - seeded shuffle                     (A4)
+    The lowest-ranked players sit out. Because each rule only orders
+    players the rules above it leave level, rules 1 and 2 only give way
+    when the numbers make them impossible to keep.
     """
-    def effective_count(p: Player) -> int:
-        return p.sit_out_count + p.consecutive_sit_outs
+    average = room_average_ratio(active_pool)
+
+    def play_priority(p: Player):
+        return (
+            p.session_sit_outs,
+            1 if p.consecutive_sit_outs > 0 else 0,
+            sit_out_ratio(p, average),
+        )
 
     shuffled = list(active_pool)
     rng.shuffle(shuffled)
-    ranked = sorted(shuffled, key=lambda p: -effective_count(p))
+    ranked = sorted(shuffled, key=play_priority, reverse=True)
     playing = ranked[:num_to_play]
     sitting_out = ranked[num_to_play:]
     return playing, sitting_out
@@ -228,6 +316,27 @@ def raw_court_spread_excess(four, max_court_spread: Optional[int]) -> int:
     return max(0, raw_skill_spread(four) - max_court_spread)
 
 
+def raw_partner_gap(team_a, team_b) -> int:
+    """Largest rating gap between two partners on this court."""
+    return max(abs(team_a[0].rating - team_a[1].rating), abs(team_b[0].rating - team_b[1].rating))
+
+
+def skill_limit_excess(team_a, team_b, max_team_diff: Optional[int], max_partner_gap: Optional[int]) -> Tuple[int, int]:
+    """(worst, total) points over the two match limits -- team gap and
+    partner gap. Comparing `worst` first means that when both limits can't
+    be met, the option that breaks EITHER one by the least wins: the two
+    gaps are kept similar instead of one being fixed at the other's expense."""
+    team_over = 0 if max_team_diff is None else max(0, raw_skill_diff(team_a, team_b) - max_team_diff)
+    partner_over = 0 if max_partner_gap is None else max(0, raw_partner_gap(team_a, team_b) - max_partner_gap)
+    return max(team_over, partner_over), team_over + partner_over
+
+
+def raw_team_gap_over_ideal(team_a, team_b, ideal_team_diff: Optional[int]) -> int:
+    if ideal_team_diff is None:
+        return 0
+    return max(0, raw_skill_diff(team_a, team_b) - ideal_team_diff)
+
+
 # ---------------------------------------------------------------------------
 # Court preferences -- not implemented in prototype (no data)
 # ---------------------------------------------------------------------------
@@ -240,33 +349,92 @@ def raw_court_pref_score() -> int:
 # Candidate generation & scoring
 # ---------------------------------------------------------------------------
 
+
+def _resolve(variety_mode, overrides):
+    """Mode profile with any explicit keyword overrides applied (None = off)."""
+    prof = skill_profile(variety_mode)
+    for k, v in overrides.items():
+        if v is not _MODE_DEFAULT:
+            prof[k] = v
+    return prof
+
+
+def court_score(team_a, team_b, mixed_mode: int, variety_mode: int,
+                max_team_diff=_MODE_DEFAULT, max_court_spread=_MODE_DEFAULT,
+                max_partner_gap=_MODE_DEFAULT, ideal_team_diff=_MODE_DEFAULT,
+                skill_targets: bool = True, _profile: Optional[dict] = None):
+    """The full priority tuple for one team split. Fixed layout for all modes:
+
+      0  gender lock
+      1  hard limits: worst points over (team gap / partner gap limit)
+      2  hard limits: total points over both
+      3  hard limits: court range over its limit
+      4  skill-first only: team gap over the ideal
+      5  partner repeats            } rotation
+      6  opponent score             }
+      7  rotation-first only: worst points over the skill targets (2 / 2)
+      8  rotation-first only: total points over the targets
+      9  rotation-first only: team gap over 1
+      10 court range
+      11 team gap + partner gap
+      12 court preference (not implemented, always 0)
+    """
+    prof = _profile or _resolve(variety_mode, dict(
+        max_team_diff=max_team_diff, max_court_spread=max_court_spread,
+        max_partner_gap=max_partner_gap, ideal_team_diff=ideal_team_diff))
+    four = team_a + team_b
+    hard_worst, hard_total = skill_limit_excess(team_a, team_b, prof["max_team_diff"], prof["max_partner_gap"])
+    pre_ideal = post_worst = post_total = post_ideal = 0
+    if prof["rotation_first"]:
+        if skill_targets:
+            post_worst, post_total = skill_limit_excess(team_a, team_b, TARGET_TEAM_DIFF, TARGET_PARTNER_GAP)
+            post_ideal = raw_team_gap_over_ideal(team_a, team_b, TARGET_IDEAL_TEAM_DIFF)
+    else:
+        pre_ideal = raw_team_gap_over_ideal(team_a, team_b, prof["ideal_team_diff"])
+    return (
+        _mixed_score(team_a, team_b, mixed_mode),
+        hard_worst,
+        hard_total,
+        raw_court_spread_excess(four, prof["max_court_spread"]),
+        pre_ideal,
+        _partner_score(team_a, team_b, variety_mode),
+        _opponent_score(team_a, team_b, variety_mode),
+        post_worst,
+        post_total,
+        post_ideal,
+        raw_skill_spread(four),
+        raw_skill_diff(team_a, team_b) + raw_partner_gap(team_a, team_b),
+        raw_court_pref_score(),
+    )
+
+
+# Tuple positions used by the repair and refinement passes.
+_LOCK_AND_LIMITS = slice(0, 5)   # gender + everything ranked above rotation
+_VARIETY = slice(5, 7)
+_ALL_SKILL_AND_VARIETY = slice(0, 10)
+
+
 def _score_candidate(
     four: Tuple[Player, Player, Player, Player], mixed_mode: int, variety_mode: int,
-    max_team_diff: Optional[int] = DEFAULT_MAX_TEAM_DIFF,
-    max_court_spread: Optional[int] = DEFAULT_MAX_COURT_SPREAD,
+    max_team_diff=_MODE_DEFAULT, max_court_spread=_MODE_DEFAULT,
+    max_partner_gap=_MODE_DEFAULT, ideal_team_diff=_MODE_DEFAULT,
+    skill_targets: bool = True,
 ):
     """Returns (score_tuple, team_a, team_b) for the BEST of this foursome's
-    3 possible team splits. The tuple order is the priority hierarchy."""
+    3 possible team splits."""
+    prof = _resolve(variety_mode, dict(
+        max_team_diff=max_team_diff, max_court_spread=max_court_spread,
+        max_partner_gap=max_partner_gap, ideal_team_diff=ideal_team_diff))
     p1, p2, p3, p4 = four
     splits = [
         ((p1, p2), (p3, p4)),
         ((p1, p3), (p2, p4)),
         ((p1, p4), (p2, p3)),
     ]
-    skill_spread = raw_skill_spread(four)  # constant across splits
-    spread_excess = raw_court_spread_excess(four, max_court_spread)
     best = None
     for team_a, team_b in splits:
-        score = (
-            _mixed_score(team_a, team_b, mixed_mode),
-            raw_team_diff_excess(team_a, team_b, max_team_diff),
-            spread_excess,
-            _partner_score(team_a, team_b, variety_mode),
-            _opponent_score(team_a, team_b, variety_mode),
-            skill_spread,
-            raw_skill_diff(team_a, team_b),
-            raw_court_pref_score(),
-        )
+        score = court_score(team_a, team_b, mixed_mode, variety_mode,
+                            skill_targets=skill_targets, _profile=prof)
         if best is None or score < best[0]:
             best = (score, team_a, team_b)
     return best
@@ -275,27 +443,39 @@ def _score_candidate(
 def assign_courts_for_round(
     playing: List[Player], num_courts: int, mixed_mode: int, variety_mode: int,
     refine_max_iterations: Optional[int] = None,
-    max_team_diff: Optional[int] = DEFAULT_MAX_TEAM_DIFF,
-    max_court_spread: Optional[int] = DEFAULT_MAX_COURT_SPREAD,
+    max_team_diff=_MODE_DEFAULT, max_court_spread=_MODE_DEFAULT,
+    max_partner_gap=_MODE_DEFAULT, ideal_team_diff=_MODE_DEFAULT,
+    skill_targets: bool = True,
 ):
     """Three steps:
       1. Greedily fill courts one at a time (best-scoring foursome from
          whoever is left).
       2. repair_guardrails: swap players between courts to fix any court
-         the greedy fill left over a skill limit (refinement.py).
+         the greedy fill left outside the skill limits -- may cost a repeat
+         partner/opponent, never the gender lock (refinement.py).
       3. refine_skill_balance: Prototype3's swap pass that evens out skill
-         spread across courts without making the gender lock, guardrails or
-         variety worse on any court it touches.
+         spread across courts without making the gender lock, skill limits
+         or variety worse on any court it touches.
     `refine_max_iterations=0` switches steps 2 and 3 off (greedy only).
 
     Same call signature as Prototype3 for the first 5 arguments, so the
-    backend adapter works unchanged; the guardrails are optional keyword
-    arguments with club-friendly defaults.
+    backend adapter works unchanged. The skill settings come from the
+    variety mode (MODE_PROFILES); any keyword given overrides that one
+    setting (None switches it off).
 
     Returns a list of dicts: {court, team_a, team_b, players, team_a_sum, team_b_sum}
     """
+    prof = _resolve(variety_mode, dict(
+        max_team_diff=max_team_diff, max_court_spread=max_court_spread,
+        max_partner_gap=max_partner_gap, ideal_team_diff=ideal_team_diff))
+    limits = dict(max_team_diff=prof["max_team_diff"], max_court_spread=prof["max_court_spread"],
+                  max_partner_gap=prof["max_partner_gap"], ideal_team_diff=prof["ideal_team_diff"])
+
     def _best_split(four):
-        return _score_candidate(four, mixed_mode, variety_mode, max_team_diff, max_court_spread)
+        return _score_candidate(four, mixed_mode, variety_mode, skill_targets=skill_targets, **limits)
+
+    def _score(team_a, team_b):
+        return court_score(team_a, team_b, mixed_mode, variety_mode, skill_targets=skill_targets, _profile=prof)
 
     remaining = list(playing)
     results = []
@@ -323,33 +503,22 @@ def assign_courts_for_round(
         for p in four:
             remaining.remove(p)
 
-    def _priority_quality(team_a, team_b):
-        return (
-            _mixed_score(team_a, team_b, mixed_mode),
-            raw_team_diff_excess(team_a, team_b, max_team_diff),
-            raw_court_spread_excess(team_a + team_b, max_court_spread),
-            _partner_score(team_a, team_b, variety_mode),
-            _opponent_score(team_a, team_b, variety_mode),
-        )
-
-    # Step 2: fix any court the greedy fill left over a skill limit (may
-    # cost a repeat partner/opponent -- guardrails outrank variety).
+    # Step 2: fix courts left outside the skill limits.
     results = repair_guardrails(
         results,
         gender_fn=lambda a, b: _mixed_score(a, b, mixed_mode),
-        guardrail_fn=lambda a, b: (
-            raw_team_diff_excess(a, b, max_team_diff),
-            raw_court_spread_excess(a + b, max_court_spread),
-        ),
-        variety_fn=lambda a, b: _partner_score(a, b, variety_mode) + _opponent_score(a, b, variety_mode),
+        guardrail_fn=lambda a, b: _score(a, b)[1:_LOCK_AND_LIMITS.stop],
+        variety_fn=lambda a, b: sum(_score(a, b)[_VARIETY]),
         best_split_fn=_best_split,
         max_iterations=refine_max_iterations,
     )
 
-    # Step 3: Prototype3's skill-spread refinement, which never makes the
-    # gender lock, guardrails or variety worse on any court it touches.
+    # Step 3: even out skill spread across courts, never making the gender
+    # lock, skill limits or variety worse on any court touched.
     results = refine_skill_balance(
-        results, priority_quality_fn=_priority_quality, best_split_fn=_best_split,
+        results,
+        priority_quality_fn=lambda a, b: _score(a, b)[_ALL_SKILL_AND_VARIETY],
+        best_split_fn=_best_split,
         skill_spread_fn=raw_skill_spread, max_iterations=refine_max_iterations,
     )
 

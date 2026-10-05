@@ -111,6 +111,7 @@ def _record_sit_outs(players, sitting_out, round_num):
     for p in players:
         if id(p) in sitting_ids:
             p.sit_out_count += 1
+            p.session_sit_outs += 1
             p.last_sit_out_round = round_num
             p.consecutive_sit_outs += 1
         else:

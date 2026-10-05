@@ -1,0 +1,18 @@
+=== TennisSetMaker simulation (Prototype4) ===
+Roster: /mnt/g/UNI/2026_Semester_2/CITS3200_Professional_Computing/Repo/Algorithm/TennisSetMaker/Backend/Set_Algorithm/simulation_test/roster.csv
+Sit-outs: everyone sits once before anyone sits twice, no back-to-back, ties by ratio over each player's last 50 rounds
+
+Rounds per session (a normal club day) [6]: Gender policy (0=open/any gender, 1=enforce mixed pairs, 2=same-gender courts) [0]: Variety mode (1=hard avoid repeats (rotation first, gaps up to 4), 2=soft (skill first, gaps up to 2), 3=round-robin (middle: gaps up to 2, avoid anyone met today)) [2]:   -> skill first; team gap <= 2, partners <= 2 apart, court range <= 3, team gap 1 preferred
+
+Who-played-with-who memory (1=reset every session, 2=carry across all sessions) [1]: Number of courts your club has available [6]: Players attending each day (drawn at random from your 75-player roster) [20]: Number of days/sessions to simulate [100]: 
+13 of 75 players drawn per day -> 3 court(s), 12 play per round.
+Simulating 50 days x 6 rounds = 300 rounds...
+
+  ...day 10/50 done
+  ...day 20/50 done
+  ...day 30/50 done
+  ...day 40/50 done
+  ...day 50/50 done
+Done. Sit-out ratio range: min=0.062, max=0.100, mean=0.077
+Courts over a limit -- team gap: 0, partner gap: 6, court range: 0 (of 900); back-to-back sit-outs: 0
+Wrote: /mnt/g/UNI/2026_Semester_2/CITS3200_Professional_Computing/Repo/Algorithm/TennisSetMaker/Backend/Set_Algorithm/simulation_test/simulation_results_prototype4.xlsx
