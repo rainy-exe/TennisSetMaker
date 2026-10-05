@@ -80,8 +80,9 @@ if [ ! -f "$P4_DIR/algorithm.py" ]; then
   fi
   exit 1
 fi
-if ! grep -q "repair_guardrails" "$P4_DIR/algorithm.py"; then
-  echo "$P4_DIR/algorithm.py isn't the Prototype4 version (no skill guardrails) -- re-extract Prototype4.zip there."
+if ! grep -q "MODE_PROFILES" "$P4_DIR/algorithm.py"; then
+  echo "$P4_DIR is an older Prototype4 (before the three variety-mode profiles)."
+  echo "Put the new Prototype4.zip in simulation_test and run this again -- it will unpack over the old one."
   exit 1
 fi
 echo "Using algorithm in $P4_DIR"
@@ -109,7 +110,8 @@ version writes simulation_results.xlsx, so the two never overwrite each other):
                             policy, variety mode, skill limits, memory...)
   Summary Checkpoints    -- every player's cumulative sit-out count and
                             ratio at the end of every simulated day.
-  Final SitOut Tally     -- one row per player, final totals, ranked.
+  Final SitOut Tally     -- one row per player, final totals, ranked, plus the
+                            most times they sat out in a single day.
   Skill Balance Summary  -- one row per day: average/worst team rating gap,
                             worst court range, courts over the limits.
   Round By Round Detail  -- every court, every round, every day.
@@ -123,6 +125,7 @@ import csv
 import os
 import random
 import sys
+from collections import deque
 
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
@@ -133,11 +136,12 @@ ROSTER_PATH = os.path.join(HERE, "roster.csv")
 OUTPUT_PATH = os.path.join(HERE, "simulation_results_prototype4.xlsx")
 SEED = 2026
 
-# Skill limits passed to the algorithm. None = use Prototype4's defaults
-# (algorithm.DEFAULT_MAX_TEAM_DIFF / DEFAULT_MAX_COURT_SPREAD). Change these
-# here if you want to try a looser or tighter club setting.
+# Skill settings come from the variety mode you pick (algorithm.MODE_PROFILES).
+# Set any of these to a number to override that one setting for every mode.
 MAX_TEAM_DIFF = None
 MAX_COURT_SPREAD = None
+MAX_PARTNER_GAP = None
+IDEAL_TEAM_DIFF = None
 
 FONT = Font(name="Arial", size=10)
 HEADER_FONT = Font(name="Arial", size=10, bold=True)
@@ -194,23 +198,36 @@ def main():
         print(f"Couldn't import the algorithm from {os.path.abspath(PROTOTYPE_DIR)} ({e}).\n"
               f"simulate.py expects a Prototype4/ folder next to simulation_test/.")
         sys.exit(1)
-    if not hasattr(algorithm, "GENDER_SAME"):
-        print(f"{os.path.abspath(PROTOTYPE_DIR)} doesn't look like Prototype4 (no same-gender policy). "
+    if not hasattr(algorithm, "RATIO_WINDOW_ROUNDS"):
+        print(f"{os.path.abspath(PROTOTYPE_DIR)} isn't the latest Prototype4. "
               f"Re-run install_prototype4.sh.")
         sys.exit(1)
 
-    max_team_diff = algorithm.DEFAULT_MAX_TEAM_DIFF if MAX_TEAM_DIFF is None else MAX_TEAM_DIFF
-    max_court_spread = algorithm.DEFAULT_MAX_COURT_SPREAD if MAX_COURT_SPREAD is None else MAX_COURT_SPREAD
+    window = algorithm.RATIO_WINDOW_ROUNDS
 
     print("=== TennisSetMaker simulation (Prototype4) ===")
     print(f"Roster: {ROSTER_PATH}")
-    print(f"Skill limits: team rating gap <= {max_team_diff}, court range (highest - lowest) <= {max_court_spread}\n")
+    print(f"Sit-outs: everyone sits once before anyone sits twice, no back-to-back, "
+          f"ties by ratio over each player's last {window} rounds\n")
 
     rounds_per_session = _prompt_int("Rounds per session (a normal club day)", default=6)
     gender_labels = {0: "open/any gender", 1: "enforce mixed pairs", 2: "same-gender courts"}
     mixed_mode = _prompt_choice("Gender policy", gender_labels, default=0)
-    variety_labels = {1: "hard avoid repeat partners/opponents", 2: "soft penalty for repeats", 3: "round-robin bias"}
+    variety_labels = {1: "hard avoid repeats (rotation first, gaps up to 4)",
+                      2: "soft (skill first, gaps up to 2)",
+                      3: "round-robin (middle: gaps up to 2, avoid anyone met today)"}
     variety_mode = _prompt_choice("Variety mode", variety_labels, default=2)
+    overrides = {k: v for k, v in dict(max_team_diff=MAX_TEAM_DIFF, max_court_spread=MAX_COURT_SPREAD,
+                                        max_partner_gap=MAX_PARTNER_GAP, ideal_team_diff=IDEAL_TEAM_DIFF).items()
+                 if v is not None}
+    profile = algorithm.skill_profile(variety_mode)
+    profile.update(overrides)
+    max_team_diff, max_partner_gap = profile["max_team_diff"], profile["max_partner_gap"]
+    max_court_spread, ideal_team_diff = profile["max_court_spread"], profile["ideal_team_diff"]
+    print(f"  -> {'rotation' if profile['rotation_first'] else 'skill'} first; team gap <= {max_team_diff}, "
+          f"partners <= {max_partner_gap} apart"
+          + (f", court range <= {max_court_spread}" if max_court_spread is not None else "")
+          + (f", team gap {ideal_team_diff} preferred" if ideal_team_diff is not None else "") + "\n")
     memory_labels = {1: "reset every session", 2: "carry across all sessions"}
     memory_mode = _prompt_choice("Who-played-with-who memory", memory_labels, default=1)
 
@@ -253,9 +270,14 @@ def main():
     # Kept separate from Player.sessions_played, which the algorithm itself
     # increments once per round played.
     days_attended = {pid: 0 for pid in all_players}
+    # Each player's last `window` rounds attended (1 = sat out, 0 = played),
+    # standing in for what the backend would pass as recent_sit_outs/recent_rounds.
+    recent = {pid: deque(maxlen=window) for pid in all_players}
+    most_in_a_day = {pid: 0 for pid in all_players}
+    back_to_back = 0
     checkpoint_rows, skill_rows, round_rows = [], [], []
     global_round = 0
-    total_courts = courts_over_diff = courts_over_spread = 0
+    total_courts = courts_over_diff = courts_over_spread = courts_over_partner = 0
 
     for day in range(1, num_days + 1):
         if memory_mode == 1:
@@ -265,33 +287,47 @@ def main():
         attendees = attendance_rng.sample(list(all_players.values()), players_per_day)
         for p in attendees:
             days_attended[p.player_id] += 1
+            p.session_sit_outs = 0       # new session
+            p.consecutive_sit_outs = 0
         day_diffs, day_spreads = [], []
         day_over = 0
         for round_in_day in range(1, rounds_per_session + 1):
             global_round += 1
+            for p in attendees:
+                p.recent_sit_outs = sum(recent[p.player_id])
+                p.recent_rounds = len(recent[p.player_id])
             playing, sitting_out = algorithm.select_round_players(attendees, num_to_play, rng)
             court_results = algorithm.assign_courts_for_round(
-                playing, num_courts, mixed_mode, variety_mode,
-                max_team_diff=max_team_diff, max_court_spread=max_court_spread,
+                playing, num_courts, mixed_mode, variety_mode, **overrides,
             )
 
             sitting_ids = {id(p) for p in sitting_out}
             for p in attendees:
                 if id(p) in sitting_ids:
+                    back_to_back += p.consecutive_sit_outs > 0
                     p.sit_out_count += 1
+                    p.session_sit_outs += 1
                     p.last_sit_out_round = global_round
                     p.consecutive_sit_outs += 1
+                    recent[p.player_id].append(1)
+                    most_in_a_day[p.player_id] = max(most_in_a_day[p.player_id], p.session_sit_outs)
                 else:
                     p.consecutive_sit_outs = 0
+                    recent[p.player_id].append(0)
 
             for r in court_results:
                 ta, tb = r["team_a"], r["team_b"]
                 diff = abs(r["team_a_sum"] - r["team_b_sum"])
                 spread = algorithm.raw_skill_spread(tuple(r["players"]))
-                over = diff > max_team_diff or spread > max_court_spread
+                pgap = algorithm.raw_partner_gap(ta, tb)
+                over_diff = max_team_diff is not None and diff > max_team_diff
+                over_spread = max_court_spread is not None and spread > max_court_spread
+                over_partner = max_partner_gap is not None and pgap > max_partner_gap
+                over = over_diff or over_spread or over_partner
                 total_courts += 1
-                courts_over_diff += diff > max_team_diff
-                courts_over_spread += spread > max_court_spread
+                courts_over_diff += over_diff
+                courts_over_spread += over_spread
+                courts_over_partner += over_partner
                 day_over += over
                 day_diffs.append(diff)
                 day_spreads.append(spread)
@@ -299,7 +335,7 @@ def main():
                     day, round_in_day, r["court"],
                     f"{ta[0].name} ({ta[0].rating})", f"{ta[1].name} ({ta[1].rating})",
                     f"{tb[0].name} ({tb[0].rating})", f"{tb[1].name} ({tb[1].rating})",
-                    r["team_a_sum"], r["team_b_sum"], diff, spread,
+                    r["team_a_sum"], r["team_b_sum"], diff, pgap, spread,
                     "".join(p.gender[0] for p in ta) + " v " + "".join(p.gender[0] for p in tb),
                     "YES" if over else "",
                 ])
@@ -324,7 +360,8 @@ def main():
         attended = days_attended[p.player_id]
         eligible = attended * rounds_per_session
         ratio = (p.sit_out_count / eligible) if eligible else None
-        final_rows.append([p.name, p.gender, p.rating, p.sit_out_count, attended, eligible, ratio])
+        final_rows.append([p.name, p.gender, p.rating, p.sit_out_count, attended, eligible,
+                           most_in_a_day[p.player_id], ratio])
     final_rows.sort(key=lambda row: (row[-1] is None, -(row[-1] or 0)))
 
     settings = [
@@ -332,8 +369,13 @@ def main():
         ["Gender policy", f"{mixed_mode} = {gender_labels[mixed_mode]}"],
         ["Variety mode", f"{variety_mode} = {variety_labels[variety_mode]}"],
         ["Who-played-with-who memory", memory_labels[memory_mode]],
+        ["Priority", "rotation first" if profile["rotation_first"] else "skill first"],
         ["Max team rating gap", max_team_diff],
-        ["Max court range (highest - lowest)", max_court_spread],
+        ["Ideal team rating gap", ideal_team_diff if ideal_team_diff is not None else "-"],
+        ["Max partner gap", max_partner_gap],
+        ["Max court range (highest - lowest)", max_court_spread if max_court_spread is not None else "-"],
+        ["Sit-out rules", "everyone sits once before anyone sits twice; no back-to-back; "
+                          f"ties by ratio over last {window} rounds"],
         ["Courts", num_courts],
         ["Players attending per day", f"{players_per_day} of {full_pool_size}"],
         ["Rounds per session", rounds_per_session],
@@ -342,15 +384,17 @@ def main():
         ["", ""],
         ["Courts played", total_courts],
         ["Courts over team-gap limit", courts_over_diff],
+        ["Courts over partner-gap limit", courts_over_partner],
         ["Courts over court-range limit", courts_over_spread],
+        ["Back-to-back sit-outs", back_to_back],
     ]
     _write_workbook(settings, checkpoint_rows, final_rows, skill_rows, round_rows)
 
     ratios = [row[-1] for row in final_rows if row[-1] is not None]
     if ratios:
         print(f"Done. Sit-out ratio range: min={min(ratios):.3f}, max={max(ratios):.3f}, mean={sum(ratios)/len(ratios):.3f}")
-    print(f"Courts over the team-gap limit ({max_team_diff}): {courts_over_diff}/{total_courts}; "
-          f"over the court-range limit ({max_court_spread}): {courts_over_spread}/{total_courts}")
+    print(f"Courts over a limit -- team gap: {courts_over_diff}, partner gap: {courts_over_partner}, "
+          f"court range: {courts_over_spread} (of {total_courts}); back-to-back sit-outs: {back_to_back}")
     print(f"Wrote: {OUTPUT_PATH}")
 
 
@@ -377,19 +421,20 @@ def _write_workbook(settings, checkpoint_rows, final_rows, skill_rows, round_row
     _style_header(ws1, 7)
 
     ws2 = wb.create_sheet("Final SitOut Tally")
-    ws2.append(["Rank", "Player", "Gender", "Rating", "Total_SitOut_Count", "Days_Attended", "Total_Rounds_Eligible", "SitOut_Ratio"])
+    ws2.append(["Rank", "Player", "Gender", "Rating", "Total_SitOut_Count", "Days_Attended", "Total_Rounds_Eligible",
+                "Most_SitOuts_In_A_Day", "SitOut_Ratio"])
     for rank, row in enumerate(final_rows, start=1):
-        name, gender, rating, sit_out_count, attended, eligible, ratio = row
-        ws2.append([rank, name, gender, rating, sit_out_count, attended, eligible,
+        name, gender, rating, sit_out_count, attended, eligible, most, ratio = row
+        ws2.append([rank, name, gender, rating, sit_out_count, attended, eligible, most,
                     round(ratio, 4) if ratio is not None else "never_drawn"])
-    _style_header(ws2, 8)
+    _style_header(ws2, 9)
     last_row = len(final_rows) + 1
-    ws2["J1"], ws2["K1"] = "Stat", "SitOut_Ratio"
-    ws2["J1"].font = HEADER_FONT
+    ws2["K1"], ws2["L1"] = "Stat", "SitOut_Ratio"
     ws2["K1"].font = HEADER_FONT
+    ws2["L1"].font = HEADER_FONT
     for i, (label, fn) in enumerate([("Min", "MIN"), ("Max", "MAX"), ("Average", "AVERAGE")], start=2):
-        ws2.cell(row=i, column=10, value=label)
-        ws2.cell(row=i, column=11, value=f"={fn}(H2:H{last_row})")
+        ws2.cell(row=i, column=11, value=label)
+        ws2.cell(row=i, column=12, value=f"={fn}(I2:I{last_row})")
 
     ws3 = wb.create_sheet("Skill Balance Summary")
     ws3.append(["Day", "Avg_Team_Gap", "Worst_Team_Gap", "Worst_Court_Range", "Courts_Over_Limit", "Courts_Played"])
@@ -399,13 +444,13 @@ def _write_workbook(settings, checkpoint_rows, final_rows, skill_rows, round_row
 
     ws4 = wb.create_sheet("Round By Round Detail")
     ws4.append(["Day", "Round", "Court", "TeamA_Player1", "TeamA_Player2", "TeamB_Player1", "TeamB_Player2",
-                "TeamA_Sum", "TeamB_Sum", "Team_Gap", "Court_Range", "Genders", "Over_Limit"])
+                "TeamA_Sum", "TeamB_Sum", "Team_Gap", "Partner_Gap", "Court_Range", "Genders", "Over_Limit"])
     for row in round_rows:
         ws4.append(row)
         if row[-1] == "YES":
             for cell in ws4[ws4.max_row]:
                 cell.fill = OVER_LIMIT_FILL
-    _style_header(ws4, 13)
+    _style_header(ws4, 14)
 
     for ws in (ws0, ws1, ws2, ws3, ws4):
         for row in ws.iter_rows(min_row=2):
