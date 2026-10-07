@@ -35,23 +35,23 @@
             <!-- Navigation -->
             <nav class="nav">
 
-                <a href="dashboard.html" class="nav-link">
+                <a href="{{ url_for('main.dashboard') }}" class="nav-link">
                     Dashboard
                 </a>
 
-                <a href="create-session.html" class="nav-link active">
+                <a href="{{ url_for('main.create_session') }}" class="nav-link active">
                     Sessions
                 </a>
 
-                <a href="#" class="nav-link">
+                <a href="{{ url_for('main.players') }}" class="nav-link">
                     Players
                 </a>
 
-                <a href="#" class="nav-link">
+                <a href="{{ url_for('main.courts') }}" class="nav-link">
                     Courts
                 </a>
 
-                <a href="#" class="nav-link">
+                <a href="{{ url_for('main.templates') }}" class="nav-link">
                     Templates
                 </a>
 
@@ -105,7 +105,7 @@
 
             </div>
             <!-- Create Session Form -->
-            <form class="card form-card">
+            <form class="card form-card" method="POST" >
 
                 <div class="form-grid">
 
@@ -386,7 +386,7 @@
                 <!-- Form Actions -->
                 <div class="form-actions">
 
-                    <a href="dashboard.html" class="btn">
+                    <a href="{{ url_for('main.dashboard') }}" class="btn">
                         Cancel
                     </a>
 

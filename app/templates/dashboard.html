@@ -35,23 +35,23 @@
             <!-- Navigation -->
             <nav class="nav">
 
-                <a href="dashboard.html" class="nav-link active">
+                <a href="{{ url_for('main.dashboard') }}" class="nav-link active">
                     Dashboard
                 </a>
 
-                <a href="create-session.html" class="nav-link">
+                <a href="{{ url_for('main.create_session') }}" class="nav-link">
                     Sessions
                 </a>
 
-                <a href="#" class="nav-link">
-                    Players
+               <a href="{{ url_for('main.players') }}" class="nav-link">
+                Players
                 </a>
 
-                <a href="#" class="nav-link">
+                <a href="{{ url_for('main.courts') }}" class="nav-link">
                     Courts
                 </a>
 
-                <a href="#" class="nav-link">
+                <a href="{{ url_for('main.templates') }}" class="nav-link">
                     Templates
                 </a>
 
@@ -100,7 +100,7 @@
 
                 </div>
 
-                <a href="create-session.html" class="btn btn-primary">
+                <a href="{{ url_for('main.create_session') }}" class="btn btn-primary">
                     <span class="btn-icon">+</span>
                     Create Session
                 </a>

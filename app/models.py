@@ -173,27 +173,112 @@ class Invitation(TimestampMixin, db.Model):
 class Player(TimestampMixin, db.Model):
     __tablename__ = "players"
 
-    id = db.Column(db.String(36), primary_key=True, default=new_id)
+    id = db.Column(
+        db.String(36),
+        primary_key=True,
+        default=new_id
+    )
+
     club_id = db.Column(
         db.String(36),
         db.ForeignKey("clubs.id"),
         nullable=False,
         index=True,
     )
-    name = db.Column(db.String(120), nullable=False)
-    normalized_name = db.Column(db.String(120), nullable=False)
-    gender = db.Column(db.String(20), nullable=False)
-    skill = db.Column(db.Integer, nullable=True)
-    active = db.Column(db.Boolean, nullable=False, default=True)
 
-    __table_args__ = (
-        db.CheckConstraint("length(trim(name)) > 0", name="ck_player_name_nonempty"),
-        db.CheckConstraint(
-            "skill IS NULL OR skill BETWEEN 1 AND 10", name="ck_player_skill"
-        ),
-        db.Index("ix_player_club_normalized_name", "club_id", "normalized_name"),
+    name = db.Column(
+        db.String(120),
+        nullable=False
     )
 
+    normalized_name = db.Column(
+        db.String(120),
+        nullable=False
+    )
+
+    gender = db.Column(
+        db.String(20),
+        nullable=False
+    )
+
+    # Tennis rating / skill level: 1–7
+    skill = db.Column(
+        db.Integer,
+        nullable=True
+    )
+
+    # Optional notes entered by club staff
+    notes = db.Column(
+        db.Text,
+        nullable=True
+    )
+
+    # Optional preferred court surface
+    court_preference = db.Column(
+        db.String(20),
+        nullable=True
+    )
+
+    active = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=True
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "length(trim(name)) > 0",
+            name="ck_player_name_nonempty"
+        ),
+
+        db.CheckConstraint(
+            "skill IS NULL OR skill BETWEEN 1 AND 7",
+            name="ck_player_skill"
+        ),
+
+        db.CheckConstraint(
+            "court_preference IS NULL OR "
+            "court_preference IN ('Clay', 'Hard', 'Grass', 'Synthetic')",
+            name="ck_player_court_preference"
+        ),
+
+        db.Index(
+            "ix_player_club_normalized_name",
+            "club_id",
+            "normalized_name"
+        ),
+    )
+
+    # Allows frontend code to use player.rating
+    # while backend/database continues using player.skill.
+    @property
+    def rating(self):
+        return self.skill
+
+    @rating.setter
+    def rating(self, value):
+        self.skill = value
+
+    @property
+    def rating_dots(self):
+        return self.skill or 0
+
+    @property
+    def initials(self):
+        words = self.name.strip().split()
+
+        if not words:
+            return ""
+
+        return "".join(word[0] for word in words[:2]).upper()
+
+    @property
+    def member_since(self):
+        if not self.created_at:
+            return "Unknown"
+
+        return self.created_at.strftime("%b %Y")
+    
 
 class Court(TimestampMixin, db.Model):
     __tablename__ = "courts"
@@ -208,7 +293,12 @@ class Court(TimestampMixin, db.Model):
     )
 
     number = db.Column(db.Integer, nullable=False)
+    
     court_type = db.Column(db.String(80), nullable=False)
+    cover = db.Column(
+        db.String(120),
+        nullable=True
+    )
     active = db.Column(db.Boolean, nullable=False, default=True)
     priority = db.Column(db.Integer, nullable=False, default=0)
 
@@ -256,11 +346,13 @@ class SessionTemplate(TimestampMixin, db.Model):
         db.CheckConstraint(
             "session_duration_minutes > 0", name="ck_template_session_duration_positive"
         ),
-        db.CheckConstraint(
-            "round_duration_minutes > 0", name="ck_template_duration_positive"
+         db.CheckConstraint(
+             "round_duration_minutes > 0",
+             name="ck_template_duration_positive"
         ),
         db.CheckConstraint(
-            "round_format IN ('open', 'mixed')", name="ck_template_round_format"
+            "round_format IN ('open', 'mixed', 'same_gender')",
+            name="ck_template_round_format"
         ),
         db.CheckConstraint(
             "tea_break_after_round IS NULL OR "
@@ -307,7 +399,7 @@ class TennisSession(TimestampMixin, db.Model):
     number_of_rounds = db.Column(db.Integer, nullable=False)
     session_duration_minutes = db.Column(db.Integer, nullable=False)
     round_duration_minutes = db.Column(db.Integer, nullable=False)
-    round_format = db.Column(db.String(20), nullable=False)
+    round_format = db.Column(db.String(20), nullable=False, default="open")
     strict_format = db.Column(db.Boolean, nullable=False, default=False)
     tea_break_after_round = db.Column(db.Integer, nullable=True)
     status = db.Column(db.String(20), nullable=False, default="draft")
@@ -337,7 +429,8 @@ class TennisSession(TimestampMixin, db.Model):
             "round_duration_minutes > 0", name="ck_session_duration_positive"
         ),
         db.CheckConstraint(
-            "round_format IN ('open', 'mixed')", name="ck_session_round_format"
+            "round_format IN ('open', 'mixed', 'same_gender')",
+            name="ck_session_round_format"
         ),
         db.CheckConstraint(
             "status IN ('draft', 'active', 'completed', 'cancelled')",
