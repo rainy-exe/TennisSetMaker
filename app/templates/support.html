@@ -1,90 +1,6 @@
-<!DOCTYPE html>
-<html lang="en" class="smooth-scroll">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>SetMaker | Support</title>
-
-    <link
-    rel="stylesheet"
-    href="{{ url_for('static', filename='css/styles.css') }}"
-    >
-
-</head>
-
-<body>
-
-    <div class="app-shell">
-
-        <aside class="sidebar">
-
-            <!-- SetMaker logo -->
-            <div class="brand">
-
-                <div class="logo-mark">
-                    S
-                </div>
-
-                <span>SetMaker</span>
-
-            </div>
-
-
-            <!-- Navigation -->
-            <nav class="nav">
-
-                <a href="{{ url_for('main.dashboard') }}" class="nav-link">
-                    Dashboard
-                </a>
-
-                <a href="{{ url_for('main.create_session') }}" class="nav-link">
-                    Sessions
-                </a>
-
-                <a href="{{ url_for('main.players') }}" class="nav-link">
-                    Players
-                </a>
-
-                <a href="{{ url_for('main.courts') }}" class="nav-link">
-                    Courts
-                </a>
-
-                <a href="{{ url_for('main.templates') }}" class="nav-link">
-                    Templates
-                </a>
-
-                <a href="#" class="nav-link">
-                    History
-                </a>
-
-                <a href="#" class="nav-link">
-                    Settings
-                </a>
-
-                <a href="{{ url_for('main.support') }}" class="nav-link active">
-                    Support
-                </a>
-
-            </nav>
-
-
-            <!-- Admin information -->
-            <div class="admin-card">
-
-                <div class="avatar">
-                </div>
-
-                <div class="admin-copy">
-                    <strong>Club Admin</strong>
-                    <span id="adminEmail"></span>
-                </div>
-
-            </div>
-
-        </aside>
-
+{% extends "base.html" %}
+{% block title %}Support{% endblock %}
+{% block content %}
         <main class="main support-main">
 
             <!-- Support Header -->
@@ -93,7 +9,7 @@
                 <div>
 
                     <h1 class="page-title">
-                        Support &amp; User Guide
+                        Support
                     </h1>
 
                     <p class="page-subtitle">
@@ -239,7 +155,7 @@
                         </h2>
 
                         <p>
-                            The <a href="{{ url_for('main.players') }}">Players</a> page is your club roster.
+                            The <a href="{{ url_for('players') }}">Players</a> page is your club roster.
                             Search by name, then select a player to see their details and notes.
                         </p>
 
@@ -274,7 +190,7 @@
                         </h2>
 
                         <p>
-                            The <a href="{{ url_for('main.courts') }}">Courts</a> page lists every court at your club.
+                            The <a href="{{ url_for('courts') }}">Courts</a> page lists every court at your club.
                         </p>
 
                         <ul>
@@ -295,7 +211,7 @@
 
                         <p>
                             Templates save the settings you use every week so you don't have to re-enter them.
-                            Owners and admins manage them from the <a href="{{ url_for('main.templates') }}">Templates</a> page.
+                            Owners and admins manage them from the <a href="{{ url_for('templates') }}">Templates</a> page.
                         </p>
 
                         <p>A template stores:</p>
@@ -317,7 +233,7 @@
                         </h2>
 
                         <ol class="support-steps">
-                            <li>From the <a href="{{ url_for('main.dashboard') }}">Dashboard</a>, click <strong>+ Create Session</strong>.</li>
+                            <li>From the <a href="{{ url_for('dashboard') }}">Dashboard</a>, click <strong>+ Create Session</strong>.</li>
                             <li>Enter a session name, date and start time.</li>
                             <li>Set the number of rounds, round duration, session duration and an optional tea break.</li>
                             <li>Choose a <strong>match format</strong> and tick the courts you're using.</li>
@@ -449,9 +365,9 @@
 
             </div>
         </main>
+{% endblock %}
 
-    </div>
-
+{% block scripts %}
     <script>
         // Highlight the contents link for the section currently being read.
         (function () {
@@ -503,7 +419,4 @@
             update();
         })();
     </script>
-
-</body>
-
-</html>
+{% endblock %}
