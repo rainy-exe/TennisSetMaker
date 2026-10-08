@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<main class="main">
+  <div class="settings-subnav">
+    <button class="subnav-link active" data-tab="team"><span class="subnav-dot"></span> Team Members</button>
+    <button class="subnav-link" data-tab="club">Club Details</button>
+  </div>
+
+  <!-- Team Members Tab -->
+  <div class="tab-panel active" id="tab-team">
+    <div class="page-topline">
+      <h1 class="page-title">Team Members</h1>
+      <p class="page-subtitle">Manage accounts for your club.</p>
+    </div>
+
+    <div class="card team-table-card">
+      <table class="team-table">
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for member in team_members %}
+          <tr>
+            <td class="member-name-cell">{{ member.name }}</td>
+            <td>{{ member.email }}</td>
+            <td><span class="badge blue">{{ member.role }}</span></td>
+            <td>{{ member.joined }}</td>
+            <td class="row-actions">
+              <a class="btn btn-icon-only" href="{{ url_for('settings_member', member_id=member.id) }}">⋯</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="team-table-footer">{{ team_members|length }} of {{ team_seat_limit }} team members</div>
+    </div>
+
+    <a class="btn btn-primary" href="#"><span>+</span> Invite Team Member</a>
+  </div>
+
+  <!-- Club Details Tab -->
+  <div class="tab-panel" id="tab-club">
+    <div class="page-topline">
+      <h1 class="page-title">Club Details</h1>
+      <p class="page-subtitle">Information about your club shown across the app.</p>
+    </div>
+
+    <div class="card" style="padding: 24px; max-width: 480px;">
+      <form method="POST" action="{{ url_for('update_club') }}">
+        <div class="field">
+          <label>Club Name</label>
+          <input class="input" type="text" name="club_name" value="{{ club.name }}" />
+        </div>
+        <div class="field">
+          <label>Contact Email</label>
+          <input class="input" type="email" name="contact_email" value="{{ club.contact_email }}" />
+        </div>
+        <div class="field">
+          <label>Contact Phone</label>
+          <input class="input" type="text" name="contact_phone" value="{{ club.contact_phone }}" />
+        </div>
+        <div class="field">
+          <label>Address</label>
+          <input class="input" type="text" name="address" value="{{ club.address }}" />
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    document.querySelectorAll('.subnav-link').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.subnav-link').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+  </script>
+{% endblock %}

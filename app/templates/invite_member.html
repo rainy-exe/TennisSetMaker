@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Invite Team Member{% endblock %}
+
+{% block content %}
+<main class="main">
+  <div class="page-topline">
+    <h1 class="page-title">Invite Team Member</h1>
+    <p class="page-subtitle">Add a new account to your club.</p>
+  </div>
+
+  <div class="card" style="padding: 24px; max-width: 480px;">
+    {% if errors %}
+      {% for e in errors %}
+        <p class="form-error">{{ e }}</p>
+      {% endfor %}
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('invite_member') }}">
+      <div class="field">
+        <label>Name</label>
+        <input class="input" type="text" name="name" value="{{ form.name or '' }}" />
+      </div>
+
+      <div class="field">
+        <label>Email</label>
+        <input class="input" type="email" name="email" value="{{ form.email or '' }}" />
+      </div>
+
+      <div class="field">
+        <label>Role</label>
+        <div style="margin-top: 6px;">
+          {% for role in assignable_roles %}
+          <label class="role-option">
+            <input type="radio" name="role" value="{{ role }}" {{ 'checked' if form.role == role or (not form and role == 'Staff') }} />
+            <div>
+              <div class="role-option-title">{{ role }}</div>
+              {% for line in role_info[role] %}
+                <div class="role-option-desc">{{ line }}</div>
+              {% endfor %}
+            </div>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a class="btn" href="{{ url_for('settings') }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">Send Invite</button>
+      </div>
+    </form>
+  </div>
+</main>
+{% endblock %}
