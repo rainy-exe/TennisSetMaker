@@ -51,6 +51,11 @@ FONT = Font(name="Arial", size=10)
 HEADER_FONT = Font(name="Arial", size=10, bold=True)
 OVER_LIMIT_FILL = PatternFill("solid", start_color="FCE4D6")
 
+# Column indices into the Round By Round Detail rows, used for the
+# row highlighting below.
+COL_MIXED_TEAM = 13
+COL_OVER_LIMIT = 15
+
 
 def _prompt_int(label, default):
     raw = input(f"{label} [{default}]: ").strip()
@@ -182,6 +187,7 @@ def main():
     checkpoint_rows, skill_rows, round_rows = [], [], []
     global_round = 0
     total_courts = courts_over_diff = courts_over_spread = courts_over_partner = 0
+    courts_with_mixed_team = courts_not_single_gender = 0
 
     for day in range(1, num_days + 1):
         if memory_mode == 1:
@@ -200,7 +206,9 @@ def main():
             for p in attendees:
                 p.recent_sit_outs = sum(recent[p.player_id])
                 p.recent_rounds = len(recent[p.player_id])
-            playing, sitting_out = algorithm.select_round_players(attendees, num_to_play, rng)
+            playing, sitting_out = algorithm.select_round_players(
+                attendees, num_to_play, rng, mixed_mode=mixed_mode,
+            )
             court_results = algorithm.assign_courts_for_round(
                 playing, num_courts, mixed_mode, variety_mode, **overrides,
             )
@@ -228,6 +236,14 @@ def main():
                 over_spread = max_court_spread is not None and spread > max_court_spread
                 over_partner = max_partner_gap is not None and pgap > max_partner_gap
                 over = over_diff or over_spread or over_partner
+                # Gender compliance, from the same helper the scorer uses
+                # so this metric can never drift from the policy itself.
+                minority, mixed_teams = algorithm.court_gender_shape(ta, tb)
+                same_gender_run = mixed_mode == algorithm.GENDER_SAME
+                mixed_team = same_gender_run and mixed_teams > 0
+                not_single_gender = same_gender_run and minority > 0
+                courts_with_mixed_team += mixed_team
+                courts_not_single_gender += not_single_gender
                 total_courts += 1
                 courts_over_diff += over_diff
                 courts_over_spread += over_spread
@@ -241,6 +257,8 @@ def main():
                     f"{tb[0].name} ({tb[0].rating})", f"{tb[1].name} ({tb[1].rating})",
                     r["team_a_sum"], r["team_b_sum"], diff, pgap, spread,
                     "".join(p.gender[0] for p in ta) + " v " + "".join(p.gender[0] for p in tb),
+                    "YES" if mixed_team else "",
+                    "YES" if not_single_gender else "",
                     "YES" if over else "",
                 ])
 
@@ -290,6 +308,10 @@ def main():
         ["Courts over team-gap limit", courts_over_diff],
         ["Courts over partner-gap limit", courts_over_partner],
         ["Courts over court-range limit", courts_over_spread],
+        ["Courts with a mixed team", courts_with_mixed_team
+            if mixed_mode == algorithm.GENDER_SAME else "- (same-gender runs only)"],
+        ["Courts not all one gender", courts_not_single_gender
+            if mixed_mode == algorithm.GENDER_SAME else "- (same-gender runs only)"],
         ["Back-to-back sit-outs", back_to_back],
     ]
     _write_workbook(settings, checkpoint_rows, final_rows, skill_rows, round_rows)
@@ -299,6 +321,9 @@ def main():
         print(f"Done. Sit-out ratio range: min={min(ratios):.3f}, max={max(ratios):.3f}, mean={sum(ratios)/len(ratios):.3f}")
     print(f"Courts over a limit -- team gap: {courts_over_diff}, partner gap: {courts_over_partner}, "
           f"court range: {courts_over_spread} (of {total_courts}); back-to-back sit-outs: {back_to_back}")
+    if mixed_mode == algorithm.GENDER_SAME:
+        print(f"Same-gender policy -- courts with a mixed team: {courts_with_mixed_team}, "
+              f"courts not all one gender: {courts_not_single_gender} (of {total_courts})")
     print(f"Wrote: {OUTPUT_PATH}")
 
 
@@ -348,13 +373,14 @@ def _write_workbook(settings, checkpoint_rows, final_rows, skill_rows, round_row
 
     ws4 = wb.create_sheet("Round By Round Detail")
     ws4.append(["Day", "Round", "Court", "TeamA_Player1", "TeamA_Player2", "TeamB_Player1", "TeamB_Player2",
-                "TeamA_Sum", "TeamB_Sum", "Team_Gap", "Partner_Gap", "Court_Range", "Genders", "Over_Limit"])
+                "TeamA_Sum", "TeamB_Sum", "Team_Gap", "Partner_Gap", "Court_Range", "Genders",
+                "Mixed_Team", "Not_Single_Gender", "Over_Limit"])
     for row in round_rows:
         ws4.append(row)
-        if row[-1] == "YES":
+        if row[COL_OVER_LIMIT] == "YES" or row[COL_MIXED_TEAM] == "YES":
             for cell in ws4[ws4.max_row]:
                 cell.fill = OVER_LIMIT_FILL
-    _style_header(ws4, 14)
+    _style_header(ws4, 16)
 
     for ws in (ws0, ws1, ws2, ws3, ws4):
         for row in ws.iter_rows(min_row=2):
