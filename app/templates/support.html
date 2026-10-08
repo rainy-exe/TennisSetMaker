@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en" class="smooth-scroll">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SetMaker | Support</title>
+
+    <link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/styles.css') }}"
+    >
+
+</head>
+
+<body>
+
+    <div class="app-shell">
+
+        <aside class="sidebar">
+
+            <!-- SetMaker logo -->
+            <div class="brand">
+
+                <div class="logo-mark">
+                    S
+                </div>
+
+                <span>SetMaker</span>
+
+            </div>
+
+
+            <!-- Navigation -->
+            <nav class="nav">
+
+                <a href="{{ url_for('main.dashboard') }}" class="nav-link">
+                    Dashboard
+                </a>
+
+                <a href="{{ url_for('main.create_session') }}" class="nav-link">
+                    Sessions
+                </a>
+
+                <a href="{{ url_for('main.players') }}" class="nav-link">
+                    Players
+                </a>
+
+                <a href="{{ url_for('main.courts') }}" class="nav-link">
+                    Courts
+                </a>
+
+                <a href="{{ url_for('main.templates') }}" class="nav-link">
+                    Templates
+                </a>
+
+                <a href="#" class="nav-link">
+                    History
+                </a>
+
+                <a href="#" class="nav-link">
+                    Settings
+                </a>
+
+                <a href="{{ url_for('main.support') }}" class="nav-link active">
+                    Support
+                </a>
+
+            </nav>
+
+
+            <!-- Admin information -->
+            <div class="admin-card">
+
+                <div class="avatar">
+                </div>
+
+                <div class="admin-copy">
+                    <strong>Club Admin</strong>
+                    <span id="adminEmail"></span>
+                </div>
+
+            </div>
+
+        </aside>
+
+        <main class="main support-main">
+
+            <!-- Support Header -->
+            <div class="page-topline">
+
+                <div>
+
+                    <h1 class="page-title">
+                        Support &amp; User Guide
+                    </h1>
+
+                    <p class="page-subtitle">
+                        Everything you need to set up your club and run fair, balanced tennis sessions.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="support-layout">
+
+                <!-- Table of contents -->
+                <nav class="card support-toc" aria-label="User guide sections">
+
+                    <h2 class="section-title">
+                        On this page
+                    </h2>
+
+                    <ol>
+                        <li><a href="#getting-started">1. Getting started</a></li>
+                        <li><a href="#roles">2. Roles &amp; permissions</a></li>
+                        <li><a href="#players">3. Managing players</a></li>
+                        <li><a href="#courts">4. Managing courts</a></li>
+                        <li><a href="#templates">5. Session templates</a></li>
+                        <li><a href="#create-session">6. Creating a session</a></li>
+                        <li><a href="#running-session">7. Running a live session</a></li>
+                        <li><a href="#team">8. Team members &amp; club details</a></li>
+                        <li><a href="#troubleshooting">9. Troubleshooting</a></li>
+                    </ol>
+
+                </nav>
+
+
+                <div class="support-content">
+
+                    <!-- Getting started -->
+                    <section class="card support-section" id="getting-started">
+
+                        <h2 class="section-title">
+                            1. Getting started
+                        </h2>
+
+                        <p>
+                            SetMaker builds balanced doubles sets for your club's social and ladder sessions.
+                            It keeps sit-outs fair, reduces repeated partners and opponents, and lets you
+                            adjust matches by hand at any time.
+                        </p>
+
+                        <h3>Signing in</h3>
+                        <ul>
+                            <li>Log in with the email and password for your club account.</li>
+                            <li>If you were invited by your club, open the invitation link, confirm your details and set a password.</li>
+                            <li>Forgotten your password? Use <strong>Forgot password?</strong> on the login page.</li>
+                        </ul>
+
+                        <h3>Recommended first steps</h3>
+                        <ol class="support-steps">
+                            <li>Add your club's <a href="#courts">courts</a> and set their priority.</li>
+                            <li>Add your <a href="#players">players</a>, including a skill rating for each.</li>
+                            <li>Optionally save a <a href="#templates">template</a> for sessions you run regularly.</li>
+                            <li><a href="#create-session">Create a session</a> and generate the first round.</li>
+                        </ol>
+
+                    </section>
+
+
+                    <!-- Roles -->
+                    <section class="card support-section" id="roles">
+
+                        <h2 class="section-title">
+                            2. Roles &amp; permissions
+                        </h2>
+
+                        <p>
+                            Every account belongs to one club and has one of three roles. If a button is
+                            missing or disabled, your role probably doesn't allow that action.
+                        </p>
+
+                        <div class="support-table-wrap">
+                            <table class="support-table">
+                                <thead>
+                                    <tr>
+                                        <th>Action</th>
+                                        <th>Owner</th>
+                                        <th>Admin</th>
+                                        <th>Staff</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Create and run sessions, edit matches, add late players</td>
+                                        <td>Yes</td><td>Yes</td><td>Yes</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Add and edit players</td>
+                                        <td>Yes</td><td>Yes</td><td>Yes</td>
+                                    </tr>
+                                    <tr>
+                                        <td>View player skill ratings</td>
+                                        <td>Yes</td><td>Yes</td><td>Yes</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Set or change player skill ratings</td>
+                                        <td>Yes</td><td>Yes</td><td>No</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Delete players</td>
+                                        <td>Yes</td><td>Yes</td><td>No</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Add, edit and deactivate courts</td>
+                                        <td>Yes</td><td>Yes</td><td>No</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Create, edit and remove templates</td>
+                                        <td>Yes</td><td>Yes</td><td>No</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Reopen a completed round</td>
+                                        <td>Yes</td><td>Yes</td><td>No</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Invite staff</td>
+                                        <td>Yes</td><td>Yes</td><td>No</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Invite admins</td>
+                                        <td>Yes</td><td>No</td><td>No</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                    </section>
+
+
+                    <!-- Players -->
+                    <section class="card support-section" id="players">
+
+                        <h2 class="section-title">
+                            3. Managing players
+                        </h2>
+
+                        <p>
+                            The <a href="{{ url_for('main.players') }}">Players</a> page is your club roster.
+                            Search by name, then select a player to see their details and notes.
+                        </p>
+
+                        <h3>Adding a player</h3>
+                        <ol class="support-steps">
+                            <li>Click <strong>+ Add Player</strong>.</li>
+                            <li>Enter their name and gender, and optionally notes and a court surface preference.</li>
+                            <li>Owners and admins choose a <strong>rating from 1 to 10</strong>. Staff can leave this blank for an admin to fill in later.</li>
+                            <li>Click <strong>Add Player</strong>.</li>
+                        </ol>
+
+                        <div class="support-callout">
+                            <strong>A player must have a skill rating before they can be placed in a set.</strong>
+                            Players without one are left out when a round is generated.
+                        </div>
+
+                        <h3>Duplicates, editing and deleting</h3>
+                        <ul>
+                            <li>If a player with a similar name already exists, SetMaker warns you before saving so you don't create a duplicate.</li>
+                            <li>Use <strong>Edit</strong> to update a player's details at any time.</li>
+                            <li><strong>Delete</strong> (owners and admins) deactivates the player. They stop appearing in new sessions, but their past rounds are kept.</li>
+                        </ul>
+
+                    </section>
+
+
+                    <!-- Courts -->
+                    <section class="card support-section" id="courts">
+
+                        <h2 class="section-title">
+                            4. Managing courts
+                        </h2>
+
+                        <p>
+                            The <a href="{{ url_for('main.courts') }}">Courts</a> page lists every court at your club.
+                        </p>
+
+                        <ul>
+                            <li><strong>Add Court</strong> to record a court's number, surface type, cover and priority.</li>
+                            <li><strong>Priority</strong> decides which courts are filled first. Your best courts should have the highest priority.</li>
+                            <li>Use the toggle to mark a court <strong>Inactive</strong> (for example, during resurfacing). Inactive courts aren't offered when you create a session.</li>
+                        </ul>
+
+                    </section>
+
+
+                    <!-- Templates -->
+                    <section class="card support-section" id="templates">
+
+                        <h2 class="section-title">
+                            5. Session templates
+                        </h2>
+
+                        <p>
+                            Templates save the settings you use every week so you don't have to re-enter them.
+                            Owners and admins manage them from the <a href="{{ url_for('main.templates') }}">Templates</a> page.
+                        </p>
+
+                        <p>A template stores:</p>
+                        <ul>
+                            <li>Match format: <strong>Mixed Doubles</strong> or <strong>Open Play</strong> (any gender).</li>
+                            <li>Number of rounds, round length, start time and total session length.</li>
+                            <li>An optional tea break after a chosen round.</li>
+                            <li>Which courts to use. Leave <strong>Set as default priority order</strong> on to follow the Courts page, or turn it off to choose a custom order for this template.</li>
+                        </ul>
+
+                    </section>
+
+
+                    <!-- Create session -->
+                    <section class="card support-section" id="create-session">
+
+                        <h2 class="section-title">
+                            6. Creating a session
+                        </h2>
+
+                        <ol class="support-steps">
+                            <li>From the <a href="{{ url_for('main.dashboard') }}">Dashboard</a>, click <strong>+ Create Session</strong>.</li>
+                            <li>Enter a session name, date and start time.</li>
+                            <li>Set the number of rounds, round duration, session duration and an optional tea break.</li>
+                            <li>Choose a <strong>match format</strong> and tick the courts you're using.</li>
+                            <li>Under <strong>Attending Players</strong>, tick everyone who is playing today.</li>
+                            <li>Click <strong>Create &amp; Generate Session</strong>. SetMaker saves the session and builds Round 1.</li>
+                        </ol>
+
+                        <div class="support-callout">
+                            <strong>Allow Format Relaxation</strong> lets SetMaker adjust the format when numbers
+                            don't divide evenly (for example, too few women for full mixed doubles) so everyone keeps playing.
+                            Turn it off if the format must be followed strictly.
+                        </div>
+
+                        <p>
+                            If you started from a template, its settings are filled in for you. You can still change them
+                            for this session only.
+                        </p>
+
+                    </section>
+
+
+                    <!-- Running session -->
+                    <section class="card support-section" id="running-session">
+
+                        <h2 class="section-title">
+                            7. Running a live session
+                        </h2>
+
+                        <p>
+                            Open a session from the Dashboard to see each court's teams, who is sitting out,
+                            and every round played so far.
+                        </p>
+
+                        <h3>Each round</h3>
+                        <ol class="support-steps">
+                            <li>Check the suggested matches. To swap someone, change the player in that slot.</li>
+                            <li>Click <strong>Save Changes</strong> to make your edits official, or <strong>Undo Unsaved Changes</strong> to go back.</li>
+                            <li>When play finishes, click <strong>Complete Round</strong>. Completed rounds are locked.</li>
+                            <li>Click <strong>Generate Next Round</strong>. SetMaker uses earlier rounds to rotate sit-outs fairly and mix up partners.</li>
+                        </ol>
+
+                        <h3>Late arrivals and early departures</h3>
+                        <ul>
+                            <li><strong>Add Late Player</strong>: choose a club player who isn't in the session yet. They're included from the next generated round.</li>
+                            <li><strong>Unavailable From Next Round</strong>: choose a player who is leaving. They won't be placed in later rounds, and their earlier rounds are kept.</li>
+                        </ul>
+
+                        <h3>Correcting a completed round</h3>
+                        <p>
+                            Owners and admins can reopen a completed round to fix a mistake, as long as the next round
+                            hasn't been generated yet.
+                        </p>
+
+                        <p>
+                            The session is marked complete automatically when its final round is completed.
+                        </p>
+
+                    </section>
+
+
+                    <!-- Team -->
+                    <section class="card support-section" id="team">
+
+                        <h2 class="section-title">
+                            8. Team members &amp; club details
+                        </h2>
+
+                        <ul>
+                            <li><strong>Team Members</strong> lists everyone with access to your club and their role.</li>
+                            <li>Click <strong>+ Invite Team Member</strong>, enter their name, email and role, then <strong>Send Invite</strong>. They finish setting up their account from the invitation link.</li>
+                            <li><strong>Club Details</strong> holds your club's name, contact email, phone and address.</li>
+                        </ul>
+
+                    </section>
+
+
+                    <!-- Troubleshooting -->
+                    <section class="card support-section" id="troubleshooting">
+
+                        <h2 class="section-title">
+                            9. Troubleshooting
+                        </h2>
+
+                        <dl class="support-faq">
+
+                            <dt>A player is missing from the generated round.</dt>
+                            <dd>
+                                Check that they have a skill rating, are still active, and haven't been marked unavailable.
+                                Late players only join from the next round that's generated after they were added.
+                            </dd>
+
+                            <dt>"Generation failed" after creating a session.</dt>
+                            <dd>
+                                The session itself was saved. Open it and click <strong>Generate Next Round</strong> to try again
+                                and see the reason. Usually there are too few eligible players for the selected courts.
+                            </dd>
+
+                            <dt>I can't complete the round.</dt>
+                            <dd>
+                                Save or undo your edits first, and make sure the current (latest) round is selected.
+                            </dd>
+
+                            <dt>My match edits won't save.</dt>
+                            <dd>
+                                Each player can only appear once per round. Also check that nobody else edited
+                                the round at the same time; if so, reload the page and try again.
+                            </dd>
+
+                            <dt>I can't reopen a round.</dt>
+                            <dd>
+                                Only owners and admins can reopen rounds, and only before the next round has been generated.
+                            </dd>
+
+                            <dt>I can't set skill ratings, add courts or edit templates.</dt>
+                            <dd>
+                                Those actions are for owners and admins. Ask one of them, or see <a href="#roles">Roles &amp; permissions</a>.
+                            </dd>
+
+                        </dl>
+
+                        <div class="support-callout">
+                            <strong>Still stuck?</strong> Contact your club owner or admin. They can check your role and
+                            your club's setup.
+                        </div>
+
+                    </section>
+
+                </div>
+
+            </div>
+        </main>
+
+    </div>
+
+    <script>
+        // Highlight the contents link for the section currently being read.
+        (function () {
+            const links = Array.from(document.querySelectorAll(".support-toc a"));
+            const sections = links.map(link => document.querySelector(link.getAttribute("href")));
+
+            function setActive(id) {
+                links.forEach(link => link.classList.toggle("active", link.getAttribute("href") === "#" + id));
+            }
+
+            function update() {
+                // The active section is the last one whose top has passed the upper third of the screen.
+                const marker = window.innerHeight / 3;
+                let current = sections[0];
+                for (const section of sections) {
+                    if (section.getBoundingClientRect().top <= marker) current = section;
+                }
+                // At the very bottom, short final sections can't reach the marker.
+                if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) {
+                    current = sections[sections.length - 1];
+                }
+                setActive(current.id);
+            }
+
+            // Keep a clicked link highlighted while the smooth scroll runs,
+            // even if that section can't scroll all the way to the top.
+            let clickedId = null;
+            let releaseTimer;
+
+            function releaseClick() {
+                clickedId = null;
+            }
+
+            links.forEach(link => link.addEventListener("click", () => {
+                clickedId = link.getAttribute("href").slice(1);
+                setActive(clickedId);
+                clearTimeout(releaseTimer);
+                releaseTimer = setTimeout(releaseClick, 1000);
+            }));
+
+            window.addEventListener("scroll", () => {
+                if (clickedId) {
+                    clearTimeout(releaseTimer);
+                    releaseTimer = setTimeout(releaseClick, 150);
+                    return;
+                }
+                update();
+            }, {passive: true});
+            update();
+        })();
+    </script>
+
+</body>
+
+</html>
