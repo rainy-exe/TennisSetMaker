@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SetMaker | History</title>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <div class="app-shell">
+
+        <!-- =========================
+             SIDEBAR
+        ========================== -->
+
+        <aside class="sidebar">
+
+            <!-- SetMaker Logo -->
+            <div class="brand">
+
+                <div class="logo-mark">
+                    S
+                </div>
+
+                <span>SetMaker</span>
+
+            </div>
+
+
+            <!-- Navigation -->
+            <nav class="nav">
+
+                <a href="dashboard.html" class="nav-link">
+                    Dashboard
+                </a>
+
+                <a href="create-session.html" class="nav-link">
+                    Sessions
+                </a>
+
+                <a href="#" class="nav-link">
+                    Players
+                </a>
+
+                <a href="#" class="nav-link">
+                    Courts
+                </a>
+
+                <a href="#" class="nav-link">
+                    Templates
+                </a>
+
+                <a href="history.html" class="nav-link active">
+                    History
+                </a>
+
+                <a href="#" class="nav-link">
+                    Settings
+                </a>
+
+                <a href="accounts.html" class="nav-link">
+                    Accounts
+                </a>
+
+            </nav>
+
+
+            <!-- Club Admin -->
+            <div class="admin-card">
+
+                <div class="avatar">
+                </div>
+
+                <div class="admin-copy">
+
+                    <strong>
+                        Club Admin
+                    </strong>
+
+                    <span id="adminEmail">
+                    </span>
+
+                </div>
+
+            </div>
+
+        </aside>
+
+
+        <!-- =========================
+             HISTORY PAGE
+        ========================== -->
+
+        <main class="main history-main">
+
+            <!-- Header -->
+            <div class="page-topline">
+
+                <div>
+
+                    <h1 class="page-title">
+                        Session History
+                    </h1>
+
+                    <p class="page-subtitle">
+                        Review completed tennis sessions and previous set information.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- =========================
+                 FILTERS
+            ========================== -->
+
+            <section class="card history-filters">
+
+                <!-- Search -->
+                <div class="history-search">
+
+                    <span class="history-search-icon">
+
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="M20 20l-4-4"></path>
+                        </svg>
+
+                    </span>
+
+                    <input
+                        type="search"
+                        id="historySearch"
+                        class="input"
+                        placeholder="Search sessions..."
+                    >
+
+                </div>
+
+
+                <!-- Date -->
+                <div class="history-filter-field">
+
+                    <label for="historyDate">
+                        Date
+                    </label>
+
+                    <input
+                        type="date"
+                        id="historyDate"
+                        class="input"
+                    >
+
+                </div>
+
+
+                <!-- Session Type -->
+                <div class="history-filter-field">
+
+                    <label for="historyType">
+                        Session Type
+                    </label>
+
+                    <select
+                        id="historyType"
+                        class="select"
+                    >
+                        <option value="">
+                            All Types
+                        </option>
+
+                        <option value="social">
+                            Social Play
+                        </option>
+
+                        <option value="competitive">
+                            Competitive Ladder
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- Clear Filters -->
+                <button
+                    type="button"
+                    class="btn"
+                    id="clearHistoryFilters"
+                >
+                    Clear Filters
+                </button>
+
+            </section>
+
+
+            <!-- =========================
+                 HISTORY TABLE
+            ========================== -->
+
+            <section class="card history-table-card">
+
+                <div class="history-table-wrap">
+
+                    <table class="history-table">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    Session
+                                </th>
+
+                                <th>
+                                    Date
+                                </th>
+
+                                <th>
+                                    Players
+                                </th>
+
+                                <th>
+                                    Courts
+                                </th>
+
+                                <th>
+                                    Rounds
+                                </th>
+
+                                <th>
+                                    Mode
+                                </th>
+
+                                <th class="history-actions-heading">
+                                    Actions
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <!--
+                            Completed sessions will be inserted
+                            here later by JavaScript/backend.
+                        -->
+                        <tbody id="historyTableBody">
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+
+                <!-- Empty State -->
+                <div
+                    class="history-empty"
+                    id="historyEmptyState"
+                >
+
+                    <div class="history-empty-icon">
+
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                        >
+                            <path d="M4 12a8 8 0 1 0 2-5.3"></path>
+                            <path d="M4 4v5h5"></path>
+                            <path d="M12 8v5l3 2"></path>
+                        </svg>
+
+                    </div>
+
+                    <h3>
+                        No completed sessions yet
+                    </h3>
+
+                    <p>
+                        Finished sessions will appear here once they have been completed.
+                    </p>
+
+                </div>
+
+
+                <!-- Table Footer -->
+                <div class="history-table-footer">
+
+                    <span id="historyCount">
+                        0 sessions
+                    </span>
+
+                    <div class="history-pagination">
+
+                        <button
+                            type="button"
+                            class="btn btn-sm"
+                        >
+                            ‹
+                        </button>
+
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-primary"
+                        >
+                            1
+                        </button>
+
+                        <button
+                            type="button"
+                            class="btn btn-sm"
+                        >
+                            ›
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+
+</body>
+
+</html>

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SetMaker | Club QR</title>
+
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- QR library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer>
+    </script>
+</head>
+
+<body class="qr-body">
+
+    <!-- =========================
+         HEADER
+    ========================== -->
+
+    <header class="qr-header">
+
+        <div class="landing-brand">
+
+            <div class="logo-mark">
+                S
+            </div>
+
+            <span>SetMaker</span>
+
+        </div>
+
+
+        <div class="qr-header-actions">
+
+            <span class="qr-permanent-badge">
+                Permanent Club QR
+            </span>
+
+            <button type="button" class="btn qr-print-button" onclick="window.print()">
+
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M6 9V3h12v6"></path>
+
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2">
+                    </path>
+
+                    <rect x="6" y="14" width="12" height="7">
+                    </rect>
+                </svg>
+
+                Print / Export
+
+            </button>
+
+        </div>
+
+    </header>
+
+
+    <!-- =========================
+         PAGE
+    ========================== -->
+
+    <main class="permanent-qr-page">
+
+
+        <!-- =========================
+             PAGE HEADING
+        ========================== -->
+
+        <section class="permanent-qr-heading">
+
+            <p class="qr-eyebrow">
+                CLUB LIVE VIEW
+            </p>
+
+            <h1>
+                Scan to View Today's Tennis
+            </h1>
+
+            <p>
+                This QR code stays the same every session.
+                Players can scan it to view the club's current live round.
+            </p>
+
+        </section>
+
+
+        <!-- =========================
+             QR PRINT CARD
+        ========================== -->
+
+        <section class="card permanent-qr-card">
+
+
+            <!-- Left -->
+            <div class="permanent-qr-copy">
+
+                <div class="permanent-qr-logo">
+
+                    <div class="logo-mark">
+                        S
+                    </div>
+
+                    <span>SetMaker</span>
+
+                </div>
+
+
+                <h2 id="qrClubName">
+                    Tennis Club
+                </h2>
+
+
+                <p class="permanent-qr-message">
+                    Scan the QR code to see your current court,
+                    partner and opponents.
+                </p>
+
+
+                <div class="permanent-qr-info">
+
+                    <div class="permanent-qr-info-row">
+
+                        <span>
+                            QR Type
+                        </span>
+
+                        <strong>
+                            Permanent
+                        </strong>
+
+                    </div>
+
+
+                    <div class="permanent-qr-info-row">
+
+                        <span>
+                            Updates
+                        </span>
+
+                        <strong>
+                            Automatically
+                        </strong>
+
+                    </div>
+
+
+                    <div class="permanent-qr-info-row">
+
+                        <span>
+                            Access
+                        </span>
+
+                        <strong>
+                            Read Only
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <p class="permanent-qr-small-note">
+                    Keep this QR displayed at the courts.
+                    You do not need to print a new one for each session.
+                </p>
+
+            </div>
+
+
+            <!-- QR -->
+            <div class="permanent-qr-code-side">
+
+                <!--
+                    The backend should provide ONE permanent
+                    read-only club URL.
+
+                    Example concept:
+
+                    /club/<club_id>/live
+
+                    The frontend converts that URL into this QR.
+                -->
+
+                <div class="permanent-qr-code" id="clubQrCode">
+
+                    <!-- Placeholder shown until URL is supplied -->
+
+                    <div class="qr-not-ready" id="qrNotReady">
+
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                            <rect x="3" y="3" width="6" height="6">
+                            </rect>
+
+                            <rect x="15" y="3" width="6" height="6">
+                            </rect>
+
+                            <rect x="3" y="15" width="6" height="6">
+                            </rect>
+
+                            <path d="M15 15h2v2h-2z"></path>
+                            <path d="M19 15h2v2h-2z"></path>
+                            <path d="M15 19h2v2h-2z"></path>
+                            <path d="M19 19h2"></path>
+                        </svg>
+
+                        <span>
+                            Permanent QR
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <p class="permanent-qr-scan-label">
+                    SCAN ME
+                </p>
+
+
+                <p class="permanent-qr-url" id="clubLiveUrlDisplay">
+                    Club live link will appear here
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <!-- =========================
+             HOW IT WORKS
+        ========================== -->
+
+        <section class="permanent-qr-how">
+
+            <h2>
+                How It Works
+            </h2>
+
+
+            <div class="permanent-qr-steps">
+
+
+                <!-- Step 1 -->
+                <div class="card permanent-qr-step">
+
+                    <span class="permanent-qr-step-number">
+                        1
+                    </span>
+
+                    <div>
+
+                        <strong>
+                            Print Once
+                        </strong>
+
+                        <p>
+                            Print or save this QR and display it at the club.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Step 2 -->
+                <div class="card permanent-qr-step">
+
+                    <span class="permanent-qr-step-number">
+                        2
+                    </span>
+
+                    <div>
+
+                        <strong>
+                            Players Scan
+                        </strong>
+
+                        <p>
+                            Players use the same QR whenever they attend.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Step 3 -->
+                <div class="card permanent-qr-step">
+
+                    <span class="permanent-qr-step-number">
+                        3
+                    </span>
+
+                    <div>
+
+                        <strong>
+                            Live Session Updates
+                        </strong>
+
+                        <p>
+                            The link displays whichever session and round is currently active.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =========================
+             CURRENT LIVE STATUS
+        ========================== -->
+
+        <section class="card permanent-live-status">
+
+            <div>
+
+                <span class="permanent-live-label">
+                    CURRENT CLUB STATUS
+                </span>
+
+                <h2 id="clubLiveStatusTitle">
+                    No live session
+                </h2>
+
+                <p id="clubLiveStatusMessage">
+                    When a session becomes active, players using the QR
+                    will automatically see the current round.
+                </p>
+
+            </div>
+
+
+            <span class="permanent-live-status-badge" id="clubLiveStatusBadge">
+                Offline
+            </span>
+
+        </section>
+
+
+        <!-- =========================
+             FOOTER
+        ========================== -->
+
+        <footer class="permanent-qr-footer">
+
+            Powered by SetMaker
+
+        </footer>
+
+    </main>
+
+
+    <!-- =========================
+         QR GENERATION
+    ========================== -->
+
+    <script>
+
+        window.addEventListener("load", function () {
+
+            /*
+                BACKEND INTEGRATION
+
+                The backend should provide one permanent read-only
+                club URL here.
+
+                Example:
+
+                const clubLiveUrl =
+                    "https://setmaker.com/club/abc123/live";
+
+                The URL should NOT change between sessions.
+            */
+
+            const clubLiveUrl = "";
+
+
+            if (!clubLiveUrl) {
+                return;
+            }
+
+
+            const qrContainer =
+                document.getElementById("clubQrCode");
+
+            const placeholder =
+                document.getElementById("qrNotReady");
+
+            const urlDisplay =
+                document.getElementById("clubLiveUrlDisplay");
+
+
+            if (placeholder) {
+                placeholder.remove();
+            }
+
+
+            new QRCode(qrContainer, {
+
+                text: clubLiveUrl,
+
+                width: 260,
+                height: 260,
+
+                correctLevel: QRCode.CorrectLevel.H
+
+            });
+
+
+            urlDisplay.textContent = clubLiveUrl;
+
+        });
+
+    </script>
+
+</body>
+
+</html>
