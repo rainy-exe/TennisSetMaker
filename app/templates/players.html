@@ -8,7 +8,7 @@
         <h1 class="page-title">Players Database</h1>
         <p class="page-subtitle">Manage your club roster, edit player details and add notes.</p>
       </div>
-      <a class="btn btn-primary" href="{{ url_for('add_player') }}">
+      <a class="btn btn-primary" href="{{ url_for('main.add_player') }}">
         <span class="btn-icon">+</span> Add Player
       </a>
     </div>
@@ -54,7 +54,7 @@
       <tbody>
         {% for player in players %}
         <tr
-        class="{{ 'selected' if player.id == selected_player.id else '' }}"
+        class="{{ 'selected' if selected_player and player.id == selected_player.id else '' }}"
         data-player-id="{{ player.id }}"
         data-name="{{ player.name|lower }}"
         >
@@ -70,7 +70,7 @@
           <td>
             {{ player.rating }}
             <span class="rating-dots">
-              {% for i in range(7) %}
+              {% for i in range(10) %}
                 <span class="{{ 'filled' if i < player.rating_dots else '' }}"></span>
               {% endfor %}
             </span>
@@ -78,10 +78,13 @@
           <td>{{ player.gender|upper }}</td>
           <td>
             <div class="row-actions">
-            <a class="btn btn-sm" href="{{ url_for('edit_player', player_id=player.id) }}">Edit</a>
-            <form method="POST" action="{{ url_for('delete_player', player_id=player.id) }}" class="delete-form" data-player-name="{{ player.name }}" style="display:inline">
+            <a class="btn btn-sm" href="{{ url_for('main.edit_player', player_id=player.id) }}">Edit</a>
+            {% if page_data.can_manage %}
+            <form method="POST" action="{{ url_for('main.delete_player', player_id=player.id) }}" class="delete-form" data-player-name="{{ player.name }}" style="display:inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-sm" type="submit">Delete</button>
             </form>
+            {% endif %}
           </div>
         </td>
         </tr>
@@ -133,7 +136,7 @@
 <div class="modal-overlay" id="delete-modal-overlay" style="display: none;">
   <div class="card modal-card">
     <div class="modal-title">Delete player?</div>
-    <p class="modal-text">Are you sure you want to delete <strong id="delete-modal-name"></strong>? This can't be undone.</p>
+    <p class="modal-text">Deactivate <strong id="delete-modal-name"></strong>? Past round history will be preserved.</p>
     <div class="modal-actions">
       <button class="btn" type="button" id="delete-modal-cancel">Cancel</button>
       <button class="btn btn-primary" type="button" id="delete-modal-confirm" style="background: var(--red); border-color: var(--red);">Delete</button>
@@ -207,7 +210,7 @@
     partners.forEach(function (partner) {
       var row = document.createElement('div');
       row.className = 'partner-row';
-      row.innerHTML = '<span class="partner-check">✓</span> ' + partner.name + ' (' + partner.match_score + ' match score)';
+      row.textContent = partner.name;
       container.appendChild(row);
     });
   }
@@ -221,7 +224,7 @@
     history.forEach(function (entry) {
       var row = document.createElement('div');
       row.className = 'history-row';
-      row.innerHTML = '<span class="history-dot">•</span> ' + entry;
+      row.textContent = entry;
       container.appendChild(row);
     });
   }
@@ -247,7 +250,7 @@
     renderHistory(player.recent_history);
 
     document.querySelectorAll('.players-table tbody tr').forEach(function (row) {
-      row.classList.toggle('selected', parseInt(row.dataset.playerId, 10) === id);
+      row.classList.toggle('selected', row.dataset.playerId === id);
     });
 
     var url = new URL(window.location);
@@ -257,7 +260,7 @@
 
   document.querySelectorAll('.players-table tbody tr').forEach(function (row) {
     row.addEventListener('click', function () {
-      selectPlayer(parseInt(row.dataset.playerId, 10));
+      selectPlayer(row.dataset.playerId);
     });
   });
 
@@ -282,7 +285,10 @@
         row.style.display = '';
         var match = originalName.slice(0, query.length);
         var rest = originalName.slice(query.length);
-        nameSpan.innerHTML = '<mark class="search-hl">' + match + '</mark>' + rest;
+        var highlighted = document.createElement('mark');
+        highlighted.className = 'search-hl';
+        highlighted.textContent = match;
+        nameSpan.replaceChildren(highlighted, document.createTextNode(rest));
       } else {
         row.style.display = 'none';
       }

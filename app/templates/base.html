@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SetMaker | {% block title %}{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+  {# Compatibility shell for the existing management templates, not a new design. #}
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="logo-mark">S</div><span>SetMaker</span></div>
+      <nav class="nav">
+        <a class="nav-link" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+        <a class="nav-link" href="{{ url_for('main.create_session') }}">Sessions</a>
+        <a class="nav-link" href="{{ url_for('main.players') }}">Players</a>
+        <a class="nav-link" href="{{ url_for('main.courts') }}">Courts</a>
+        <a class="nav-link" href="{{ url_for('main.templates') }}">Templates</a>
+      </nav>
+    </aside>
+    {% block content %}{% endblock %}
+  </div>
+  {% include '_integration_scripts.html' %}
+</body>
+</html>

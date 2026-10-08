@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Session Templates{% endblock %}
+{% block content %}
+<main class="main templates-main">
+  <div class="page-topline">
+    <div><h1 class="page-title">Session Templates</h1><p class="page-subtitle">Saved session configurations for your club.</p></div>
+    {% if page_data.can_manage %}<a class="btn btn-primary" href="{{ url_for('main.add_template') }}">Create Template</a>{% endif %}
+  </div>
+  <div class="template-grid">
+    {% for template in templates %}
+    <div class="card template-card">
+      <div class="template-name">{{ template.name }}</div>
+      <div class="template-row">{{ template.round_format }} · {{ template.number_of_rounds }} rounds · {{ template.round_duration_minutes }} minutes</div>
+      <div class="template-actions"><a class="btn btn-primary" href="{{ url_for('main.create_session', template_id=template.id) }}">Use Template</a></div>
+      {% if page_data.can_manage %}<a class="btn btn-sm" href="{{ url_for('main.edit_template', template_id=template.id) }}">Edit</a>{% endif %}
+    </div>
+    {% else %}<p>No templates yet.</p>{% endfor %}
+  </div>
+</main>
+{% endblock %}

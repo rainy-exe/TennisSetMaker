@@ -18,7 +18,7 @@
       <div class="field">
         <label for="rating">Rating</label>
         <select class="select" id="rating" name="rating" required>
-          {% for r in range(1, 8) %}
+          {% for r in range(1, 11) %}
           <option value="{{ r }}" {{ 'selected' if player.rating|string == r|string }}>{{ r }}</option>
           {% endfor %}
         </select>
@@ -26,13 +26,13 @@
       <div class="field">
         <label for="gender">Gender</label>
         <select class="select" id="gender" name="gender">
-          <option value="Male" {{ 'selected' if player.gender == 'Male' }}>MALE</option>
-          <option value="Female" {{ 'selected' if player.gender == 'Female' }}>FEMALE</option>
+          <option value="Male" {{ 'selected' if player.gender == 'M' }}>MALE</option>
+          <option value="Female" {{ 'selected' if player.gender == 'F' }}>FEMALE</option>
         </select>
       </div>
       <div class="field">
         <label for="notes">Notes</label>
-        <textarea class="input" id="notes" name="notes" rows="4" style="height: auto; padding: 10px 12px; resize: vertical;">{{ player.notes|default('') }}</textarea>
+        <textarea class="input" id="notes" name="notes" rows="4" style="height: auto; padding: 10px 12px; resize: vertical;">{{ player.notes or '' }}</textarea>
       </div>
       <div class="field">
         <label for="court_preference">Court Preference</label>
@@ -45,7 +45,7 @@
         </select>
       </div>
       <div class="form-actions">
-        <a class="btn" href="{{ url_for('players') }}">Cancel</a>
+        <a class="btn" href="{{ url_for('main.players') }}">Cancel</a>
         <button class="btn btn-primary" type="submit">Save Changes</button>
       </div>
     </form>
