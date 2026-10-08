@@ -1770,3 +1770,152 @@ select {
   align-items: flex-start;
   gap: 4px;
 }
+
+/* =========================
+   SETTINGS
+========================= */
+
+.settings-subnav {
+  display: flex;
+  gap: 28px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+
+.subnav-link {
+  padding: 12px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  text-decoration: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.subnav-link.active {
+  color: #1c1c1c;
+  border-bottom-color: var(--green);
+}
+
+.subnav-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.subnav-link .subnav-dot {
+  display: none;
+}
+
+.subnav-link.active .subnav-dot {
+  display: inline-block;
+}
+
+.team-table-card {
+  padding: 0;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.team-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.team-table th {
+  text-align: left;
+  font-size: 9px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #8a9095;
+  font-weight: 800;
+  padding: 14px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.team-table td {
+  padding: 16px 20px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border-soft);
+  vertical-align: middle;
+}
+
+.team-table tr:last-child td {
+  border-bottom: none;
+}
+
+.member-name-cell {
+  font-weight: 700;
+}
+
+.team-table-footer {
+  padding: 14px 20px;
+  font-size: 11px;
+  color: var(--muted);
+  border-top: 1px solid var(--border-soft);
+}
+
+.btn-icon-only {
+  padding: 4px 10px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+/* =========================
+   INVITE MEMBERS
+========================= */
+.role-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.role-option:has(input:checked) {
+  border-color: var(--green-line);
+  background: var(--green-soft);
+}
+
+.role-option input[type="radio"] {
+  margin-top: 3px;
+  accent-color: var(--green);
+}
+
+.role-option-title {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.role-option-desc {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.form-error {
+  color: var(--red);
+  font-size: 11px;
+  margin-bottom: 14px;
+}

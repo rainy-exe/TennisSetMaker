@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ member.name }}{% endblock %}
+
+{% block content %}
+<main class="main">
+  <div class="page-topline">
+    <h1 class="page-title">Edit {{ member.name }}</h1>
+    <p class="page-subtitle">{{ member.email }}</p>
+  </div>
+
+  <div class="card" style="padding: 24px; max-width: 480px;">
+    {% if error %}
+      <p class="form-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('settings_member', member_id=member.id) }}">
+      <input type="hidden" name="action" value="update_role" />
+
+      <div class="field">
+        <label>Role</label>
+        <div style="margin-top: 6px;">
+          {% for role, lines in role_info.items() %}
+          {% set locked = (member.role == 'Owner') or (role == 'Owner') %}
+          <label class="role-option {{ 'disabled' if locked and member.role != role }}">
+            <input type="radio" name="role" value="{{ role }}"
+                   {{ 'checked' if member.role == role }}
+                   {{ 'disabled' if locked }} />
+            <div>
+              <div class="role-option-title">{{ role }}</div>
+              {% for line in lines %}
+                <div class="role-option-desc">{{ line }}</div>
+              {% endfor %}
+            </div>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a class="btn" href="{{ url_for('settings') }}">Cancel</a>
+        <button class="btn btn-primary" type="submit" {{ 'disabled' if member.role == 'Owner' }}>Save</button>
+      </div>
+    </form>
+
+    <form method="POST" action="{{ url_for('settings_member', member_id=member.id) }}"
+          style="margin-top: 16px;"
+          onsubmit="return confirm('Remove {{ member.name }} from the club?');">
+      <input type="hidden" name="action" value="remove" />
+      <button class="btn" type="submit" style="border-color: var(--red); color: var(--red);" {{ 'disabled' if member.role == 'Owner' }}>
+        Remove from Club
+      </button>
+    </form>
+  </div>
+</main>
+{% endblock %}
