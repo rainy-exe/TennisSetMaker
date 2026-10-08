@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SetMaker | Session Players</title>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <div class="app-shell">
+
+        <!-- =========================
+             SIDEBAR
+        ========================== -->
+
+        <aside class="sidebar">
+
+            <div class="brand">
+
+                <div class="logo-mark">
+                    S
+                </div>
+
+                <span>SetMaker</span>
+
+            </div>
+
+
+            <nav class="nav">
+
+                <a href="dashboard.html" class="nav-link">
+                    Dashboard
+                </a>
+
+                <a href="sessions.html" class="nav-link active">
+                    Sessions
+                </a>
+
+                <a href="#" class="nav-link">
+                    Players
+                </a>
+
+                <a href="#" class="nav-link">
+                    Courts
+                </a>
+
+                <a href="#" class="nav-link">
+                    Templates
+                </a>
+
+                <a href="history.html" class="nav-link">
+                    History
+                </a>
+
+                <a href="#" class="nav-link">
+                    Settings
+                </a>
+
+                <a href="accounts.html" class="nav-link">
+                    Accounts
+                </a>
+
+            </nav>
+
+
+            <div class="admin-card">
+
+                <div class="avatar"></div>
+
+                <div class="admin-copy">
+
+                    <strong>
+                        Club Admin
+                    </strong>
+
+                    <span id="adminEmail"></span>
+
+                </div>
+
+            </div>
+
+        </aside>
+
+
+        <!-- =========================
+             MAIN CONTENT
+        ========================== -->
+
+        <main class="main session-players-main">
+
+            <!-- Breadcrumb -->
+            <div class="session-players-breadcrumb">
+
+                <a href="sessions.html">
+                    Sessions
+                </a>
+
+                <span>›</span>
+
+                <span>
+                    Session Players
+                </span>
+
+            </div>
+
+
+            <!-- Header -->
+            <div class="page-topline session-players-header">
+
+                <div>
+
+                    <h1 class="page-title">
+                        Select Session Players
+                    </h1>
+
+                    <p class="page-subtitle">
+                        Choose which players are attending this session before generating the sets.
+                    </p>
+
+                </div>
+
+
+                <div class="session-player-count">
+
+                    <span>
+                        Selected
+                    </span>
+
+                    <strong id="selectedPlayerCount">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- =========================
+                 SESSION SUMMARY
+            ========================== -->
+
+            <section class="card session-player-summary">
+
+                <div>
+
+                    <span class="session-player-summary-label">
+                        Session
+                    </span>
+
+                    <strong id="sessionPlayerSessionName">
+                        Session
+                    </strong>
+
+                </div>
+
+
+                <div>
+
+                    <span class="session-player-summary-label">
+                        Date
+                    </span>
+
+                    <strong id="sessionPlayerDate">
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div>
+
+                    <span class="session-player-summary-label">
+                        Start Time
+                    </span>
+
+                    <strong id="sessionPlayerTime">
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div>
+
+                    <span class="session-player-summary-label">
+                        Courts
+                    </span>
+
+                    <strong id="sessionPlayerCourts">
+                        —
+                    </strong>
+
+                </div>
+
+            </section>
+
+
+            <!-- =========================
+                 SEARCH + FILTERS
+            ========================== -->
+
+            <section class="card session-player-tools">
+
+                <!-- Search -->
+                <div class="session-player-search">
+
+                    <span class="session-player-search-icon">
+
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="M20 20l-4-4"></path>
+                        </svg>
+
+                    </span>
+
+                    <input type="search" id="sessionPlayerSearch" class="input" placeholder="Search players...">
+
+                </div>
+
+
+                <!-- Gender Filter -->
+                <div class="session-player-filter">
+
+                    <label for="playerGenderFilter">
+                        Gender
+                    </label>
+
+                    <select id="playerGenderFilter" class="select">
+                        <option value="">
+                            All
+                        </option>
+
+                        <option value="male">
+                            Male
+                        </option>
+
+                        <option value="female">
+                            Female
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- Availability -->
+                <div class="session-player-filter">
+
+                    <label for="playerAvailabilityFilter">
+                        Status
+                    </label>
+
+                    <select id="playerAvailabilityFilter" class="select">
+                        <option value="">
+                            All Players
+                        </option>
+
+                        <option value="selected">
+                            Selected
+                        </option>
+
+                        <option value="not-selected">
+                            Not Selected
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <button type="button" class="btn" id="selectAllPlayers">
+                    Select All
+                </button>
+
+            </section>
+
+
+            <!-- =========================
+                 PLAYER SELECTION
+            ========================== -->
+
+            <section class="card session-player-list-card">
+
+                <div class="session-player-list-header">
+
+                    <div>
+
+                        <h2>
+                            Club Players
+                        </h2>
+
+                        <p>
+                            Select the players participating in this session.
+                        </p>
+
+                    </div>
+
+
+                    <span id="availablePlayerCount">
+                        0 players
+                    </span>
+
+                </div>
+
+
+                <!--
+                    Backend / JavaScript inserts players here.
+
+                    Each player can eventually use markup similar to:
+
+                    <label class="session-player-row">
+                        <input
+                            type="checkbox"
+                            name="players"
+                            value="PLAYER_ID"
+                        >
+
+                        <div class="session-player-avatar">
+                            AB
+                        </div>
+
+                        <div class="session-player-info">
+                            <strong>Player Name</strong>
+                            <span>Intermediate</span>
+                        </div>
+
+                        <span class="session-player-gender">
+                            Female
+                        </span>
+                    </label>
+                -->
+
+                <div class="session-player-list" id="sessionPlayerList">
+                </div>
+
+
+                <!-- Empty State -->
+                <div class="session-player-empty" id="sessionPlayerEmpty">
+
+                    <div class="session-player-empty-icon">
+
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <circle cx="9" cy="8" r="4"></circle>
+
+                            <path d="M2.5 20c.8-4 3-6 6.5-6s5.7 2 6.5 6"></path>
+
+                            <path d="M18 8v6"></path>
+                            <path d="M15 11h6"></path>
+                        </svg>
+
+                    </div>
+
+
+                    <h3>
+                        No players to display
+                    </h3>
+
+                    <p>
+                        Club players will appear here once they are available.
+                    </p>
+
+                </div>
+
+            </section>
+
+
+            <!-- =========================
+                 SELECTED PLAYERS
+            ========================== -->
+
+            <section class="card selected-players-card">
+
+                <div class="selected-players-heading">
+
+                    <div>
+
+                        <h2>
+                            Selected Players
+                        </h2>
+
+                        <p>
+                            These players will be included when the sets are generated.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="selected-player-chips" id="selectedPlayerList">
+
+                    <span class="selected-player-empty">
+                        No players selected yet.
+                    </span>
+
+                </div>
+
+            </section>
+
+
+            <!-- =========================
+                 ACTION BAR
+            ========================== -->
+
+            <div class="session-player-actions">
+
+                <a href="create-session.html" class="btn">
+                    Back
+                </a>
+
+
+                <div class="session-player-actions-right">
+
+                    <span class="session-player-help">
+                        Select attending players before continuing.
+                    </span>
+
+
+                    <a href="active-session.html" class="btn btn-primary" id="generateSetsButton">
+                        Generate Sets
+                    </a>
+
+                </div>
+
+            </div>
+
+        </main>
+
+    </div>
+
+</body>
+
+</html>
