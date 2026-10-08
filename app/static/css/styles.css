@@ -1902,6 +1902,11 @@ select {
   accent-color: var(--green);
 }
 
+.role-option.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .role-option-title {
   font-weight: 700;
   font-size: 13px;
