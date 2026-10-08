@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SetMaker | Accounts</title>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <div class="app-shell">
+
+        <!-- =========================
+             SIDEBAR
+        ========================== -->
+
+        <aside class="sidebar">
+
+            <!-- SetMaker Logo -->
+            <div class="brand">
+
+                <div class="logo-mark">
+                    S
+                </div>
+
+                <span>SetMaker</span>
+
+            </div>
+
+
+            <!-- Navigation -->
+            <nav class="nav">
+
+                <a href="dashboard.html" class="nav-link">
+                    Dashboard
+                </a>
+
+                <a href="create-session.html" class="nav-link">
+                    Sessions
+                </a>
+
+                <a href="#" class="nav-link">
+                    Players
+                </a>
+
+                <a href="#" class="nav-link">
+                    Courts
+                </a>
+
+                <a href="#" class="nav-link">
+                    Templates
+                </a>
+
+                <a href="#" class="nav-link">
+                    History
+                </a>
+
+                <a href="#" class="nav-link">
+                    Settings
+                </a>
+
+                <a href="accounts.html" class="nav-link active">
+                    Accounts
+                </a>
+
+            </nav>
+
+
+            <!-- Club Admin -->
+            <div class="admin-card">
+
+                <div class="avatar">
+                </div>
+
+                <div class="admin-copy">
+
+                    <strong>
+                        Club Admin
+                    </strong>
+
+                    <span id="adminEmail">
+                    </span>
+
+                </div>
+
+            </div>
+
+        </aside>
+
+
+        <!-- =========================
+             ACCOUNTS PAGE
+        ========================== -->
+
+        <main class="main accounts-main">
+
+            <!-- Header -->
+            <div class="page-topline">
+
+                <div>
+
+                    <h1 class="page-title">
+                        Accounts
+                    </h1>
+
+                    <p class="page-subtitle">
+                        Manage user access and club accounts.
+                    </p>
+
+                </div>
+
+
+                <button type="button" class="btn btn-primary" id="addAccountButton">
+                    <span class="btn-icon">+</span>
+                    Add Account
+                </button>
+
+            </div>
+
+
+            <!-- =========================
+                 SEARCH + FILTERS
+            ========================== -->
+
+            <section class="card account-filters">
+
+                <!-- Search -->
+                <div class="account-search">
+
+                    <span class="account-search-icon">
+                        ⌕
+                    </span>
+
+                    <input type="search" id="accountSearch" class="input" placeholder="Search by name or email...">
+
+                </div>
+
+
+                <!-- Role Filter -->
+                <div class="account-filter-field">
+
+                    <label for="roleFilter">
+                        Role
+                    </label>
+
+                    <select id="roleFilter" class="select">
+                        <option value="">
+                            All Roles
+                        </option>
+
+                        <option value="owner">
+                            Owner
+                        </option>
+
+                        <option value="admin">
+                            Admin
+                        </option>
+
+                        <option value="staff">
+                            Staff
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- Status Filter -->
+                <div class="account-filter-field">
+
+                    <label for="statusFilter">
+                        Status
+                    </label>
+
+                    <select id="statusFilter" class="select">
+                        <option value="">
+                            All Statuses
+                        </option>
+
+                        <option value="active">
+                            Active
+                        </option>
+
+                        <option value="pending">
+                            Pending
+                        </option>
+
+                        <option value="disabled">
+                            Disabled
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- Clear -->
+                <button type="button" class="btn" id="clearAccountFilters">
+                    Clear filters
+                </button>
+
+            </section>
+
+
+            <!-- =========================
+                 ACCOUNTS TABLE
+            ========================== -->
+
+            <section class="card accounts-table-card">
+
+                <div class="accounts-table-wrap">
+
+                    <table class="accounts-table">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    Name
+                                </th>
+
+                                <th>
+                                    Email
+                                </th>
+
+                                <th>
+                                    Role
+                                </th>
+
+                                <th>
+                                    Status
+                                </th>
+
+                                <th>
+                                    Last Login
+                                </th>
+
+                                <th class="account-actions-heading">
+                                    Actions
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <!--
+                            Backend / JavaScript can insert accounts here.
+
+                            Recommended order:
+                            1. Owner
+                            2. Admin
+                            3. Staff
+                        -->
+                        <tbody id="accountTableBody">
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+
+                <!-- Empty state -->
+                <div class="accounts-empty" id="accountsEmptyState">
+                    No accounts to display.
+                </div>
+
+
+                <!-- Footer -->
+                <div class="accounts-table-footer">
+
+                    <span id="accountCount">
+                        0 accounts
+                    </span>
+
+                    <div class="account-pagination">
+
+                        <button type="button" class="btn btn-sm">
+                            ‹
+                        </button>
+
+                        <button type="button" class="btn btn-sm btn-primary">
+                            1
+                        </button>
+
+                        <button type="button" class="btn btn-sm">
+                            ›
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+
+</body>
+
+</html>
