@@ -201,7 +201,7 @@ class Player(TimestampMixin, db.Model):
         nullable=False
     )
 
-    # Tennis rating / skill level: 1–7
+    # Keep the established API and stored rating range (1–10).
     skill = db.Column(
         db.Integer,
         nullable=True
@@ -232,7 +232,7 @@ class Player(TimestampMixin, db.Model):
         ),
 
         db.CheckConstraint(
-            "skill IS NULL OR skill BETWEEN 1 AND 7",
+            "skill IS NULL OR skill BETWEEN 1 AND 10",
             name="ck_player_skill"
         ),
 
@@ -351,7 +351,7 @@ class SessionTemplate(TimestampMixin, db.Model):
              name="ck_template_duration_positive"
         ),
         db.CheckConstraint(
-            "round_format IN ('open', 'mixed', 'same_gender')",
+            "round_format IN ('open', 'mixed')",
             name="ck_template_round_format"
         ),
         db.CheckConstraint(
@@ -429,7 +429,7 @@ class TennisSession(TimestampMixin, db.Model):
             "round_duration_minutes > 0", name="ck_session_duration_positive"
         ),
         db.CheckConstraint(
-            "round_format IN ('open', 'mixed', 'same_gender')",
+            "round_format IN ('open', 'mixed')",
             name="ck_session_round_format"
         ),
         db.CheckConstraint(

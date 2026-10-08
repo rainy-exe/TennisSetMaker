@@ -4,6 +4,16 @@ Branch: `backend-integration-followups`.
 [Start the backend](backend-quickstart.md) through `run.py`, not the old
 root `app.py` demo. This guide covers the API; frontend pages stay with your team.
 
+The existing management pages now consume these same APIs. Player payloads also
+support nullable `notes` (up to 4000 characters) and `court_preference` (Clay,
+Hard, Grass, Synthetic); courts support nullable `cover`. Preferences are saved,
+but are not yet used in algorithm scoring. Skill remains 1–10.
+
+The live page is `/sessions/<session_id>` and renders persisted **final** results.
+Overrides may send `expected_revision` alongside assignments/sit-outs; a stale
+revision returns 409 `stale_round`. Login/signup/account screens and same-gender
+mode still have separate team dependencies; no frontend PR is merged by this pass.
+
 ## 1. Login and requests
 
 Use relative URLs on the **same origin** as Flask (or a same-origin dev proxy).

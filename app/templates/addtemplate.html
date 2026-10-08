@@ -21,7 +21,7 @@
         <select class="select" id="format" name="format" required>
           <option value="" disabled selected>Select a format</option>
           <option value="Mixed Doubles">Mixed Doubles</option>
-          <option value="Same-Gender Doubles">Same-Gender Doubles</option>
+          <option value="Same-Gender Doubles" disabled>Same-Gender (waiting for PR #26)</option>
           <option value="Open Play (Any Gender)">Open Play (Any Gender)</option>
         </select>
       </div>
@@ -106,7 +106,7 @@
       </div>
 
       <div class="form-actions">
-        <a class="btn" href="{{ url_for('templates') }}">Cancel</a>
+        <a class="btn" href="{{ url_for('main.templates') }}">Cancel</a>
         <button class="btn btn-primary" type="submit">Create Template</button>
       </div>
     </form>

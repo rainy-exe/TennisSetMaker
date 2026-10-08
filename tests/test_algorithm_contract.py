@@ -67,9 +67,9 @@ def test_missing_algorithm_fails_cleanly(tmp_path):
 
 @pytest.fixture
 def prototype4_path():
-    path = os.environ.get("TENNIS_PROTOTYPE4_PATH")
-    if not path:
-        pytest.skip("Set TENNIS_PROTOTYPE4_PATH to the reviewed Prototype4 checkout")
+    path = os.environ.get("TENNIS_PROTOTYPE4_PATH") or str(
+        Path(__file__).resolve().parents[1] / "Backend" / "Set_Algorithm" / "Prototype4"
+    )
     assert (Path(path) / "algorithm.py").is_file()
     return path
 

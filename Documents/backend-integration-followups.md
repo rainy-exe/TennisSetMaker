@@ -4,11 +4,10 @@ These changes build on `environment` and Kate's existing Club/User/Invitation
 models, role helpers and session actor provider. No second accounts system or
 matching algorithm is introduced.
 
-This follow-up is backend-only. The additional HTML, CSS, JavaScript and page
-routing introduced in the first integration commit have been withdrawn.
-Existing teammate frontend files and the CSV demo are left as they were on
-`environment`. Use the factory through `run.py` for this backend; the old root
-`app.py` demo is not the persistence/authentication implementation.
+The original follow-up was backend-only. The later integration pass connects
+the management pages now present on `environment` to the same JSON APIs,
+without merging the still-open frontend PRs. Use the factory through `run.py`;
+the old root `app.py` CSV demo is not the persistence/authentication implementation.
 
 ## Login and CSRF
 
@@ -32,8 +31,10 @@ keep both CSRF and foreign keys enabled.
 Kate's `/login-page` and `/signup-page` endpoints can render team-provided templates.
 Until those templates are integrated, they return an explicit 503 JSON
 `frontend_unavailable` error rather than an unhandled missing-template 500.
-This work does not supply account or management screens, a dashboard, or an
-invitation-acceptance page. The frontend remains a separate team dependency.
+Login/signup/accounts/invitation screens remain frontend dependencies. Existing
+dashboard, player/court/template and session pages are connected; the small
+`base.html` compatibility shell can be replaced by the frontend team's layout.
+All management routes require authentication and reuse club/role checks.
 
 ## Team APIs
 
@@ -60,7 +61,7 @@ manage team members, courts/templates, delete players or reopen completed rounds
 
 ## Algorithm and actual history
 
-The default algorithm path is the bundled `Backend/Set_Algorithm/Prototype3`.
+The default algorithm path is the bundled `Backend/Set_Algorithm/Prototype4`.
 `TENNIS_ALGORITHM_PATH` can still point to another compatible checkout. The
 adapter loads helpers/refinement/algorithm without leaving global bare-import
 aliases behind, passes stable `player_id` and a private `random.Random`, and
@@ -73,9 +74,33 @@ pool. Consecutive actual sit-outs are counted within the current session; playin
 or a missed/unavailable round breaks that streak. Persisted backend facts remain
 the source of truth; algorithm-side mutations are discarded.
 
-The algorithm still consumes `sit_out_count`, not a final dynamic sit-out ratio.
+The adapter passes `session_sit_outs`, `recent_sit_outs` and `recent_rounds` from
+completed final outcomes. Prototype4 owns the last-50-round ratio calculation.
 Court type/preference scoring remains a Rai/Eric dependency. These changes do not
 implement arbitrary weights, a new matching algorithm or open-field 1v1.
+
+## Connected pages and current limits
+
+Dashboard and management screens load club-scoped persisted data, not static
+rosters. Session creation saves a real session then generates through Prototype4;
+if generation fails, the saved session can be reopened and retried. The live
+page displays final assignments and supports pairing/sit-out edits, completion,
+next-round generation, late arrival and remainder unavailability. Reloading uses
+the persisted final state; completed rounds are locked. Overrides send an
+expected revision and stale edits return 409 instead of overwriting a newer save.
+
+Migration `b7d482f19c06` adds nullable player notes/court preference and court
+cover, without rebuilding parent tables or changing historical assignments.
+The established 1–10 skill range is retained; the proposed 1–7 restriction was
+not consistent with the existing API, migrations or stored records.
+
+Open/mixed formats and fixed variety mode 2 remain the current contract.
+Same-gender mode awaits algorithm PR #26 and team confirmation; it is visibly
+disabled instead of silently treating it as open. Cross-session partner/opponent
+history still uses 120 days; the PR #26 discussion about resetting it needs
+coordination before changing existing behaviour. Court drag-order UI, detailed
+player statistics, account screens, invitation UI, result/QR screens and export
+are not completed by this pass. No password-reset email is claimed to be sent.
 
 ## Migration safety
 

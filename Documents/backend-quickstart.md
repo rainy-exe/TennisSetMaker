@@ -43,7 +43,7 @@ $env:DATABASE_URL = "sqlite:///quickstart-$([guid]::NewGuid().ToString('N')).db"
 - Keep this terminal open. The commands create a fresh database under `instance`.
   Back up existing data and check [migration safety](backend-integration-followups.md#migration-safety)
   before upgrading a populated database; do not delete it to bypass migration checks.
-- Use `run.py`, not root `app.py`. Prototype3 is bundled; no export/path setup needed.
+- Use `run.py`, not root `app.py`. Prototype4 is bundled and is the default; no export/path setup needed.
 - Keep `SECRET_KEY` stable across restarts; never commit secrets or deploy the default.
 - The demo assumes local registration without reCAPTCHA configured. If configured,
   registration also needs a valid `recaptcha_token`.

@@ -1,131 +1,24 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% block title %}Court Management{% endblock %}
 {% block content %}
 <main class="main courts-main">
   <div class="page-topline">
-    <div>
-      <h1 class="page-title">Court Management</h1>
-      <p class="page-subtitle">Drag cards to reorder matching priority. Disable courts for maintenance.</p>
+    <div><h1 class="page-title">Court Management</h1><p class="page-subtitle">Manage court availability and persistent priority.</p></div>
+    {% if page_data.can_manage %}<a class="btn btn-primary" href="{{ url_for('main.add_court') }}">Add Court</a>{% endif %}
+  </div>
+  <div class="card courts-scroll-card"><div class="court-list">
+    {% for court in courts %}
+    <div class="court-row {{ 'disabled' if not court.active else '' }}">
+      <span class="priority-dot">{{ court.priority }}</span>
+      <div class="court-info"><div class="court-name">Court {{ court.number }}</div><span class="badge blue">{{ court.court_type }}</span></div>
+      <span class="court-detail">{{ court.cover or '' }}</span>
+      <span class="court-status">{{ 'Active' if court.active else 'Inactive' }}</span>
+      {% if page_data.can_manage %}
+      <label class="switch"><input type="checkbox" data-court-toggle="{{ court.id }}" {{ 'checked' if court.active else '' }}><span class="slider"></span></label>
+      <a class="btn btn-sm" href="{{ url_for('main.add_court', court_id=court.id) }}">Edit</a>
+      {% endif %}
     </div>
-    <a class="btn btn-primary" href="{{ url_for('add_court') }}">
-      <span class="btn-icon">+</span> Add Court
-    </a>
-  </div>
-
-  <div class="rule-banner">
-    Priority Order Rule: Courts at the top are filled first during scheduling. This order is the default for new templates and can be customized per template.
-  </div>
-
-  <div class="card courts-scroll-card">
-    <div class="court-list">
-      <div class="court-row">
-        <span class="drag">⠿</span>
-        <span class="priority-dot">1</span>
-        <div class="court-info">
-          <div class="court-name">Court 1 - Clay</div>
-          <div class="court-tags">
-            <span class="badge orange">Clay</span>
-          </div>
-        </div>
-        <span class="court-detail">Full Shade (Covered)</span>
-        <span class="court-status active-label">Active</span>
-        <label class="switch">
-          <input type="checkbox" checked />
-          <span class="slider"></span>
-        </label>
-        <button class="btn btn-sm" type="button">Edit</button>
-      </div>
-
-      <div class="court-row">
-        <span class="drag">⠿</span>
-        <span class="priority-dot">2</span>
-        <div class="court-info">
-          <div class="court-name">Court 2</div>
-          <div class="court-tags">
-            <span class="badge orange">Clay</span>
-          </div>
-        </div>
-        <span class="court-detail">Part Shade (Tree line)</span>
-        <span class="court-status active-label">Active</span>
-        <label class="switch">
-          <input type="checkbox" checked />
-          <span class="slider"></span>
-        </label>
-        <button class="btn btn-sm" type="button">Edit</button>
-      </div>
-
-      <div class="court-row">
-        <span class="drag">⠿</span>
-        <span class="priority-dot">3</span>
-        <div class="court-info">
-          <div class="court-name">Court 3 - Hard</div>
-          <div class="court-tags">
-            <span class="badge blue">Hard</span>
-          </div>
-        </div>
-        <span class="court-detail">Full Sun</span>
-        <span class="court-status active-label">Active</span>
-        <label class="switch">
-          <input type="checkbox" checked />
-          <span class="slider"></span>
-        </label>
-        <button class="btn btn-sm" type="button">Edit</button>
-      </div>
-
-      <div class="court-row disabled">
-        <span class="drag">⠿</span>
-        <span class="priority-dot">4</span>
-        <div class="court-info">
-          <div class="court-name">Court 4</div>
-          <div class="court-tags">
-            <span class="badge blue">Hard</span>
-          </div>
-        </div>
-        <span class="court-detail">Full Sun</span>
-        <span class="court-status disabled-label">Disabled</span>
-        <label class="switch">
-          <input type="checkbox" />
-          <span class="slider"></span>
-        </label>
-        <button class="btn btn-sm" type="button">Edit</button>
-      </div>
-
-      <div class="court-row">
-        <span class="drag">⠿</span>
-        <span class="priority-dot">5</span>
-        <div class="court-info">
-          <div class="court-name">Court 5 - Grass</div>
-          <div class="court-tags">
-            <span class="badge green">Grass</span>
-          </div>
-        </div>
-        <span class="court-detail">No Cover</span>
-        <span class="court-status active-label">Active</span>
-        <label class="switch">
-          <input type="checkbox" checked />
-          <span class="slider"></span>
-        </label>
-        <button class="btn btn-sm" type="button">Edit</button>
-      </div>
-
-      <div class="court-row">
-        <span class="drag">⠿</span>
-        <span class="priority-dot">6</span>
-        <div class="court-info">
-          <div class="court-name">Court 6 - Synthetic</div>
-          <div class="court-tags">
-            <span class="badge gray">Synthetic</span>
-          </div>
-        </div>
-        <span class="court-detail">Full Sun</span>
-        <span class="court-status active-label">Active</span>
-        <label class="switch">
-          <input type="checkbox" checked />
-          <span class="slider"></span>
-        </label>
-        <button class="btn btn-sm" type="button">Edit</button>
-      </div>
-    </div>
-  </div>
+    {% else %}<p>No courts yet.</p>{% endfor %}
+  </div></div>
 </main>
 {% endblock %}

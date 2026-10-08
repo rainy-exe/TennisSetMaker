@@ -43,7 +43,7 @@ class AlgorithmRound:
 
 
 class PrototypeAlgorithmEngine:
-    """Adapter for Prototype3 and the optional Prototype4 history fields.
+    """Adapter for the bundled Prototype4, retaining Prototype3 compatibility.
 
     Stable database IDs are explicitly supplied as ``player_id``. The
     prototype's display name is also an ID; client names never cross this
@@ -65,7 +65,7 @@ class PrototypeAlgorithmEngine:
                 "The matching algorithm is not available in this checkout.",
                 503,
                 "algorithm_unavailable",
-                {"dependency": "origin/main:Backend/Set_Algorithm/Prototype3"},
+                {"dependency": "origin/main:Backend/Set_Algorithm/Prototype4"},
             )
 
         path = self.algorithm_path.resolve()

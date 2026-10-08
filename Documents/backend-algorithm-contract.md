@@ -2,7 +2,7 @@
 
 Branch: `backend-integration-followups`.
 [Quick start](backend-quickstart.md) runs the bundled
-`Backend/Set_Algorithm/Prototype3`. No separate export or algorithm rewrite needed.
+`Backend/Set_Algorithm/Prototype4`. No separate export or algorithm rewrite needed.
 
 ## Who handles what
 
@@ -91,10 +91,9 @@ the backend builds round history and validates strict mixed after matching.
 
 Optional `TENNIS_ALGORITHM_PATH` points to compatible
 `helpers.py`, `refinement.py`, `algorithm.py`.
-It can select the Prototype4 checkout from PR #25 without copying or merging
-algorithm files into this backend branch. The adapter passes the three new
+Prototype4 from merged PR #25 is the default. The adapter passes the three new
 history fields when the selected Player constructor accepts them; Prototype3
-continues to work without them. Prototype3 remains the default.
+continues to work when explicitly selected for compatibility checks.
 Errors: missing dependency 503 `algorithm_unavailable`; strict mixed failure
 422 `no_valid_solution`; invalid output 502 `invalid_algorithm_result`.
 Prototype3 has no separate structured no-solution result.
@@ -120,7 +119,7 @@ Prototype3 has no separate structured no-solution result.
 1. **Dynamic ratio:** Prototype3 still uses `sit_out_count`. Prototype4 from PR #25
    now receives session and last-50-round counts from the backend. Its formula
    and client-facing behaviour still need team/client confirmation; this does
-   not switch production to an unmerged algorithm automatically.
+   selects the merged Prototype4, not the unmerged same-gender fix in PR #26.
 2. **Court type/preference:** backend stores type and handles availability/order;
    engine receives IDs only. Richer court input/scoring needs an agreed contract.
 3. **Future contract changes:** keep stable IDs and update the adapter together
@@ -131,9 +130,8 @@ Prototype3 has no separate structured no-solution result.
    default mode, adding same-gender semantics or resetting that history per
    session needs agreement first. Court preference scoring remains algorithm work.
 
-Run `python -m pytest` for real Prototype3 and override/history/availability tests.
+Run `python -m pytest` for real Prototype3/4 adapter and override/history/availability tests.
 Tests can inject `ALGORITHM_ENGINE`; normal startup uses the bundled engine.
-Set `TENNIS_PROTOTYPE4_PATH` to the Prototype4 directory when running tests to
-also exercise the real Prototype4 adapter and overridden sit-out history.
-Without that external checkout, these optional integration tests are skipped;
-the history-builder and bundled Prototype3 tests still run.
+The Prototype4 integration tests use the bundled directory and do not skip by
+default. `TENNIS_PROTOTYPE4_PATH` optionally selects another reviewed checkout.
+Run each prototype's own full suite in a separate process, as shown in README.

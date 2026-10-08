@@ -56,7 +56,7 @@ def create_app(config=None):
 
     @app.after_request
     def private_response_headers(response):
-        if request.blueprint in {"api", "team", "auth"}:
+        if request.blueprint in {"api", "team", "auth", "main"}:
             response.headers["Cache-Control"] = "no-store"
         return response
 

@@ -14,8 +14,8 @@
 ## Getting started
 
 Use Python 3.11 or newer; the backend has been tested with Python 3.12.
-The integration changes are on `backend-integration-followups`, not necessarily
-on `main` or your current feature branch.
+This checkout contains the persistent backend integration. Older feature
+branches may need the integrated `environment`/`main` updates before using it.
 
 - [Run the backend and a synthetic session demo](Documents/backend-quickstart.md)
 - [Frontend API guide: login, CSRF, permissions and session requests](Documents/backend-session-api.md)
@@ -25,7 +25,7 @@ on `main` or your current feature branch.
 Start the persistent backend through **`run.py`**, which uses Kate's Flask
 factory. The root `app.py` is an older CSV/in-memory demo and is not this API.
 Login already connects Kate's accounts and roles to the session backend.
-Prototype3 is bundled; a separate algorithm export is not needed.
+Prototype4 is bundled and used by default; a separate algorithm export is not needed.
 
 Before using an existing database, back it up and read the migration notes.
 Old populated pre-Accounts databases need a real club/user mapping; the migration
@@ -39,12 +39,18 @@ After activating the virtual environment:
 ```bash
 python -m pip install -r requirements-dev.txt
 python -m pytest
+python -m pytest Backend/Set_Algorithm/Prototype3/tests
+python -m pytest Backend/Set_Algorithm/Prototype4/tests
 python -m flask --app run.py db check
 ```
 
 `db check` needs an upgraded database. Ruff is available through the development
 requirements (`python -m ruff check app tests migrations/versions`); existing
 lint findings are separate from the test results.
+
+The algorithm suites run in separate processes because both prototypes use bare
+module imports and identical test filenames. See the integration notes for the
+connected management pages and remaining frontend/algorithm dependencies.
 
 ## Before updating a checkout
 

@@ -465,7 +465,9 @@ def test_missing_account_frontend_is_explicit_and_no_fake_reset_claim(real_app):
         response = client.get(path)
         assert response.status_code == 503
         assert response.get_json()["error"] == "frontend_unavailable"
-    for path in ("/dashboard", "/accounts", "/players", "/invitation-page"):
+    for path in ("/dashboard", "/players", "/courts", "/templates", "/sessions/create"):
+        assert client.get(path).status_code == 401
+    for path in ("/accounts", "/invitation-page"):
         assert client.get(path).status_code == 404
     assert client.get("/forgot-password").status_code == 503
     response = write(

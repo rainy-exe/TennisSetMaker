@@ -27,7 +27,7 @@
         <label for="rating">Rating</label>
         <select class="select" id="rating" name="rating" required>
           <option value="" disabled {{ 'selected' if not form.rating|default('') }}>Select a rating</option>
-          {% for r in range(1, 8) %}
+          {% for r in range(1, 11) %}
           <option value="{{ r }}" {{ 'selected' if form.rating|default('')|string == r|string }}>{{ r }}</option>
           {% endfor %}
         </select>
@@ -54,7 +54,7 @@
         </select>
       </div>
       <div class="form-actions">
-        <a class="btn" href="{{ url_for('players') }}">Cancel</a>
+        <a class="btn" href="{{ url_for('main.players') }}">Cancel</a>
         <button class="btn btn-primary" type="submit">Add Player</button>
       </div>
     </form>

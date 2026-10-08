@@ -12,8 +12,8 @@
   <div class="card" style="padding: 24px; max-width: 480px;">
     <form>
       <div class="field">
-        <label for="court-name">Court Name</label>
-        <input class="input" type="text" id="court-name" name="court-name" placeholder="e.g. Court 7" required />
+        <label for="court-name">Court Number</label>
+        <input class="input" type="number" id="court-name" name="court-name" min="1" placeholder="e.g. 7" required />
       </div>
 
       <div class="field">
@@ -51,7 +51,7 @@
       </div>
 
       <div class="form-actions">
-        <a class="btn" href="{{ url_for('courts') }}">Cancel</a>
+        <a class="btn" href="{{ url_for('main.courts') }}">Cancel</a>
         <button class="btn btn-primary" type="submit">Add Court</button>
       </div>
     </form>

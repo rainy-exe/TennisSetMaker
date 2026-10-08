@@ -14,7 +14,7 @@ class Config:
             Path(__file__).resolve().parent.parent
             / "Backend"
             / "Set_Algorithm"
-            / "Prototype3"
+            / "Prototype4"
         ),
     )
     ALGORITHM_RANDOM_SEED = None

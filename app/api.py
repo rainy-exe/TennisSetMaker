@@ -59,6 +59,22 @@ def positive_int(value, field, maximum=None):
     return value
 
 
+def optional_text(value, field, max_length=120):
+    if value is None or value == "":
+        return None
+    return clean_text(value, field, max_length)
+
+
+def player_details(player, data):
+    if "notes" in data:
+        player.notes = optional_text(data["notes"], "notes", 4000)
+    if "court_preference" in data:
+        preference = optional_text(data["court_preference"], "court_preference", 20)
+        if preference not in {None, "Clay", "Hard", "Grass", "Synthetic"}:
+            raise ApiError("court_preference must be Clay, Hard, Grass or Synthetic.")
+        player.court_preference = preference
+
+
 def nonnegative_int(value, field):
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ApiError(f"{field} must be a non-negative integer.")
@@ -155,6 +171,8 @@ def serialize_player(player):
         "gender": player.gender,
         "active": player.active,
         "skill_ready": player.skill is not None,
+        "notes": player.notes,
+        "court_preference": player.court_preference,
         "created_at": player.created_at.isoformat(),
         "updated_at": player.updated_at.isoformat(),
     }
@@ -170,6 +188,7 @@ def serialize_court(court):
         "court_type": court.court_type,
         "active": court.active,
         "priority": court.priority,
+        "cover": court.cover,
     }
 
 
@@ -305,7 +324,7 @@ def create_player():
             403,
             "forbidden",
         )
-        
+
     data = body()
     name = clean_text(data.get("name"), "name")
     warnings = duplicate_warnings(actor.club_id, name)
@@ -322,7 +341,9 @@ def create_player():
     skill = data.get("skill")
     if not can_manage_skill(actor):
         if "skill" in data:
-            raise ApiError("You don't have permission to set player skill.", 403, "forbidden")
+            raise ApiError(
+                "You don't have permission to set player skill.", 403, "forbidden"
+            )
         skill = None
     elif skill is not None:
         skill = positive_int(skill, "skill", 10)
@@ -333,6 +354,7 @@ def create_player():
         gender=gender,
         skill=skill,
     )
+    player_details(player, data)
     db.session.add(player)
     db.session.commit()
     return jsonify(
@@ -353,7 +375,9 @@ def update_player(player_id):
     player = player_for_club(player_id)
     data = body()
     if "skill" in data and not can_manage_skill(actor):
-        raise ApiError("You don't have permission to set player skill.", 403, "forbidden")
+        raise ApiError(
+            "You don't have permission to set player skill.", 403, "forbidden"
+        )
     warnings = []
     if "name" in data:
         name = clean_text(data["name"], "name")
@@ -384,6 +408,7 @@ def update_player(player_id):
                 "forbidden",
             )
         player.active = parse_bool(data["active"], "active")
+    player_details(player, data)
     db.session.commit()
     return jsonify({"player": serialize_player(player), "duplicate_warnings": warnings})
 
@@ -420,6 +445,7 @@ def create_court():
         court_type=clean_text(data.get("court_type"), "court_type", 80),
         active=parse_bool(data.get("active", True), "active"),
         priority=nonnegative_int(data.get("priority", 0), "priority"),
+        cover=optional_text(data.get("cover"), "cover"),
     )
     db.session.add(court)
     commit_or_conflict("That court number already exists in this club.")
@@ -439,6 +465,8 @@ def update_court(court_id):
         court.active = parse_bool(data["active"], "active")
     if "priority" in data:
         court.priority = nonnegative_int(data["priority"], "priority")
+    if "cover" in data:
+        court.cover = optional_text(data["cover"], "cover")
     commit_or_conflict("That court number already exists in this club.")
     return jsonify({"court": serialize_court(court)})
 
@@ -852,6 +880,11 @@ def override_round(round_id):
     actor = current_actor()
     round_ = round_for_club(round_id)
     data = body()
+    if (
+        "expected_revision" in data
+        and data["expected_revision"] != round_.override_revision
+    ):
+        raise ApiError("This round changed. Refresh before saving.", 409, "stale_round")
     round_ = apply_override(
         round_, data.get("assignments"), data.get("sit_out_player_ids"), actor
     )
