@@ -223,6 +223,62 @@ def _score_candidate(four: Tuple[Player, Player, Player, Player], mixed_mode: in
     return best
 
 
+def explain_split_choice(four: Tuple[Player, Player, Player, Player], mixed_mode: int, variety_mode: int) -> dict:
+    """Diagnostic helper (not used by the scoring path itself -- purely
+    for reviewers/demos): explains WHY the chosen split for this foursome
+    has the skill_diff it does. A "lopsided-looking" result (e.g. a
+    foursome split 3+3 vs 4+5 instead of the tighter 3+4 vs 3+5) is
+    expected, working-as-designed behaviour whenever format compliance or
+    social variety (both strictly higher priority than skill balance)
+    rule out the lower-diff split -- not a bug. This makes that reason
+    visible instead of leaving it a mystery.
+
+    Returns {chosen_diff, best_possible_diff, compromised, reason}.
+    `reason` is None when the chosen split already achieves the best
+    skill_diff available for this foursome; otherwise it names whichever
+    higher-priority criterion excluded the lower-diff alternative.
+    """
+    p1, p2, p3, p4 = four
+    splits = [
+        ((p1, p2), (p3, p4)),
+        ((p1, p3), (p2, p4)),
+        ((p1, p4), (p2, p3)),
+    ]
+    scored = [
+        {
+            "team_a": team_a, "team_b": team_b,
+            "mixed": _mixed_score(team_a, team_b, mixed_mode),
+            "partner": _partner_score(team_a, team_b, variety_mode),
+            "opponent": _opponent_score(team_a, team_b, variety_mode),
+            "diff": raw_skill_diff(team_a, team_b),
+        }
+        for team_a, team_b in splits
+    ]
+
+    _, chosen_team_a, chosen_team_b = _score_candidate(four, mixed_mode, variety_mode)
+    chosen = next(s for s in scored if s["team_a"] == chosen_team_a and s["team_b"] == chosen_team_b)
+    best_diff_split = min(scored, key=lambda s: s["diff"])
+
+    compromised = chosen["diff"] > best_diff_split["diff"]
+    reason = None
+    if compromised:
+        if best_diff_split["mixed"] > chosen["mixed"]:
+            reason = "format compliance (mixed_mode) ruled out the lower-diff split"
+        elif best_diff_split["partner"] > chosen["partner"]:
+            reason = "partner variety ruled out the lower-diff split (it would have repeated a partner)"
+        elif best_diff_split["opponent"] > chosen["opponent"]:
+            reason = "opponent variety ruled out the lower-diff split (it would have repeated an opponent)"
+        else:
+            reason = "unexplained tie-break difference (unexpected -- worth a closer look)"
+
+    return {
+        "chosen_diff": chosen["diff"],
+        "best_possible_diff": best_diff_split["diff"],
+        "compromised": compromised,
+        "reason": reason,
+    }
+
+
 def assign_courts_for_round(
     playing: List[Player], num_courts: int, mixed_mode: int, variety_mode: int,
     refine_max_iterations: Optional[int] = None,
