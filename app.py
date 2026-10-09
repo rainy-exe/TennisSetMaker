@@ -287,6 +287,9 @@ def invite_member():
         assignable_roles=ASSIGNABLE_ROLES,
     )
 
+@app.route('/support')
+def support():
+    return render_template('support.html', active_page='support')
 
 if __name__ == '__main__':
     app.run(debug=True)
