@@ -1,3 +1,9 @@
+import os
+import smtplib
+import ssl
+
+from email.message import EmailMessage
+from urllib.parse import urlencode
 import secrets
 from datetime import timedelta
 
@@ -8,7 +14,7 @@ from app.api import body, commit_or_conflict
 from app.auth import user_payload, validate_email
 from app.errors import ApiError
 from app.extensions import db
-from app.models import Invitation, User, utc_now
+from app.models import Club, Invitation, User, utc_now
 from app.permissions import (
     Role,
     can_invite_role,
@@ -102,6 +108,64 @@ def list_invitations():
     # Bearer tokens are returned once at creation, not in roster/list responses.
     return jsonify({"invitations": [invitation_payload(item) for item in invitations]})
 
+def send_invitation_email(invitation):
+    smtp_host = os.environ.get("SMTP_HOST")
+    smtp_port = int(os.environ.get("SMTP_PORT", "465"))
+    smtp_username = os.environ.get("SMTP_USERNAME")
+    smtp_password = os.environ.get("SMTP_PASSWORD")
+    smtp_from = os.environ.get("SMTP_FROM")
+    base_url = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
+    club = db.session.get(Club, invitation.club_id)
+
+    if not all([
+        smtp_host,
+        smtp_username,
+        smtp_password,
+        smtp_from,
+        base_url,
+    ]):
+        raise RuntimeError("SMTP configuration is incomplete.")
+
+    # Build invitation link using the existing /join page.
+    join_path = url_for("auth.join_page")
+    invitation_url = (
+        f"{base_url}{join_path}?"
+        f"{urlencode({'token': invitation.token})}"
+    )
+
+    message = EmailMessage()
+    message["Subject"] = "You're invited to join SetMaker"
+    message["From"] = smtp_from
+    message["To"] = invitation.email
+
+    message.set_content(
+        f"""Hello,
+
+You have been invited to join a club on SetMaker.
+
+Club: {club.name}
+Role: {invitation.role.capitalize()}
+
+Please use the link below to accept your invitation:
+
+{invitation_url}
+
+This invitation expires in 7 days.
+
+If you weren't expecting this invitation, you can ignore this email.
+
+SetMaker Team
+"""
+    )
+
+    with smtplib.SMTP_SSL(
+        smtp_host,
+        smtp_port,
+        context=ssl.create_default_context(),
+        timeout=10,
+    ) as smtp:
+        smtp.login(smtp_username, smtp_password)
+        smtp.send_message(message)
 
 @team.post("/invitations")
 @require_roles(*MANAGERS)
@@ -143,14 +207,33 @@ def create_invitation():
     )
     db.session.add(invitation)
     commit_or_conflict("The invitation could not be created.")
-    response = jsonify(
-        {
-            "invitation": invitation_payload(invitation),
-            "token": invitation.token,
-            "accept_endpoint": url_for("auth.accept_invitation"),
-        }
-    )
+
+    try:
+        send_invitation_email(invitation)
+
+    except (
+        smtplib.SMTPException,
+        OSError,
+        RuntimeError,
+        ValueError,
+    ):
+        # Prevent an unsent invitation from blocking another attempt.
+        invitation.expires_at = utc_now() - timedelta(seconds=1)
+        db.session.commit()
+
+        raise ApiError(
+            "Invitation email could not be sent. Please try again.",
+            502,
+            "email_delivery_failed",
+        )
+
+    response = jsonify({
+        "message": "Invitation email submitted successfully.",
+        "invitation": invitation_payload(invitation),
+    })
+
     response.headers["Cache-Control"] = "no-store"
+
     return response, 201
 
 

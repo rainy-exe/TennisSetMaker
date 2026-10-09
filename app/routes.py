@@ -1,5 +1,7 @@
 from flask import Blueprint, redirect, render_template, request, url_for
 from jinja2 import TemplateNotFound
+from app.extensions import db
+from app.models import Club, User
 
 from app import api as endpoints
 from app.errors import ApiError
@@ -16,14 +18,19 @@ def protect_management_pages():
 
 def page(template_name, kind, **context):
     actor = current_actor()
+
     data = {
         "page": kind,
         "can_manage": actor.role in endpoints.MANAGERS,
         "can_manage_skill": can_manage_skill(actor),
-        **context,
     }
+
     try:
-        return render_template(template_name, page_data=data, **context)
+        return render_template(
+            template_name,
+            page_data=data,
+            **context
+        )
     except TemplateNotFound as error:
         raise ApiError(
             "A required frontend template is not available yet.",
@@ -171,7 +178,52 @@ def history():
 
 @main.get("/settings")
 def settings():
-    return page("settings.html", "settings")
+    actor = current_actor()
+
+    club = db.session.get(Club, actor.club_id)
+
+    users = (
+        User.query
+        .filter_by(club_id=actor.club_id, active=True)
+        .order_by(User.created_at)
+        .all()
+    )
+
+    team_members = [
+        {
+            "id": user.id,
+            "name": user.full_name or user.email.split("@")[0],
+            "email": user.email,
+            "role": user.role.capitalize(),
+            "joined": user.created_at.strftime("%d %b %Y"),
+        }
+        for user in users
+    ]
+
+    return page(
+        "settings.html",
+        "settings",
+        club=club,
+        team_members=team_members,
+    )
+
+@main.post("/settings/club")
+@require_roles(Role.OWNER, Role.ADMIN)
+def update_club():
+    actor = current_actor()
+
+    club = db.session.get(Club, actor.club_id)
+
+    club_name = request.form.get("club_name", "").strip()
+
+    if not 1 <= len(club_name) <= 120:
+        raise ApiError("Club name must contain 1 to 120 characters.")
+
+    club.name = club_name
+
+    db.session.commit()
+
+    return redirect(url_for("main.settings", tab="club"))
 
 
 @main.get("/accounts")
@@ -179,5 +231,32 @@ def accounts():
     return page("accounts.html", "accounts")
 
 @main.get("/settings/invite-member")
+@require_roles(Role.OWNER, Role.ADMIN)
 def invite_member():
-    return page("invite_member.html", "settings")
+    actor = current_actor()
+
+    role_info = {
+        "Admin": [
+            "Manage players, courts and sessions.",
+            "Invite and manage staff members."
+        ],
+        "Staff": [
+            "Manage sessions and add players.",
+            "Cannot manage team accounts."
+        ],
+    }
+
+    assignable_roles = (
+        ["Admin", "Staff"]
+        if actor.role == Role.OWNER
+        else ["Staff"]
+    )
+
+    return page(
+        "invite_member.html",
+        "settings",
+        form={},
+        errors=[],
+        assignable_roles=assignable_roles,
+        role_info=role_info,
+    )

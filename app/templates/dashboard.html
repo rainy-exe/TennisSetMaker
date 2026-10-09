@@ -55,11 +55,11 @@
                     Templates
                 </a>
 
-                <a href="#" class="nav-link">
+                <a href="{{ url_for('main.history') }}" class="nav-link">
                     History
                 </a>
 
-                <a href="#" class="nav-link">
+                <a href="{{ url_for('main.settings') }}" class="nav-link">
                     Settings
                 </a>
 
@@ -100,7 +100,7 @@
 
                 </div>
 
-                <a href="{{ url_for('main.create_session') }}" class="btn btn-primary">
+                <a href="{{ url_for('main.sessions') }}" class="btn btn-primary">
                     <span class="btn-icon">+</span>
                     Create Session
                 </a>

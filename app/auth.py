@@ -348,7 +348,13 @@ def accept_invitation():
 
     token = data.get("token", "")
     password = password_from(data)
+    full_name = data.get("full_name")
 
+    if not isinstance(full_name, str) or not 1 <= len(full_name.strip()) <= 120:
+        raise ApiError("Full name must contain 1 to 120 characters.")
+
+    full_name = full_name.strip()
+    
     if not isinstance(token, str) or not token or len(token) > 255:
         return jsonify({"message": "Invitation token is required."}), 400
 
@@ -395,6 +401,7 @@ def accept_invitation():
 
     user = User(
         club_id=invitation.club_id,
+        full_name=full_name,
         email=email,
         password_hash=generate_password_hash(password),
         role=invitation.role,
@@ -444,6 +451,14 @@ def accept_invitation():
         }
     ), 201
 
+@auth_bp.get("/join")
+def join_page():
+    token = request.args.get("token", "")
+
+    return render_account_page(
+        "accept-invite.html",
+        token=token,
+    )
 
 # ---------------------------------------------------------
 # Login page
