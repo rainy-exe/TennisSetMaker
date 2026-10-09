@@ -155,7 +155,7 @@
                         </h2>
 
                         <p>
-                            The <a href="{{ url_for('players') }}">Players</a> page is your club roster.
+                            The <a href="{{ url_for('main.players') }}">Players</a> page is your club roster.
                             Search by name, then select a player to see their details and notes.
                         </p>
 
@@ -190,7 +190,7 @@
                         </h2>
 
                         <p>
-                            The <a href="{{ url_for('courts') }}">Courts</a> page lists every court at your club.
+                            The <a href="{{ url_for('main.courts') }}">Courts</a> page lists every court at your club.
                         </p>
 
                         <ul>
@@ -211,7 +211,7 @@
 
                         <p>
                             Templates save the settings you use every week so you don't have to re-enter them.
-                            Owners and admins manage them from the <a href="{{ url_for('templates') }}">Templates</a> page.
+                            Owners and admins manage them from the <a href="{{ url_for('main.templates') }}">Templates</a> page.
                         </p>
 
                         <p>A template stores:</p>
@@ -233,7 +233,7 @@
                         </h2>
 
                         <ol class="support-steps">
-                            <li>From the <a href="{{ url_for('dashboard') }}">Dashboard</a>, click <strong>+ Create Session</strong>.</li>
+                            <li>From the <a href="{{ url_for('main.dashboard') }}">Dashboard</a>, click <strong>+ Create Session</strong>.</li>
                             <li>Enter a session name, date and start time.</li>
                             <li>Set the number of rounds, round duration, session duration and an optional tea break.</li>
                             <li>Choose a <strong>match format</strong> and tick the courts you're using.</li>

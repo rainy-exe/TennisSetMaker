@@ -46,7 +46,7 @@ def display_player(player):
 
 @main.get("/")
 def home():
-    return render_template("index.html", message="Tennis SetMaker")
+    return render_template("main.html")
 
 
 @main.get("/dashboard")
@@ -155,3 +155,29 @@ def add_template():
 def edit_template(template_id):
     template = endpoints.serialize_template(endpoints.template_for_club(template_id))
     return page("edittemplate.html", "template-form", template=template)
+
+@main.route("/support")
+def support():
+    return render_template("support.html")
+
+@main.get("/sessions")
+def sessions():
+    return page("sessions.html", "sessions")
+
+@main.get("/history")
+def history():
+    return page("history.html", "history")
+
+
+@main.get("/settings")
+def settings():
+    return page("settings.html", "settings")
+
+
+@main.get("/accounts")
+def accounts():
+    return page("accounts.html", "accounts")
+
+@main.get("/settings/invite-member")
+def invite_member():
+    return page("invite_member.html", "settings")

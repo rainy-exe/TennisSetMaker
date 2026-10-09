@@ -64,6 +64,11 @@ class User(TimestampMixin, db.Model):
         nullable=False,
         index=True,
     )
+    
+    full_name = db.Column(
+        db.String(120),
+        nullable=True,
+    )
 
     email = db.Column(
         db.String(255),

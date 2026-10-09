@@ -13,7 +13,7 @@
       <p class="form-error">{{ error }}</p>
     {% endif %}
 
-    <form method="POST" action="{{ url_for('settings_member', member_id=member.id) }}">
+    <form method="POST" action="{{ url_for('main.settings_member', member_id=member.id) }}">
       <input type="hidden" name="action" value="update_role" />
 
       <div class="field">
@@ -37,12 +37,12 @@
       </div>
 
       <div class="form-actions">
-        <a class="btn" href="{{ url_for('settings') }}">Cancel</a>
+        <a class="btn" href="{{ url_for('main.settings') }}">Cancel</a>
         <button class="btn btn-primary" type="submit" {{ 'disabled' if member.role == 'Owner' }}>Save</button>
       </div>
     </form>
 
-    <form method="POST" action="{{ url_for('settings_member', member_id=member.id) }}"
+    <form method="POST" action="{{ url_for('main.settings_member', member_id=member.id) }}"
           style="margin-top: 16px;"
           onsubmit="return confirm('Remove {{ member.name }} from the club?');">
       <input type="hidden" name="action" value="remove" />

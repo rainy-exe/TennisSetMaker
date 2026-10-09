@@ -7,7 +7,7 @@
 
     <title>SetMaker | Login</title>
 
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body class="login-body">
@@ -60,7 +60,7 @@
                 <div class="login-form-wrap">
 
                     <!-- Back to Main Page -->
-                    <a href="main.html" class="back-home">
+                    <a href="{{ url_for('main.home') }}" class="back-home">
                         ← Back to SetMaker
                     </a>
 
@@ -75,7 +75,7 @@
 
 
                     <!-- Login Form -->
-                    <form action="dashboard.html">
+                    <form id="login-form" method="post">
 
                         <!-- Email -->
                         <div class="field">
@@ -129,12 +129,13 @@
 
                             </label>
 
-                            <a href="forgot-password.html">
+                            <a href="{ url_for('auth.forgot_password') }}">
                                 Forgot password?
                             </a>
 
                         </div>
 
+                        <p id="login-error" class="form-error" role="alert" hidden></p>
 
                         <!-- Login Button -->
                         <button
@@ -153,6 +154,68 @@
         </div>
 
     </main>
+
+    
+<script>
+document.getElementById("login-form").addEventListener("submit", async function (event) {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const email = form.querySelector("#email").value.trim();
+    const password = form.querySelector("#password").value;
+
+    const errorElement = document.getElementById("login-error");
+    const submitButton = form.querySelector('button[type="submit"]');
+
+    errorElement.hidden = true;
+    errorElement.textContent = "";
+    submitButton.disabled = true;
+
+    try {
+        // Step 1: Obtain a CSRF token
+        const csrfResponse = await fetch("{{ url_for('auth.csrf_token') }}", {
+            credentials: "same-origin"
+        });
+
+        if (!csrfResponse.ok) {
+            throw new Error("Unable to obtain a security token.");
+        }
+
+        const csrfData = await csrfResponse.json();
+
+        // Step 2: Send login credentials to Flask
+        const response = await fetch("{{ url_for('auth.login') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfData.csrf_token
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({
+                email: email,
+                password: password
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || result.error || "Login failed.");
+        }
+
+        // Step 3: Redirect after successful authentication
+        window.location.href = "{{ url_for('main.dashboard') }}";
+
+    } catch (error) {
+        errorElement.textContent = error.message;
+        errorElement.hidden = false;
+
+    } finally {
+        submitButton.disabled = false;
+    }
+});
+</script>
+
 
 </body>
 

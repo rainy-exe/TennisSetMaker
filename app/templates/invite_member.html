@@ -15,7 +15,7 @@
       {% endfor %}
     {% endif %}
 
-    <form method="POST" action="{{ url_for('invite_member') }}">
+    <form method="POST" action="{{ url_for('main.invite_member') }}">
       <div class="field">
         <label>Name</label>
         <input class="input" type="text" name="name" value="{{ form.name or '' }}" />
@@ -44,7 +44,7 @@
       </div>
 
       <div class="form-actions">
-        <a class="btn" href="{{ url_for('settings') }}">Cancel</a>
+        <a class="btn" href="{{ url_for('main.settings') }}">Cancel</a>
         <button class="btn btn-primary" type="submit">Send Invite</button>
       </div>
     </form>

@@ -35,6 +35,7 @@ auth_bp = Blueprint("auth", __name__)
 def user_payload(user):
     return {
         "id": user.id,
+        "full_name": user.full_name,
         "email": user.email,
         "role": user.role,
         "club_id": user.club_id,
@@ -164,6 +165,13 @@ def register():
     """
 
     data = auth_body()
+    
+    full_name = data.get("full_name")
+
+    if not isinstance(full_name, str) or not 1 <= len(full_name.strip()) <= 120:
+        raise ApiError("Full name must contain 1 to 120 characters.")
+
+    full_name = full_name.strip()
 
     email = validate_email(data.get("email"))
     password = password_from(data)
@@ -200,6 +208,7 @@ def register():
 
     owner = User(
         club=club,
+        full_name=full_name,
         email=email,
         password_hash=generate_password_hash(password),
         role=Role.OWNER.value,
@@ -219,9 +228,7 @@ def register():
         db.session.rollback()
         raise
 
-    # Log the new Owner in immediately.
     session.clear()
-    session["user_id"] = owner.id
 
     return jsonify(
         {
