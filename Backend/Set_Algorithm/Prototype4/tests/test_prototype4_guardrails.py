@@ -92,6 +92,14 @@ def test_gender_lock_outranks_skill_guardrail():
 
 
 def test_same_gender_score_ordering():
+    """The client's ordering: an all-one-gender court first, then the
+    "spares" court (men v ladies), and only then a court that forces
+    somebody to partner across genders.
+
+    The client rejected 3+1 courts explicitly -- "it should only be
+    male-male and female-female and then any spares should be put
+    together in a balanced set" -- so MM v FF MUST rank above MM v MF.
+    """
     mm = (P("m1", 5, "MALE"), P("m2", 5, "MALE"))
     ff = (P("f1", 5, "FEMALE"), P("f2", 5, "FEMALE"))
     mf1 = (P("m3", 5, "MALE"), P("f3", 5, "FEMALE"))
@@ -100,6 +108,14 @@ def test_same_gender_score_ordering():
     assert raw_same_gender_score(mm, m34) == 0                       # all-male court
     assert raw_same_gender_score(mm, mf1) == 4                       # 3+1
     assert raw_same_gender_score(mm, ff) < raw_same_gender_score(mf1, mf2)  # MMvFF beats MFvMF
+    # The client's rule: a balanced spares court beats sneaking a lone
+    # female into an otherwise-male court.
+    assert raw_same_gender_score(mm, ff) < raw_same_gender_score(mm, mf1)
+    # Full ordering, best to worst.
+    assert (raw_same_gender_score(mm, m34)
+            < raw_same_gender_score(mm, ff)
+            < raw_same_gender_score(mm, mf1)
+            < raw_same_gender_score(mf1, mf2))
 
 
 def test_same_gender_mode_builds_single_gender_courts():

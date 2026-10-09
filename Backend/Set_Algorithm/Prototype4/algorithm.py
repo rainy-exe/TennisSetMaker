@@ -157,7 +157,105 @@ def sit_out_ratio(p: Player, room_average: float, window: int = RATIO_WINDOW_ROU
     return (sits + (window - rounds) * room_average) / window
 
 
-def select_round_players(active_pool: List[Player], num_to_play: int, rng: random.Random) -> Tuple[List[Player], List[Player]]:
+# Same-gender parity: how many sit-out trades the policy may ask for.
+# One trade flips a gender's parity, so two is enough for any pool; the
+# cap is only here to bound the loop.
+MAX_PARITY_SWAPS = 4
+
+
+def _gender_counts(players: List[Player]) -> dict:
+    """How many players of each gender are in this group."""
+    counts = {}
+    for p in players:
+        counts[p.gender] = counts.get(p.gender, 0) + 1
+    return counts
+
+
+def _gender_parity_cost(playing: List[Player]) -> Tuple[int, int]:
+    """How far a set of players is from filling single-gender courts.
+
+      [0] genders with an ODD headcount. An odd count cannot be split
+          into same-gender pairs, so somebody MUST partner across
+          genders -- the arrangement the client rejected. Driven to zero.
+      [1] genders whose headcount is not a multiple of 4: what stops
+          every court being all one gender. Only looked at once [0] is
+          level, because a leftover men-v-ladies court is an acceptable
+          result ("spares put together in a balanced set").
+
+    [1] >= [0] always, since an odd count is never a multiple of 4.
+    """
+    counts = _gender_counts(playing)
+    return (
+        sum(1 for n in counts.values() if n % 2),
+        sum(1 for n in counts.values() if n % 4),
+    )
+
+
+def _fairness_tier(p: Player) -> Tuple[int, int]:
+    """The part of play_priority that carries the client's two sit-out
+    rules (sat out already this session; sat out last round). Parity
+    repair only ever trades players within one tier, so rules 1 and 2
+    cannot be weakened by it."""
+    return (p.session_sit_outs, 1 if p.consecutive_sit_outs > 0 else 0)
+
+
+def _repair_gender_parity(
+    playing: List[Player],
+    sitting: List[Player],
+    average: float,
+    max_swaps: int = MAX_PARITY_SWAPS,
+) -> Tuple[List[Player], List[Player]]:
+    """Trades players between `playing` and `sitting` until every gender
+    has an even number on court -- exactly the condition for never
+    needing a mixed team (see _gender_parity_cost).
+
+    Both players in a trade must share a _fairness_tier, so the client's
+    sit-out rules 1 and 2 hold precisely as they did before; among the
+    trades that help, the one disturbing the rule-3 sit-out ratio least
+    wins, with the ranked positions as a final seed-stable tie-break.
+
+    If no legal trade helps, the fairness-optimal selection is returned
+    untouched and court scoring falls back to the least-bad arrangement.
+    Returns new lists; the inputs are not mutated.
+    """
+    playing, sitting = list(playing), list(sitting)
+    if not playing or not sitting:
+        return playing, sitting
+
+    cost = _gender_parity_cost(playing)
+    for _ in range(max_swaps):
+        if cost == (0, 0):
+            break
+        best = None  # (sort key, playing index, sitting index, new cost)
+        for i, p_in in enumerate(playing):
+            for j, p_out in enumerate(sitting):
+                if p_in.gender == p_out.gender:
+                    continue  # like for like cannot change any headcount
+                if _fairness_tier(p_in) != _fairness_tier(p_out):
+                    continue  # would weaken sit-out rule 1 or 2
+                trial = playing[:i] + playing[i + 1:] + [p_out]
+                new_cost = _gender_parity_cost(trial)
+                if new_cost >= cost:
+                    continue  # legal, but no improvement
+                # Rule 3: a higher sit-out ratio earns a court spot, so
+                # prefer giving up the player who has earned it least.
+                key = (
+                    new_cost,
+                    sit_out_ratio(p_in, average) - sit_out_ratio(p_out, average),
+                    i,
+                    j,
+                )
+                if best is None or key < best[0]:
+                    best = (key, i, j, new_cost)
+        if best is None:
+            break
+        _, i, j, cost = best
+        playing[i], sitting[j] = sitting[j], playing[i]
+    return playing, sitting
+
+
+def select_round_players(active_pool: List[Player], num_to_play: int, rng: random.Random,
+                         mixed_mode: int = GENDER_OPEN) -> Tuple[List[Player], List[Player]]:
     """Chooses who plays this round and who sits out (rules A1-A4 above).
 
     Players are ranked for a court spot by, in order:
@@ -168,6 +266,12 @@ def select_round_players(active_pool: List[Player], num_to_play: int, rng: rando
     The lowest-ranked players sit out. Because each rule only orders
     players the rules above it leave level, rules 1 and 2 only give way
     when the numbers make them impossible to keep.
+
+    In same-gender mode (mixed_mode = GENDER_SAME) a repair pass then
+    trades players between the two groups so every gender has an even
+    number on court -- the condition for never having to put a mixed
+    team on a court. It only trades players the rules above already left
+    level, so rules 1 and 2 are unaffected (_repair_gender_parity).
     """
     average = room_average_ratio(active_pool)
 
@@ -183,6 +287,8 @@ def select_round_players(active_pool: List[Player], num_to_play: int, rng: rando
     ranked = sorted(shuffled, key=play_priority, reverse=True)
     playing = ranked[:num_to_play]
     sitting_out = ranked[num_to_play:]
+    if mixed_mode == GENDER_SAME:
+        playing, sitting_out = _repair_gender_parity(playing, sitting_out, average)
     return playing, sitting_out
 
 
@@ -201,19 +307,45 @@ def raw_mixed_score(team_a: Tuple[Player, Player], team_b: Tuple[Player, Player]
     return penalty
 
 
-def raw_same_gender_score(team_a: Tuple[Player, Player], team_b: Tuple[Player, Player]) -> int:
-    """Same-gender policy (men's / ladies' doubles). 0 = all four players
-    on the court share a gender. Otherwise, primarily penalises how many
-    players are in the court's minority gender, then breaks ties by how
-    many TEAMS are mixed -- so when the pool forces a 2M+2F court, MM vs FF
-    (6) is preferred over MF vs MF (8), and a 3+1 court scores 4."""
+def court_gender_shape(team_a: Tuple[Player, Player], team_b: Tuple[Player, Player]) -> Tuple[int, int]:
+    """The two raw gender facts about one court:
+
+      minority     how many of the four players are NOT in the court's
+                   majority gender (0 = all four share a gender)
+      mixed_teams  how many of the two TEAMS have partners of different
+                   genders (0, 1 or 2)
+
+    Reporting uses this as well, so a gender metric in the simulation
+    output can never drift from raw_same_gender_score() below.
+    """
     four = team_a + team_b
     counts = {}
     for p in four:
         counts[p.gender] = counts.get(p.gender, 0) + 1
     minority = 4 - max(counts.values())
     mixed_teams = sum(1 for team in (team_a, team_b) if team[0].gender != team[1].gender)
-    return 3 * minority + mixed_teams
+    return minority, mixed_teams
+
+
+def raw_same_gender_score(team_a: Tuple[Player, Player], team_b: Tuple[Player, Player]) -> int:
+    """Same-gender policy (men's / ladies' doubles), 0 = best.
+
+    The client's rule is "only male-male and female-female, and then any
+    spares should be put together in a balanced set". So a MIXED TEAM --
+    somebody forced to partner across genders -- is the thing to avoid
+    above all else; mixed teams carry the 3x weight and the minority
+    headcount only breaks ties below it:
+
+        0  all four share a gender             (MM v MM)
+        2  men v ladies, the spares court      (MM v FF)
+        4  a lone minority player              (MM v MF)
+        8  two mixed pairs                     (MF v MF)
+
+    Whether a mixed team is forced at all is decided a step earlier, by
+    who is picked to play -- see _gender_parity_cost().
+    """
+    minority, mixed_teams = court_gender_shape(team_a, team_b)
+    return 3 * mixed_teams + minority
 
 
 def _mixed_score(team_a: Tuple[Player, Player], team_b: Tuple[Player, Player], mixed_mode: int) -> int:
