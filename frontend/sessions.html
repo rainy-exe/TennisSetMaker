@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SetMaker | Sessions</title>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <div class="app-shell">
+
+        <!-- =========================
+             SIDEBAR
+        ========================== -->
+
+        <aside class="sidebar">
+
+            <div class="brand">
+
+                <div class="logo-mark">
+                    S
+                </div>
+
+                <span>SetMaker</span>
+
+            </div>
+
+
+            <nav class="nav">
+
+                <a href="dashboard.html" class="nav-link">
+                    Dashboard
+                </a>
+
+                <a href="sessions.html" class="nav-link active">
+                    Sessions
+                </a>
+
+                <a href="#" class="nav-link">
+                    Players
+                </a>
+
+                <a href="#" class="nav-link">
+                    Courts
+                </a>
+
+                <a href="#" class="nav-link">
+                    Templates
+                </a>
+
+                <a href="history.html" class="nav-link">
+                    History
+                </a>
+
+                <a href="#" class="nav-link">
+                    Settings
+                </a>
+
+                <a href="accounts.html" class="nav-link">
+                    Accounts
+                </a>
+
+            </nav>
+
+
+            <div class="admin-card">
+
+                <div class="avatar">
+                </div>
+
+                <div class="admin-copy">
+
+                    <strong>
+                        Club Admin
+                    </strong>
+
+                    <span id="adminEmail">
+                    </span>
+
+                </div>
+
+            </div>
+
+        </aside>
+
+
+        <!-- =========================
+             SESSIONS PAGE
+        ========================== -->
+
+        <main class="main sessions-main">
+
+            <!-- Header -->
+            <div class="page-topline">
+
+                <div>
+
+                    <h1 class="page-title">
+                        Sessions
+                    </h1>
+
+                    <p class="page-subtitle">
+                        Manage active, upcoming and completed tennis sessions.
+                    </p>
+
+                </div>
+
+
+                <a href="create-session.html" class="btn btn-primary">
+                    <span class="btn-icon">+</span>
+                    Create Session
+                </a>
+
+            </div>
+
+
+            <!-- =========================
+                 SESSION TABS
+            ========================== -->
+
+            <div class="session-tabs">
+
+                <button type="button" class="session-tab active">
+                    Active
+                    <span id="activeSessionCount">
+                        0
+                    </span>
+                </button>
+
+
+                <button type="button" class="session-tab">
+                    Upcoming
+                    <span id="upcomingSessionCount">
+                        0
+                    </span>
+                </button>
+
+
+                <button type="button" class="session-tab">
+                    Completed
+                    <span id="completedSessionCount">
+                        0
+                    </span>
+                </button>
+
+            </div>
+
+
+            <!-- =========================
+                 SEARCH + FILTERS
+            ========================== -->
+
+            <section class="card sessions-filters">
+
+                <!-- Search -->
+                <div class="sessions-search">
+
+                    <span class="sessions-search-icon">
+
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="M20 20l-4-4"></path>
+                        </svg>
+
+                    </span>
+
+                    <input type="search" id="sessionSearch" class="input" placeholder="Search sessions...">
+
+                </div>
+
+
+                <!-- Session Mode -->
+                <div class="sessions-filter-field">
+
+                    <label for="sessionModeFilter">
+                        Mode
+                    </label>
+
+                    <select id="sessionModeFilter" class="select">
+                        <option value="">
+                            All Modes
+                        </option>
+
+                        <option value="social">
+                            Social Play
+                        </option>
+
+                        <option value="competitive">
+                            Competitive Ladder
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- Date Filter -->
+                <div class="sessions-filter-field">
+
+                    <label for="sessionDateFilter">
+                        Date
+                    </label>
+
+                    <input type="date" id="sessionDateFilter" class="input">
+
+                </div>
+
+
+                <!-- Clear -->
+                <button type="button" class="btn" id="clearSessionFilters">
+                    Clear Filters
+                </button>
+
+            </section>
+
+
+            <!-- =========================
+                 SESSION LIST
+            ========================== -->
+
+            <section>
+
+                <!--
+                    Sessions will be inserted here later
+                    by JavaScript/backend.
+                -->
+                <div class="sessions-page-list" id="sessionsPageList">
+                </div>
+
+
+                <!-- Empty State -->
+                <div class="card sessions-empty" id="sessionsEmptyState">
+
+                    <div class="sessions-empty-icon">
+
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <rect x="4" y="5" width="16" height="15" rx="2"></rect>
+
+                            <path d="M8 3v4"></path>
+                            <path d="M16 3v4"></path>
+                            <path d="M4 10h16"></path>
+                        </svg>
+
+                    </div>
+
+
+                    <h2>
+                        No sessions to display
+                    </h2>
+
+                    <p>
+                        Create a session to start organising players,
+                        courts and rounds.
+                    </p>
+
+
+                    <a href="create-session.html" class="btn btn-primary">
+                        Create Session
+                    </a>
+
+                </div>
+
+            </section>
+
+
+            <!-- =========================
+                 FOOTER
+            ========================== -->
+
+            <div class="sessions-footer">
+
+                <span id="sessionsResultCount">
+                    0 sessions
+                </span>
+
+                <div class="sessions-pagination">
+
+                    <button type="button" class="btn btn-sm">
+                        ‹
+                    </button>
+
+                    <button type="button" class="btn btn-sm btn-primary">
+                        1
+                    </button>
+
+                    <button type="button" class="btn btn-sm">
+                        ›
+                    </button>
+
+                </div>
+
+            </div>
+
+        </main>
+
+    </div>
+
+</body>
+
+</html>
