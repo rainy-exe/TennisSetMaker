@@ -1,6 +1,8 @@
 from datetime import date
 from flask import Flask, render_template, request, redirect, url_for
 from helpers import load_players_from_csv
+import csv 
+import io
 
 app = Flask(__name__)
 
@@ -290,6 +292,60 @@ def invite_member():
 @app.route('/support')
 def support():
     return render_template('support.html', active_page='support')
+
+@app.route('/players/import', methods=['POST'])
+def import_players():
+    file = request.files.get('csv_file')
+    if not file or not file.filename.lower().endswith('.csv'):
+        return redirect(url_for('players', import_error='Please choose a .csv file.'))
+
+    text = file.read().decode('utf-8-sig', errors='replace')
+    reader = csv.DictReader(io.StringIO(text))
+
+    # Match column names regardless of capitals/spaces, e.g. "Name", " name ", "NAME"
+    columns = {(h or '').strip().lower(): h for h in (reader.fieldnames or [])}
+    if not {'name', 'gender', 'rating'} <= columns.keys():
+        return redirect(url_for('players', import_error='The CSV needs Name, Gender and Rating columns.'))
+
+    def cell(row, column):
+        key = columns.get(column)
+        return (row.get(key) or '').strip() if key else ''
+
+    store = get_players_store()
+    existing_names = {p['name'].strip().lower() for p in store}
+    next_id = max((p['id'] for p in store), default=0) + 1
+    added = skipped = 0
+
+    for row in reader:
+        name = cell(row, 'name')
+        try:
+            rating = int(float(cell(row, 'rating')))
+        except ValueError:
+            skipped += 1
+            continue
+        if not name or name.lower() in existing_names:
+            skipped += 1
+            continue
+
+        gender_raw = cell(row, 'gender').upper()
+        gender = {'M': 'Male', 'MALE': 'Male', 'F': 'Female', 'FEMALE': 'Female'}.get(
+            gender_raw, gender_raw.title()
+        )
+
+        store.append({
+            'id': next_id,
+            'name': name,
+            'rating': rating,
+            'rating_dots': rating_to_dots(rating),
+            'gender': gender,
+            'notes': cell(row, 'notes'),
+            'court_preference': cell(row, 'court preference') or cell(row, 'court_preference'),
+        })
+        existing_names.add(name.lower())
+        next_id += 1
+        added += 1
+
+    return redirect(url_for('players', imported=added, skipped=skipped))
 
 if __name__ == '__main__':
     app.run(debug=True)
