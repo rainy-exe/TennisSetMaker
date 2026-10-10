@@ -253,38 +253,164 @@
       let selectedRound = round;
       let final;
       function draw(current) {
-        selectedRound = current;
-        final = current ? structuredClone(current.final) : {assignments: [], sit_out_player_ids: []};
-        const matches = document.getElementById("matchGrid");
-        const sitting = document.getElementById("sitoutList");
-        matches.replaceChildren(); sitting.replaceChildren();
-        document.getElementById("currentRound").textContent = current?.number || "Not generated";
-        document.getElementById("matchCount").textContent = final.assignments.length;
-        document.getElementById("sitoutCount").textContent = final.sit_out_player_ids.length;
-        const eligible = current?.eligibility.filter(item => item.status === "eligible").map(item => item.player_id) || [];
-        function playerSelect(parent, id, change) {
-          const select = element("select", undefined, parent);
-          select.className = "select";
-          for (const playerId of eligible) {
-            const option = element("option", byId.get(playerId)?.name || playerId, select);
-            option.value = playerId;
-          }
-          select.value = id;
-          select.disabled = current.status !== "generated";
-          select.onchange = () => change(select.value);
+    selectedRound = current;
+
+    final = current
+        ? structuredClone(current.final)
+        : { assignments: [], sit_out_player_ids: [] };
+
+    const matches = document.getElementById("matchGrid");
+    const sitting = document.getElementById("sitoutList");
+
+    matches.replaceChildren();
+    sitting.replaceChildren();
+
+    document.getElementById("currentRound").textContent =
+        current?.number || "Not generated";
+
+    document.getElementById("matchCount").textContent =
+        final.assignments.length;
+
+    document.getElementById("sitoutCount").textContent =
+        final.sit_out_player_ids.length;
+
+    const eligible = current?.eligibility
+        .filter(item => item.status === "eligible")
+        .map(item => item.player_id) || [];
+
+    const editable = current?.status === "generated";
+
+    // Compact player selector, preserving manual override.
+    function playerSelect(parent, playerId, change) {
+        const line = element("div", undefined, parent);
+        line.className = "player-line";
+
+        const moveIcon = element("span", "✥", line);
+        moveIcon.className = "move-icon";
+
+        const select = element("select", undefined, line);
+        select.className = "player-inline-select";
+
+        for (const id of eligible) {
+            const option = element(
+                "option",
+                byId.get(id)?.name || id,
+                select
+            );
+            option.value = id;
         }
-        for (const assignment of final.assignments) {
-          const card = element("div", undefined, matches); card.className = "card";
-          element("h3", `Court ${courtById.get(assignment.court_id)?.number || assignment.court_id}`, card);
-          for (const team of ["team_a_player_ids", "team_b_player_ids"]) {
-            element("p", team === "team_a_player_ids" ? "Team A" : "Team B", card);
-            assignment[team].forEach((id, index) => playerSelect(card, id, value => {assignment[team][index] = value;}));
-          }
+
+        select.value = playerId;
+        select.disabled = !editable;
+
+        select.onchange = () => change(select.value);
+    }
+
+    // Generate styled court cards.
+    for (const assignment of final.assignments) {
+        const card = element("div", undefined, matches);
+        card.className = "card match-card";
+
+        const header = element("div", undefined, card);
+        header.className = "match-card-header";
+
+        element(
+            "span",
+            `Court ${courtById.get(assignment.court_id)?.number || assignment.court_id}`,
+            header
+        );
+
+        // Team A
+        const teamA = element("div", undefined, card);
+        teamA.className = "team";
+
+        const labelA = element("div", "TEAM A", teamA);
+        labelA.className = "team-label";
+
+        assignment.team_a_player_ids.forEach((id, index) => {
+            playerSelect(teamA, id, value => {
+                assignment.team_a_player_ids[index] = value;
+            });
+        });
+
+        // VS divider
+        const vs = element("div", "VS", card);
+        vs.className = "vs";
+
+        // Team B
+        const teamB = element("div", undefined, card);
+        teamB.className = "team";
+
+        const labelB = element("div", "TEAM B", teamB);
+        labelB.className = "team-label";
+
+        assignment.team_b_player_ids.forEach((id, index) => {
+            playerSelect(teamB, id, value => {
+                assignment.team_b_player_ids[index] = value;
+            });
+        });
+    }
+
+    // Styled sitting-out players
+    final.sit_out_player_ids.forEach((id, index) => {
+        const row = element("div", undefined, sitting);
+        row.className = "sitout-player";
+
+        const name = byId.get(id)?.name || id;
+
+        const avatar = element(
+            "div",
+            name.split(" ").map(part => part[0]).slice(0, 2).join("").toUpperCase(),
+            row
+        );
+        avatar.className = "player-avatar";
+
+        const details = element("div", undefined, row);
+        details.className = "sitout-details";
+
+        playerSelect(details, id, value => {
+            final.sit_out_player_ids[index] = value;
+        });
+
+        const description = element(
+            "div",
+            "Sitting out this round",
+            details
+        );
+        description.className = "sitout-meta";
+    });
+
+    document.getElementById("matchExplanation").textContent =
+        current?.status === "completed"
+            ? "Completed round — locked."
+            : "Change players if needed, then click Save Changes. Duplicate assignments are rejected by the backend.";
+}
+      for (const saved of session.rounds) {
+        const roundButton = button(
+            `Round ${saved.number}`,
+            selector,
+            () => draw(saved)
+        );
+
+        roundButton.className = "round-btn";
+
+        if (saved.status === "completed") {
+            roundButton.classList.add("completed");
+        } else if (saved.id === round?.id) {
+            roundButton.classList.add("current");
         }
-        final.sit_out_player_ids.forEach((id, index) => playerSelect(sitting, id, value => {final.sit_out_player_ids[index] = value;}));
-        document.getElementById("matchExplanation").textContent = current?.status === "completed" ? "Completed round — locked." : "Edit the player selections, then save. Duplicate players are rejected by the backend.";
-      }
-      for (const saved of session.rounds) button(`Round ${saved.number} (${saved.status})`, selector, () => draw(saved));
+
+        roundButton.replaceChildren();
+
+        const dot = element(
+            "span",
+            saved.status === "completed" ? "✓" : String(saved.number),
+            roundButton
+        );
+        dot.className = "round-dot";
+
+        element("span", `Round ${saved.number}`, roundButton);
+    }
       draw(round);
       if (!round || round.status === "completed") {
         if (["draft", "active"].includes(session.status)) button("Generate Next Round", actions, async () => {
@@ -294,6 +420,19 @@
       if (round?.status === "generated") {
         button("Undo Unsaved Changes", actions, () => draw(selectedRound));
         button("Save Changes", actions, async () => {
+          const assignedIds = [
+              ...final.assignments.flatMap(match => [
+                  ...match.team_a_player_ids,
+                  ...match.team_b_player_ids
+              ]),
+              ...final.sit_out_player_ids
+          ];
+
+          if (assignedIds.length !== new Set(assignedIds).size) {
+              throw new Error(
+                  "A player has been assigned more than once. Please check the teams and sitting-out list."
+              );
+          }
           if (selectedRound?.status !== "generated") throw new Error("Completed rounds are locked.");
           await api(`/api/rounds/${selectedRound.id}/final`, "PUT", {...final, expected_revision: selectedRound.override_revision});
           location.reload();

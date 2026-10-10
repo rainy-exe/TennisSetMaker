@@ -5253,3 +5253,82 @@ html.smooth-scroll {
     font-size: 12px;
     color: #333;
 }
+/* Fix compact player rows in Active Session */
+
+.match-card .player-line {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    min-height: 26px;
+    padding: 2px 5px;
+}
+
+.match-card .player-inline-select {
+    appearance: none;
+    -webkit-appearance: none;
+
+    width: auto;
+    min-width: 120px;
+    max-width: 100%;
+    flex: 1;
+
+    height: 24px;
+    padding: 2px 6px;
+
+    border: 1px solid transparent;
+    background: transparent;
+
+    font-size: 11px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.match-card .player-inline-select:hover,
+.match-card .player-inline-select:focus {
+    background: white;
+    border-color: #cfd5d9;
+}
+
+.match-card .move-icon {
+    flex: 0 0 14px;
+    text-align: center;
+}
+
+.sitout-player .player-inline-select {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+    border: 1px solid transparent;
+    background: transparent;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: left;
+}
+
+.sitout-player .player-line {
+    justify-content: flex-start;
+    gap: 4px;
+}
+.match-card .team {
+    padding: 7px 9px;
+    margin: 7px 12px;
+}
+
+.match-card .player-line {
+    background: #f0f2f4;
+    border-radius: 3px;
+    margin-bottom: 3px;
+}
+
+.match-card .match-card-header {
+    height: 40px;
+}
+
+.match-card .vs {
+    margin: 5px 12px;
+}
+
+.match-card .team-label {
+    margin-bottom: 5px;
+}
