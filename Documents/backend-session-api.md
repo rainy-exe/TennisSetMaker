@@ -1,6 +1,6 @@
 # Frontend API guide — Kimi / Lena
 
-Branch: `backend-integration-followups`.
+Integration branch: `integration-final-checks`.
 [Start the backend](backend-quickstart.md) through `run.py`, not the old
 root `app.py` demo. This guide covers the API; frontend pages stay with your team.
 
@@ -11,8 +11,8 @@ but are not yet used in algorithm scoring. Skill remains 1–10.
 
 The live page is `/sessions/<session_id>` and renders persisted **final** results.
 Overrides may send `expected_revision` alongside assignments/sit-outs; a stale
-revision returns 409 `stale_round`. Login/signup/account screens and same-gender
-mode still have separate team dependencies; no frontend PR is merged by this pass.
+revision returns 409 `stale_round`. Existing login/signup, session/history and
+account pages use the real backend. Same-gender mode uses the merged Prototype4.
 
 ## 1. Login and requests
 
@@ -73,15 +73,17 @@ const { round } = await api(`/api/sessions/${session.id}/rounds/generate`, {
 ```
 
 - `GET /check-session` returns `logged_in` and `user`:
-  `id`, `email`, `role`, `club_id`. Access comes from the session, not
+  `id`, `full_name`, `email`, `role`, `club_id`. Access comes from the session, not
   a client-supplied role or club ID.
-- `POST /register`: `email`, `password`, `club_name`; creates a new club
-  and Owner. Include `recaptcha_token` when reCAPTCHA is configured.
+- `POST /register`: `full_name`, `email`, `password`, `club_name`; creates a new
+  club and Owner, then requires a separate login. Full name is 1–120 characters.
+  Include `recaptcha_token` when reCAPTCHA is configured.
   Existing-club members join by invitation. `/api/signup` only checks reCAPTCHA.
 - `POST /logout` needs CSRF but returns a **302 redirect**, not JSON.
   Handle it separately from this helper.
-- Account templates may return 503 `frontend_unavailable` until integrated.
-  Password reset/email delivery and protected QR sharing are not ready.
+- Missing account templates return 503 `frontend_unavailable`.
+  Password reset and protected QR sharing are not ready. Invitation email
+  requires deployment SMTP configuration (see the invitation section).
 
 ## 2. Permissions
 
@@ -139,7 +141,8 @@ Template example:
 }
 ```
 
-Formats: `open` or `mixed`; strict mixed needs one M and one F per team.
+Formats: `open`, `mixed`, `same_gender`. Strict mixed needs one M and one F per
+team; strict same-gender needs same-gender partners, allowing MM versus FF spares.
 Open does not guarantee same-gender teams. Limits: rounds 1–50, total minutes
 1–1440, round minutes 1–240; tea break is null or before the last round.
 Durations/tea break are metadata, not timers. Templates are not algorithm-weight presets.
@@ -187,7 +190,7 @@ and PUT the **whole snapshot**:
 ```
 
 Every eligible player appears once, playing or sitting out. Courts must be
-selected/active and used once, with two teams of two; strict mixed still applies.
+selected/active and used once, with two teams of two; the strict session format applies.
 Invalid changes leave saved results unchanged. Override validation does not
 enforce the original court count.
 
@@ -208,15 +211,37 @@ discard, cancel or automatic timer endpoint is provided.
   `PATCH /api/users/<id>` with `{role: "admin"|"staff"}`;
   DELETE soft-deactivates and removes existing session access.
 - `GET /api/invitations` -> `{invitations}`;
-  POST with `{email, role}` -> 201 `{invitation, token, accept_endpoint}`;
+  POST with `{email, role}` -> 201 `{invitation, message}`;
   DELETE `/api/invitations/<id>` revokes a pending invitation.
-- `POST /accept-invitation` with `{token, password}` plus CSRF/cookie
+- `POST /accept-invitation` with `{token, full_name, password}` plus CSRF/cookie
   -> 201, logs in. Invitations last seven days.
-- Token is returned only at creation. `accept_endpoint` is a POST API,
-  not a browser page/link. Your acceptance screen must submit it; no email
-  is sent. Do not log or publicly expose tokens.
+- Tokens are sent only by email, not returned in API responses. The emailed
+  `/join?token=...` page submits acceptance. Kate's SMTP sender needs `SMTP_HOST`,
+  `SMTP_PORT` (defaults to 465), `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`,
+  and `PUBLIC_BASE_URL`. A 201 means SMTP submission, not guaranteed delivery.
+  Missing/failing SMTP returns 502 `email_delivery_failed` and expires the unsent
+  invitation so another attempt is allowed. Do not log or publicly expose tokens.
 
 All resources use the logged-in club; foreign-club IDs return 404.
+
+## 6. CSV import and QR results
+
+Kate's player form posts multipart data to `POST /api/players/import` with
+`csv_file` and CSRF. Owner/Admin only. Required columns: `Name,Gender,Rating`;
+optional `Notes,Court Preference`. UTF-8 (BOM allowed), at most 2 MB/1000 rows.
+Gender accepts M/F or Male/Female; rating is an integer 1–10. Valid rows are
+saved together, invalid/duplicate rows skipped. The response redirects to
+`/players?imported=...&skipped=...` or `import_error=...`, not JSON. Whole-file
+parse/limit errors and database failures save nothing. Confirm genuine
+namesakes individually through player creation; bulk import does not overwrite.
+
+Authenticated users can get a PNG at `GET /club/qr-code`. It links to
+`/club/<token>/live`, Kate's read-only bearer-link page, which shows final
+assignments/sit-outs for the latest-created session and refreshes every 15s.
+Names and court numbers only; no skill, notes or account data. Anyone holding
+the link can read those results, even without login. Do not publish the token
+or treat this as authenticated access; sharing/revocation policy needs team
+confirmation. `PUBLIC_BASE_URL` must point to an address viewers can reach.
 
 ## Errors
 
@@ -227,8 +252,8 @@ Usually `{error, message, details?}`; keep selections and show `message`.
 | 400 | Fix validation; refresh token for `csrf_failed` |
 | 401 / 403 / 404 | Login required / permission denied / missing or foreign-club ID |
 | 409 | Confirm duplicate, finish current round, or respect a locked state |
-| 410 / 422 | Expired invitation / not enough eligible players or courts, or invalid strict mixed result |
-| 502 / 503 | Algorithm result rejected / dependency unavailable |
+| 410 / 422 | Expired invitation / not enough eligible players or courts, or invalid strict-format result |
+| 502 / 503 | Algorithm result rejected, invitation email submission failed / dependency unavailable |
 
 After a network timeout, GET saved state before retrying a write: it may already
 have succeeded. Render names as text, not raw HTML.

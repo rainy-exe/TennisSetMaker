@@ -178,21 +178,16 @@
                                     Number of Rounds
                                 </label>
 
-                                <div class="number-stepper">
-
-                                    <button type="button">
-                                        −
-                                    </button>
-
-                                    <span id="roundCount">
-                                        1
-                                    </span>
-
-                                    <button type="button">
-                                        +
-                                    </button>
-
-                                </div>
+                                <input
+                                    type="number"
+                                    id="roundCount"
+                                    name="number_of_rounds"
+                                    class="input"
+                                    min="1"
+                                    max="50"
+                                    value="6"
+                                    required
+                                />
 
                             </div>
 
@@ -259,9 +254,9 @@
                                 </label>
 
                                 <label class="choice">
-                                    <input type="radio" name="matchFormat" value="sameGenderDoubles" disabled>
+                                    <input type="radio" name="matchFormat" value="sameGenderDoubles">
 
-                                    Same-Gender Doubles (waiting for algorithm PR #26)
+                                    Same-Gender Doubles
                                 </label>
 
                                 <label class="choice">
@@ -400,6 +395,32 @@
         </main>
 
     </div>
+
+    <script>
+document.addEventListener("DOMContentLoaded", function () {
+    const decreaseButton = document.getElementById("decreaseRounds");
+    const increaseButton = document.getElementById("increaseRounds");
+    const roundCount = document.getElementById("roundCount");
+
+    if (!decreaseButton || !increaseButton || !roundCount) return;
+
+    decreaseButton.addEventListener("click", function () {
+        const current = Number(roundCount.textContent.trim());
+
+        if (current > 1) {
+            roundCount.textContent = current - 1;
+        }
+    });
+
+    increaseButton.addEventListener("click", function () {
+        const current = Number(roundCount.textContent.trim());
+
+        if (current < 50) {
+            roundCount.textContent = current + 1;
+        }
+    });
+});
+</script>
 
 {% include '_integration_scripts.html' %}
 </body>

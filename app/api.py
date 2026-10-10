@@ -1,8 +1,10 @@
+import csv
+import io
 import unicodedata
 from datetime import datetime, time
 from difflib import SequenceMatcher
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, redirect, request, url_for
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -362,6 +364,152 @@ def create_player():
     ), 201
 
 
+@api.post("/players/import")
+@require_roles(*MANAGERS)
+def import_players_csv():
+    actor = current_actor()
+
+    def go_back(**params):
+        return redirect(url_for("main.players", **params))
+
+    uploaded_file = request.files.get("csv_file")
+
+    if not uploaded_file or not uploaded_file.filename:
+        return go_back(import_error="Please select a CSV file.")
+
+    if not uploaded_file.filename.lower().endswith(".csv"):
+        return go_back(import_error="Only CSV files are supported.")
+
+    # Limit uploaded files to 2 MB.
+    content = uploaded_file.read(2 * 1024 * 1024 + 1)
+
+    if len(content) > 2 * 1024 * 1024:
+        return go_back(import_error="CSV file must be under 2 MB.")
+
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return go_back(import_error="CSV file must use UTF-8 encoding.")
+
+    try:
+        reader = csv.DictReader(io.StringIO(text, newline=""), strict=True)
+
+        if not reader.fieldnames:
+            return go_back(import_error="CSV file is empty.")
+
+        columns = [column.strip().lower() for column in reader.fieldnames]
+
+        if len(columns) != len(set(columns)):
+            return go_back(import_error="Duplicate CSV column names.")
+
+        required = {"name", "gender", "rating"}
+
+        if not required.issubset(columns):
+            return go_back(
+                import_error="CSV must contain Name, Gender and Rating columns."
+            )
+
+        # Store existing names to detect duplicates.
+        existing_players = db.session.scalars(
+            select(Player).where(Player.club_id == actor.club_id)
+        ).all()
+
+        known_names = [player.normalized_name for player in existing_players]
+
+        imported = 0
+        skipped = 0
+        new_players = []
+
+        for row_number, original_row in enumerate(reader, start=2):
+            if row_number > 1001:
+                return go_back(import_error="CSV supports a maximum of 1000 players.")
+
+            if None in original_row or any(
+                value is None for value in original_row.values()
+            ):
+                skipped += 1
+                continue
+
+            row = {
+                key.strip().lower(): value.strip()
+                for key, value in original_row.items()
+            }
+
+            try:
+                name = clean_text(row.get("name"), "name")
+
+                normalized = normalize_name(name)
+
+                if not normalized:
+                    skipped += 1
+                    continue
+
+                # Skip potential duplicates in bulk imports. Individual creation
+                # still allows an organiser to explicitly confirm a namesake.
+                duplicate = any(
+                    normalized == known
+                    or SequenceMatcher(None, normalized, known).ratio() >= 0.92
+                    for known in known_names
+                )
+
+                if duplicate:
+                    skipped += 1
+                    continue
+
+                gender_input = clean_text(row.get("gender"), "gender", 20).upper()
+
+                gender_mapping = {
+                    "MALE": "M",
+                    "FEMALE": "F",
+                    "M": "M",
+                    "F": "F",
+                }
+
+                gender = gender_mapping.get(gender_input)
+
+                if gender is None:
+                    skipped += 1
+                    continue
+
+                rating = positive_int(int(row.get("rating", "")), "rating", 10)
+
+                player = Player(
+                    club_id=actor.club_id,
+                    name=name,
+                    normalized_name=normalized,
+                    gender=gender,
+                    skill=rating,
+                )
+
+                player_details(
+                    player,
+                    {
+                        "notes": row.get("notes") or None,
+                        "court_preference": row.get("court preference") or None,
+                    },
+                )
+
+                new_players.append(player)
+                known_names.append(normalized)
+                imported += 1
+
+            except (ApiError, ValueError, TypeError, AttributeError):
+                skipped += 1
+                continue
+
+    except csv.Error:
+        return go_back(import_error="Could not parse the CSV file.")
+
+    if new_players:
+        db.session.add_all(new_players)
+        try:
+            commit_or_conflict("Could not import the players.")
+        except ApiError:
+            return go_back(import_error="Database error while importing players.")
+
+    return go_back(imported=imported, skipped=skipped)
+
+
 @api.get("/players/<player_id>")
 @require_authenticated
 def get_player(player_id):
@@ -499,8 +647,8 @@ def apply_template_fields(target, data, partial=False):
             raise ApiError(f"{field} is required.")
     if "round_format" in data:
         value = clean_text(data["round_format"], "round_format", 20).lower()
-        if value not in {"open", "mixed"}:
-            raise ApiError("round_format must be open or mixed.")
+        if value not in {"open", "mixed", "same_gender"}:
+            raise ApiError("round_format must be open, mixed or same_gender.")
         target.round_format = value
     if "start_time" in data:
         try:
@@ -671,7 +819,11 @@ def create_session():
         "session_duration_minutes",
         source.session_duration_minutes if source else None,
     )
-    round_format = data.get("round_format", source.round_format if source else "open")
+    round_format = clean_text(
+        data.get("round_format", source.round_format if source else "open"),
+        "round_format",
+        20,
+    ).lower()
     strict_format = data.get("strict_format", source.strict_format if source else False)
     tea_break = data.get(
         "tea_break_after_round", source.tea_break_after_round if source else None
@@ -681,8 +833,8 @@ def create_session():
     if session_duration is None:
         session_duration = number_of_rounds * duration
     session_duration = positive_int(session_duration, "session_duration_minutes", 1440)
-    if round_format not in {"open", "mixed"}:
-        raise ApiError("round_format must be open or mixed.")
+    if round_format not in {"open", "mixed", "same_gender"}:
+        raise ApiError("round_format must be open, mixed or same_gender.")
     strict_format = parse_bool(strict_format, "strict_format")
     if tea_break is not None:
         tea_break = positive_int(tea_break, "tea_break_after_round")
@@ -750,8 +902,8 @@ def update_session(session_id):
         )
     if "round_format" in data:
         round_format = clean_text(data["round_format"], "round_format", 20).lower()
-        if round_format not in {"open", "mixed"}:
-            raise ApiError("round_format must be open or mixed.")
+        if round_format not in {"open", "mixed", "same_gender"}:
+            raise ApiError("round_format must be open, mixed or same_gender.")
         session.round_format = round_format
     if "strict_format" in data:
         session.strict_format = parse_bool(data["strict_format"], "strict_format")

@@ -1,13 +1,12 @@
 import os
+import secrets
 import smtplib
 import ssl
-
+from datetime import timedelta
 from email.message import EmailMessage
 from urllib.parse import urlencode
-import secrets
-from datetime import timedelta
 
-from flask import Blueprint, jsonify, url_for, current_app
+from flask import Blueprint, current_app, jsonify, url_for
 from sqlalchemy import select
 
 from app.api import body, commit_or_conflict
@@ -105,7 +104,7 @@ def list_invitations():
         .where(Invitation.club_id == current_actor().club_id)
         .order_by(Invitation.created_at.desc())
     ).all()
-    # Bearer tokens are returned once at creation, not in roster/list responses.
+    # Bearer tokens are sent only by email, never in API responses.
     return jsonify({"invitations": [invitation_payload(item) for item in invitations]})
 
 def send_invitation_email(invitation):
