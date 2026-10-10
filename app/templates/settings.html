@@ -11,8 +11,16 @@
   <!-- Team Members Tab -->
   <div class="tab-panel active" id="tab-team">
     <div class="page-topline">
-      <h1 class="page-title">Team Members</h1>
-      <p class="page-subtitle">Manage accounts for your club.</p>
+      <div>
+        <h1 class="page-title">Team Members</h1>
+        <p class="page-subtitle">Manage accounts for your club.</p>
+      </div>
+
+      {% if page_data.can_manage %}
+      <a class="btn btn-primary" href="{{ url_for('main.invite_member') }}">
+        <span>+</span> Invite Team Member
+      </a>
+      {% endif %}
     </div>
 
     <div class="card team-table-card">

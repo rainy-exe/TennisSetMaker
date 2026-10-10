@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 import secrets
 from datetime import timedelta
 
-from flask import Blueprint, jsonify, url_for
+from flask import Blueprint, jsonify, url_for, current_app
 from sqlalchemy import select
 
 from app.api import body, commit_or_conflict
@@ -217,6 +217,7 @@ def create_invitation():
         RuntimeError,
         ValueError,
     ):
+        current_app.logger.exception("Invitation email delivery failed")
         # Prevent an unsent invitation from blocking another attempt.
         invitation.expires_at = utc_now() - timedelta(seconds=1)
         db.session.commit()
