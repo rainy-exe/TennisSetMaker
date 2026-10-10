@@ -331,6 +331,15 @@
         </main>
 
     </div>
+    <div class="session-qr-widget">
+        <img
+            src="{{ url_for('main.club_qr_code') }}"
+            alt="Permanent club session QR code"
+            class="session-qr-image"
+        >
+
+        <p>Scan for Session Results</p>
+    </div>
 
 {% include '_integration_scripts.html' %}
 </body>

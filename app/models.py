@@ -32,6 +32,12 @@ class Club(TimestampMixin, db.Model):
     id = db.Column(db.String(36), primary_key=True, default=new_id)
     name = db.Column(db.String(120), nullable=False)
     active = db.Column(db.Boolean, nullable=False, default=True)
+    public_token = db.Column(
+        db.String(64),
+        unique=True,
+        nullable=True,
+        default=lambda: uuid.uuid4().hex,
+    )
 
     users = db.relationship(
         "User",
