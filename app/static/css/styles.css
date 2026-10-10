@@ -5225,3 +5225,31 @@ html.smooth-scroll {
   background: #fdeeee;
   color: var(--red);
 }
+
+.session-qr-widget {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 1000;
+
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 14px;
+
+    padding: 12px;
+    text-align: center;
+
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.session-qr-image {
+    display: block;
+    width: 140px;
+    height: 140px;
+}
+
+.session-qr-widget p {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: #333;
+}

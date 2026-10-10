@@ -182,9 +182,9 @@
         const players = (await api("/api/players")).players.filter(player => player.skill_ready);
         form.elements.sessionName.value = template?.name || "";
         form.elements.startTime.value = template?.start_time || "13:00";
-        const rounds = document.querySelector(".number-stepper");
-        rounds.replaceChildren();
-        field(rounds, "number_of_rounds", "Number of Rounds", template?.number_of_rounds || 6, "number");
+        const roundsInput = document.getElementById("roundCount");
+
+        roundsInput.value = template?.number_of_rounds || 6;
         const duration = form.elements.roundDuration;
         for (const minutes of [20, 25, 30, 45, 60, template?.round_duration_minutes].filter(Boolean)) {
           const option = element("option", `${minutes} minutes`, duration); option.value = minutes;

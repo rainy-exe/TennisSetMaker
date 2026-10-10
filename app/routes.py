@@ -3,6 +3,14 @@ from jinja2 import TemplateNotFound
 from app.extensions import db
 from app.models import Club, User
 
+import os
+from io import BytesIO
+import qrcode
+
+from flask import send_file
+from sqlalchemy import select
+from app.models import Court, Player, Round, TennisSession
+
 from app import api as endpoints
 from app.errors import ApiError
 from app.permissions import Role, can_manage_skill, current_actor, require_roles
@@ -12,7 +20,12 @@ main = Blueprint("main", __name__)
 
 @main.before_request
 def protect_management_pages():
-    if request.endpoint != "main.home":
+    public_pages = {
+        "main.home",
+        "main.public_session",
+    }
+
+    if request.endpoint not in public_pages:
         current_actor()
 
 
@@ -24,6 +37,8 @@ def page(template_name, kind, **context):
         "can_manage": actor.role in endpoints.MANAGERS,
         "can_manage_skill": can_manage_skill(actor),
     }
+    if kind == "active-session":
+        data["session"] = {"id": context["session_id"]}
 
     try:
         return render_template(
@@ -114,8 +129,163 @@ def active_session():
 
 @main.get("/sessions/<session_id>")
 def active_session_by_id(session_id):
-    session = endpoints.serialize_session(endpoints.session_for_club(session_id))
-    return page("active-session.html", "active-session", session=session)
+    session = endpoints.serialize_session(
+        endpoints.session_for_club(session_id)
+    )
+
+    return page(
+        "active-session.html",
+        "active-session",
+        session=session,
+        session_id=session["id"]
+    )
+
+@main.get("/club/qr-code")
+def club_qr_code():
+    actor = current_actor()
+
+    club = db.session.get(Club, actor.club_id)
+
+    if not club or not club.public_token:
+        raise ApiError("Club QR code is not configured.", 404)
+
+    public_path = url_for(
+        "main.public_session",
+        token=club.public_token
+    )
+
+    base_url = os.environ.get(
+        "PUBLIC_BASE_URL",
+        request.url_root
+    ).rstrip("/")
+
+    public_url = base_url + public_path
+
+    qr = qrcode.QRCode(
+        version=None,
+        box_size=10,
+        border=4,
+    )
+
+    qr.add_data(public_url)
+    qr.make(fit=True)
+
+    image = qr.make_image(
+        fill_color="black",
+        back_color="white"
+    )
+
+    output = BytesIO()
+    image.save(output, format="PNG")
+    output.seek(0)
+
+    response = send_file(
+        output,
+        mimetype="image/png"
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+
+    return response
+
+@main.get("/club/<token>/live")
+def public_session(token):
+    club = db.session.scalar(
+        select(Club).where(
+            Club.public_token == token,
+            Club.active.is_(True)
+        )
+    )
+
+    if club is None:
+        raise ApiError("Club not found.", 404, "not_found")
+
+    # Find the most recently CREATED session.
+    session = db.session.scalar(
+        select(TennisSession)
+        .where(TennisSession.club_id == club.id)
+        .order_by(
+            TennisSession.created_at.desc(),
+            TennisSession.id.desc()
+        )
+        .limit(1)
+    )
+
+    result = {
+        "club_name": club.name,
+        "session_name": None,
+        "round_number": None,
+        "matches": [],
+        "sit_out_players": [],
+    }
+
+    if session is not None:
+        result["session_name"] = session.name
+
+        # Find the latest generated round.
+        latest_round = db.session.scalar(
+            select(Round)
+            .where(Round.session_id == session.id)
+            .order_by(Round.number.desc())
+            .limit(1)
+        )
+
+        if latest_round is not None:
+            result["round_number"] = latest_round.number
+
+            # Always display the FINAL assignments, including
+            # the organiser's saved manual changes.
+            final = endpoints.serialize_round(
+                latest_round
+            )["final"]
+
+            # Restrict lookup to the current club.
+            players = db.session.scalars(
+                select(Player).where(Player.club_id == club.id)
+            ).all()
+
+            courts = db.session.scalars(
+                select(Court).where(Court.club_id == club.id)
+            ).all()
+
+            player_names = {
+                player.id: player.name
+                for player in players
+            }
+
+            court_numbers = {
+                court.id: court.number
+                for court in courts
+            }
+
+            for assignment in final["assignments"]:
+                result["matches"].append({
+                    "court": court_numbers.get(
+                        assignment["court_id"],
+                        "Unknown"
+                    ),
+                    "team_a": [
+                        player_names.get(pid, "Unknown player")
+                        for pid in assignment["team_a_player_ids"]
+                    ],
+                    "team_b": [
+                        player_names.get(pid, "Unknown player")
+                        for pid in assignment["team_b_player_ids"]
+                    ],
+                })
+
+            result["sit_out_players"] = [
+                player_names.get(pid, "Unknown player")
+                for pid in final["sit_out_player_ids"]
+            ]
+
+    response = render_template(
+        "public-session.html",
+        result=result
+    )
+
+    return response, 200, {
+        "Cache-Control": "no-store"
+    }
 
 
 @main.get("/players/add")

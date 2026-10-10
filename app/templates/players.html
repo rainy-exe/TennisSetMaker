@@ -50,7 +50,14 @@
   <div class="card import-result import-error">{{ request.args.get('import_error') }}</div>
   {% endif %}
 
-  <form method="POST" enctype="multipart/form-data" id="csv-import-form">
+  {% if page_data.can_manage %}
+  <form
+      method="POST"
+      action="{{ url_for('api.import_players_csv') }}"
+      enctype="multipart/form-data"
+      id="csv-import-form"
+  >
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label class="csv-dropzone" id="csv-dropzone">
       <input type="file" name="csv_file" id="csv-file-input" accept=".csv,text/csv" hidden />
       <span class="csv-dropzone-icon">⇪</span>
@@ -60,6 +67,7 @@
       </span>
     </label>
   </form>
+  {% endif %}
 
   {% set pref_colors = {'Clay': 'orange', 'Hard': 'blue', 'Grass': 'green', 'Synthetic': 'gray'} %}
 

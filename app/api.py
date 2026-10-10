@@ -1,6 +1,9 @@
 import unicodedata
+import csv
+import io
 from datetime import datetime, time
 from difflib import SequenceMatcher
+from flask import Blueprint, jsonify, request, redirect, url_for
 
 from flask import Blueprint, jsonify, request
 from sqlalchemy import select
@@ -361,6 +364,155 @@ def create_player():
         {"player": serialize_player(player), "duplicate_warnings": warnings}
     ), 201
 
+@api.post("/players/import")
+@require_roles(*MANAGERS)
+def import_players_csv():
+    actor = current_actor()
+
+    def go_back(**params):
+        return redirect(url_for("main.players", **params))
+
+    uploaded_file = request.files.get("csv_file")
+
+    if not uploaded_file or not uploaded_file.filename:
+        return go_back(import_error="Please select a CSV file.")
+
+    if not uploaded_file.filename.lower().endswith(".csv"):
+        return go_back(import_error="Only CSV files are supported.")
+
+    # Limit uploaded files to 2 MB.
+    content = uploaded_file.read(2 * 1024 * 1024 + 1)
+
+    if len(content) > 2 * 1024 * 1024:
+        return go_back(import_error="CSV file must be under 2 MB.")
+
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return go_back(import_error="CSV file must use UTF-8 encoding.")
+
+    try:
+        reader = csv.DictReader(io.StringIO(text, newline=""))
+
+        if not reader.fieldnames:
+            return go_back(import_error="CSV file is empty.")
+
+        columns = [column.strip().lower()
+                   for column in reader.fieldnames]
+
+        if len(columns) != len(set(columns)):
+            return go_back(import_error="Duplicate CSV column names.")
+
+        required = {"name", "gender", "rating"}
+
+        if not required.issubset(columns):
+            return go_back(
+                import_error="CSV must contain Name, Gender and Rating columns."
+            )
+
+        # Store existing names to detect duplicates.
+        existing_players = db.session.scalars(
+            select(Player).where(Player.club_id == actor.club_id)
+        ).all()
+
+        known_names = [
+            player.normalized_name for player in existing_players
+        ]
+
+        imported = 0
+        skipped = 0
+        new_players = []
+
+        for row_number, original_row in enumerate(reader, start=2):
+            if row_number > 1001:
+                return go_back(
+                    import_error="CSV supports a maximum of 1000 players."
+                )
+
+            if None in original_row:
+                skipped += 1
+                continue
+
+            row = {
+                key.strip().lower(): value.strip()
+                for key, value in original_row.items()
+            }
+
+            try:
+                name = clean_text(row.get("name"), "name")
+
+                normalized = normalize_name(name)
+
+                if not normalized:
+                    skipped += 1
+                    continue
+
+                # Same duplicate rule as regular player creation.
+                duplicate = any(
+                    normalized == known
+                    or SequenceMatcher(None, normalized, known).ratio() >= 0.92
+                    for known in known_names
+                )
+
+                if duplicate:
+                    skipped += 1
+                    continue
+
+                gender_input = clean_text(
+                    row.get("gender"), "gender", 20
+                ).upper()
+
+                gender_mapping = {
+                    "MALE": "M",
+                    "FEMALE": "F",
+                    "M": "M",
+                    "F": "F",
+                }
+
+                gender = gender_mapping.get(gender_input)
+
+                if gender is None:
+                    skipped += 1
+                    continue
+
+                rating = positive_int(
+                    int(row.get("rating", "")), "rating", 10
+                )
+
+                player = Player(
+                    club_id=actor.club_id,
+                    name=name,
+                    normalized_name=normalized,
+                    gender=gender,
+                    skill=rating,
+                )
+
+                player_details(player, {
+                    "notes": row.get("notes") or None,
+                    "court_preference": row.get("court preference") or None,
+                })
+
+                new_players.append(player)
+                known_names.append(normalized)
+                imported += 1
+
+            except (ApiError, ValueError, TypeError, AttributeError):
+                skipped += 1
+                continue
+
+    except csv.Error:
+        return go_back(import_error="Could not parse the CSV file.")
+
+    if new_players:
+        db.session.add_all(new_players)
+        try:
+            commit_or_conflict("Could not import the players.")
+        except ApiError:
+            return go_back(
+                import_error="Database error while importing players."
+            )
+
+    return go_back(imported=imported, skipped=skipped)
 
 @api.get("/players/<player_id>")
 @require_authenticated
