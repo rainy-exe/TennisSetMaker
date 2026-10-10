@@ -9,18 +9,20 @@
   main.prepend(notice);
   let csrf;
   async function api(path, method = "GET", body) {
-    const headers = {Accept: "application/json"};
+    const headers = { Accept: "application/json" };
     if (method !== "GET") {
       if (!csrf) {
-        const response = await fetch("/csrf-token", {credentials: "same-origin"});
+        const response = await fetch("/csrf-token", { credentials: "same-origin" });
         if (!response.ok) throw new Error("Could not obtain CSRF token.");
         csrf = (await response.json()).csrf_token;
       }
       headers["X-CSRFToken"] = csrf;
       if (body !== undefined) headers["Content-Type"] = "application/json";
     }
-    const response = await fetch(path, {method, headers, credentials: "same-origin",
-      body: body === undefined ? undefined : JSON.stringify(body)});
+    const response = await fetch(path, {
+      method, headers, credentials: "same-origin",
+      body: body === undefined ? undefined : JSON.stringify(body)
+    });
     const result = response.status === 204 ? {} : await response.json();
     if (!response.ok) {
       const error = new Error(result.message || "Request failed.");
@@ -108,9 +110,11 @@
       check.name = "confirm_duplicate";
       confirm.append(document.createTextNode("Confirm this is a different person if a duplicate warning appears."));
       attachForm(form, async values => {
-        const payload = {name: values.get("name"), gender: values.get("gender") === "Male" ? "M" : "F",
+        const payload = {
+          name: values.get("name"), gender: values.get("gender") === "Male" ? "M" : "F",
           notes: values.get("notes"), court_preference: values.get("court_preference"),
-          confirm_duplicate: values.has("confirm_duplicate")};
+          confirm_duplicate: values.has("confirm_duplicate")
+        };
         if (data.can_manage_skill) payload.skill = Number(values.get("rating"));
         const id = data.player?.id;
         await api(id ? `/api/players/${id}` : "/api/players", id ? "PATCH" : "POST", payload);
@@ -122,7 +126,7 @@
         toggle.onchange = async () => {
           toggle.disabled = true;
           try {
-            await api(`/api/courts/${toggle.dataset.courtToggle}`, "PATCH", {active: toggle.checked});
+            await api(`/api/courts/${toggle.dataset.courtToggle}`, "PATCH", { active: toggle.checked });
             location.reload();
           } catch (error) { toggle.checked = !toggle.checked; showError(error); }
           finally { toggle.disabled = false; }
@@ -146,9 +150,11 @@
       }
       form.elements.priority.min = "0";
       attachForm(form, async values => {
-        const payload = {number: Number(values.get("court-name")), court_type: values.get("surface"),
+        const payload = {
+          number: Number(values.get("court-name")), court_type: values.get("surface"),
           cover: values.get("cover"), priority: Number(values.get("priority") || 0),
-          active: form.querySelector('[type="checkbox"]').checked};
+          active: form.querySelector('[type="checkbox"]').checked
+        };
         await api(data.court ? `/api/courts/${data.court.id}` : "/api/courts", data.court ? "PATCH" : "POST", payload);
         location.assign("/courts");
       });
@@ -169,12 +175,14 @@
         choices(panel, courts, "court_ids", template?.court_ids || courts.map(court => court.id));
         attachForm(form, async values => {
           const useDefaults = document.getElementById("use-default-priority").checked;
-          const payload = {name: values.get("template-name"), number_of_rounds: Number(values.get("rounds")),
+          const payload = {
+            name: values.get("template-name"), number_of_rounds: Number(values.get("rounds")),
             round_duration_minutes: Number(values.get("round-length")), start_time: values.get("start_time"),
             session_duration_minutes: Number(values.get("session_duration_minutes")),
             round_format: roundFormat(values.get("format")),
             tea_break_after_round: values.get("tea_break_after_round") ? Number(values.get("tea_break_after_round")) : null,
-            court_ids: useDefaults ? courts.map(court => court.id) : values.getAll("court_ids")};
+            court_ids: useDefaults ? courts.map(court => court.id) : values.getAll("court_ids")
+          };
           await api(template ? `/api/session-templates/${template.id}` : "/api/session-templates", template ? "PATCH" : "POST", payload);
           location.assign("/templates");
         });
@@ -202,12 +210,14 @@
         form.elements.venue.closest(".field").hidden = true;
         document.querySelector(".segmented").closest(".field").hidden = true;
         attachForm(form, async values => {
-          const payload = {name: values.get("sessionName"), starts_at: `${values.get("sessionDate")}T${values.get("startTime")}`,
+          const payload = {
+            name: values.get("sessionName"), starts_at: `${values.get("sessionDate")}T${values.get("startTime")}`,
             number_of_rounds: Number(values.get("number_of_rounds")), round_duration_minutes: Number(values.get("roundDuration")),
             session_duration_minutes: Number(values.get("session_duration_minutes")),
             round_format: roundFormat(values.get("matchFormat")),
             strict_format: !values.has("allowRelaxation"), court_ids: values.getAll("court_ids"), player_ids: values.getAll("player_ids"),
-            tea_break_after_round: values.get("tea_break_after_round") ? Number(values.get("tea_break_after_round")) : null};
+            tea_break_after_round: values.get("tea_break_after_round") ? Number(values.get("tea_break_after_round")) : null
+          };
           if (template) payload.template_id = template.id;
           const session = (await api("/api/sessions", "POST", payload)).session;
           // Persist configuration first; generation is retryable on the live page.
@@ -254,7 +264,7 @@
       let final;
       function draw(current) {
         selectedRound = current;
-        final = current ? structuredClone(current.final) : {assignments: [], sit_out_player_ids: []};
+        final = current ? structuredClone(current.final) : { assignments: [], sit_out_player_ids: [] };
         const matches = document.getElementById("matchGrid");
         const sitting = document.getElementById("sitoutList");
         matches.replaceChildren(); sitting.replaceChildren();
@@ -274,14 +284,19 @@
           select.onchange = () => change(select.value);
         }
         for (const assignment of final.assignments) {
-          const card = element("div", undefined, matches); card.className = "card";
-          element("h3", `Court ${courtById.get(assignment.court_id)?.number || assignment.court_id}`, card);
+          const card = element("div", undefined, matches); card.className = "card match-card";
+          const header = element(
+            "div",
+            `Court ${courtById.get(assignment.court_id)?.number || assignment.court_id}`,
+            card
+          );
+          header.className = "match-card-header";
           for (const team of ["team_a_player_ids", "team_b_player_ids"]) {
             element("p", team === "team_a_player_ids" ? "Team A" : "Team B", card);
-            assignment[team].forEach((id, index) => playerSelect(card, id, value => {assignment[team][index] = value;}));
+            assignment[team].forEach((id, index) => playerSelect(card, id, value => { assignment[team][index] = value; }));
           }
         }
-        final.sit_out_player_ids.forEach((id, index) => playerSelect(sitting, id, value => {final.sit_out_player_ids[index] = value;}));
+        final.sit_out_player_ids.forEach((id, index) => playerSelect(sitting, id, value => { final.sit_out_player_ids[index] = value; }));
         document.getElementById("matchExplanation").textContent = current?.status === "completed" ? "Completed round — locked." : "Edit the player selections, then save. Duplicate players are rejected by the backend.";
       }
       for (const saved of session.rounds) button(`Round ${saved.number} (${saved.status})`, selector, () => draw(saved));
@@ -295,7 +310,7 @@
         button("Undo Unsaved Changes", actions, () => draw(selectedRound));
         button("Save Changes", actions, async () => {
           if (selectedRound?.status !== "generated") throw new Error("Completed rounds are locked.");
-          await api(`/api/rounds/${selectedRound.id}/final`, "PUT", {...final, expected_revision: selectedRound.override_revision});
+          await api(`/api/rounds/${selectedRound.id}/final`, "PUT", { ...final, expected_revision: selectedRound.override_revision });
           location.reload();
         });
         button("Complete Round", actions, async () => {
@@ -312,7 +327,7 @@
         }
         button("Add Late Player", actions, async () => {
           if (!late.value) throw new Error("Select a player who has not joined yet.");
-          await api(`/api/sessions/${session.id}/players`, "POST", {player_id: late.value}); location.reload();
+          await api(`/api/sessions/${session.id}/players`, "POST", { player_id: late.value }); location.reload();
         });
         const leave = element("select", undefined, actions); leave.id = "unavailable-player";
         for (const participant of session.participants.filter(item => !item.unavailable_from_round)) {
@@ -321,7 +336,7 @@
         }
         button("Unavailable From Next Round", actions, async () => {
           if (!leave.value) throw new Error("Select a participant.");
-          await api(`/api/sessions/${session.id}/players/${leave.value}`, "PATCH", {reason: "Unavailable for remainder of session"}); location.reload();
+          await api(`/api/sessions/${session.id}/players/${leave.value}`, "PATCH", { reason: "Unavailable for remainder of session" }); location.reload();
         });
       }
       if (new URLSearchParams(location.search).has("generation_failed")) notice.textContent = "Session saved. Generation failed; retry Generate Next Round to see the error.";
