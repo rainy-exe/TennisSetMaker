@@ -19,6 +19,10 @@ Rules, in order (`algorithm.select_round_players`):
    exactly average and is judged on their own record from round 50.
 4. Remaining ties are random (seeded).
 
+In same-gender mode a parity repair runs after these rules and trades
+only players they already left level, so rules 1 and 2 hold exactly as
+above -- see section 2.
+
 Prototype3 ranked players by their raw sit-out *count*. That made a
 newcomer sit out 5–6 rounds a session until they "caught up" to the
 regulars' totals, and made occasional players sit out a bigger share of
@@ -26,10 +30,56 @@ their rounds than regulars.
 
 ### 2. Gender policy is the lock, with a new same-gender option
 
-`mixed_mode`: `0` = open, `1` = mixed pairs, `2` = same-gender courts (all
-four the same gender; when the turnout forces 2 men + 2 women, men v
-ladies beats two mixed pairs). Scored first, so nothing overrides it. It
-only relaxes when the turnout makes it impossible.
+`mixed_mode`: `0` = open, `1` = mixed pairs, `2` = same-gender courts.
+Scored first, so nothing overrides it.
+
+Same-gender mode follows the client's rule: *"only male-male and
+female-female, and then any spares should be put together in a balanced
+set."* A **mixed team** -- somebody forced to partner across genders --
+is the thing it avoids above all else; a leftover men-v-ladies court is
+an acceptable result. Courts rank (`algorithm.raw_same_gender_score`):
+
+| Court | Score |
+|---|---|
+| all four the same gender | 0 |
+| men v ladies -- the spares court | 2 |
+| a lone minority player (3+1) | 4 |
+| two mixed pairs | 8 |
+
+Whether a mixed team is needed at all is settled one step earlier, by
+**who is picked to play**. A gender with an ODD number of players on
+court cannot be split into same-gender pairs, so somebody must partner
+across genders. So in same-gender mode `select_round_players` runs a
+parity repair (`algorithm._repair_gender_parity`) that trades players
+between the playing and sitting groups until every gender has an even
+number on court, and then, where it can, a multiple of four.
+
+The repair only ever trades two players who are already level on sit-out
+rules 1 and 2 (`algorithm._fairness_tier`), so **those rules are
+unaffected**; among the trades that help, the one disturbing the rule-3
+ratio least wins. When no such trade exists the fairness-optimal
+selection stands and the scoring above picks the least-bad court.
+
+That last case is reachable: parity needs a *fresh* player of each
+odd-sized gender to sit every round, and rule 1 forbids sitting anyone
+twice until everyone has sat once, so an odd-sized gender needs at least
+as many players as there are rounds. A 6-round day with only 3 men
+present gets parity for 3 rounds and then gives way to fairness. With no
+sit-outs at all (everyone plays) there is no lever and the turnout
+decides.
+
+Measured on the 50-day club simulation (26 attending, 6 courts,
+same-gender, hard-avoid, seed 2026):
+
+| | Before | After |
+|---|---|---|
+| all four the same gender | 1568 (87.1%) | **1661 (92.3%)** |
+| men v ladies spares court | 80 (4.4%) | 139 (7.7%) |
+| **lone minority (3+1)** | **152 (8.4%)** | **0** |
+
+with back-to-back sit-outs still 0, every skill guardrail still 0, and the
+sit-out ratio spread moving from 0.0223 to 0.0256 (mean unchanged at
+0.077).
 
 ### 3. Variety mode = how rotation and skill are traded off
 

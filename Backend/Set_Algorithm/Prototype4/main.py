@@ -139,7 +139,8 @@ def run_lexicographic():
     sit_out_log = []
 
     for round_num in range(1, cfg.num_rounds + 1):
-        playing, sitting_out = select_round_players(players, num_to_play, rng)
+        playing, sitting_out = select_round_players(players, num_to_play, rng,
+                                                   mixed_mode=cfg.mixed_mode)
         court_results = assign_courts_for_round(playing, cfg.num_courts, cfg.mixed_mode, cfg.variety_mode)
 
         _record_sit_outs(players, sitting_out, round_num)
