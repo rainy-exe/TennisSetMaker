@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+
+    <title>SetMaker | {{ title }}</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body class="login-body">
+
+    <main class="login-page">
+
+        <div class="login-card">
+
+            <section class="login-image">
+
+                <div class="login-image-overlay"></div>
+
+                <div class="login-image-content">
+
+                    <div class="landing-brand">
+                        <div class="logo-mark">
+                            S
+                        </div>
+                        <span>SetMaker</span>
+                    </div>
+
+                    <div class="login-image-text">
+                        <h2>
+                            Your Account
+                        </h2>
+                        <p>
+                            Keep your SetMaker login details up to date.
+                        </p>
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <section class="login-panel">
+
+                <div class="login-form-wrap">
+
+                    <div class="reset-password-icon">
+                        {% if ok %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="9"></circle>
+                            <path d="M8 12.5l3 3 5-6"></path>
+                        </svg>
+                        {% else %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="9"></circle>
+                            <path d="M12 7.5v5.5"></path>
+                            <path d="M12 16.5h.01"></path>
+                        </svg>
+                        {% endif %}
+                    </div>
+
+                    <h1>
+                        {{ title }}
+                    </h1>
+
+                    <p class="login-subtitle reset-subtitle">
+                        {{ message }}
+                    </p>
+
+                    <a class="btn btn-primary login-submit" href="{{ url_for('auth.login_page') }}">
+                        Go to Log In
+                    </a>
+
+                </div>
+
+            </section>
+
+        </div>
+
+    </main>
+
+</body>
+
+</html>

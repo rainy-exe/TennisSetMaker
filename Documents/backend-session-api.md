@@ -73,17 +73,50 @@ const { round } = await api(`/api/sessions/${session.id}/rounds/generate`, {
 ```
 
 - `GET /check-session` returns `logged_in` and `user`:
-  `id`, `full_name`, `email`, `role`, `club_id`. Access comes from the session, not
-  a client-supplied role or club ID.
+  `id`, `full_name`, `email`, `role`, `club_id`, `email_verified`. Access comes
+  from the session, not a client-supplied role or club ID.
+- `POST /login` also accepts `remember: true` ("Remember me": the login lasts
+  30 days instead of ending when the browser closes). After 10 failed attempts
+  for one email from one visitor it returns 429 `rate_limited` for 15 minutes.
 - `POST /register`: `full_name`, `email`, `password`, `club_name`; creates a new
   club and Owner, then requires a separate login. Full name is 1–120 characters.
+  New passwords (register, invitation, reset, change) must be 8–128 characters;
+  log-in still accepts older shorter passwords. When email is configured a
+  confirmation link is sent and the reply has `verification_email_sent: true`.
   Include `recaptcha_token` when reCAPTCHA is configured.
   Existing-club members join by invitation. `/api/signup` only checks reCAPTCHA.
 - `POST /logout` needs CSRF but returns a **302 redirect**, not JSON.
   Handle it separately from this helper.
 - Missing account templates return 503 `frontend_unavailable`.
-  Password reset and protected QR sharing are not ready. Invitation email
-  requires deployment SMTP configuration (see the invitation section).
+  Protected QR sharing is not ready. All email (invitations, password reset,
+  confirmations) needs the SMTP settings in `Documents/email-setup.md`.
+
+### Password reset and account emails
+
+- `GET /forgot-password` page; `POST /forgot-password` `{email}` -> 200 with the
+  same message whether or not the account exists. Without mail settings it
+  returns 503 `password_reset_unavailable` and sends nothing. Limits: one
+  account email per user per minute, 5 resets per email and 30 requests per
+  visitor per hour (429 `rate_limited`).
+- The emailed `/reset-password?token=...` page posts `{token, password}` to
+  `POST /reset-password`. Links expire after 1 hour and work once. A reset logs
+  out every device and emails a "password changed" notice.
+- `GET /verify-email?token=...` confirms the address (links last 3 days).
+- `GET /confirm-email-change?token=...` applies a requested email change
+  (links last 24 hours) and notifies the old address.
+
+### My account (any logged-in role)
+
+- `GET /api/account` -> `{user, email_configured}`.
+- `PATCH /api/account` `{full_name}`.
+- `POST /api/account/password` `{current_password, new_password}`: other
+  devices are logged out, this one stays logged in. Wrong current password ->
+  400 `wrong_password`.
+- `POST /api/account/email` `{new_email, current_password}` -> 202; the change
+  happens when the link sent to the new address is clicked. 409 `email_exists`,
+  503 `email_unavailable` without mail settings, 502 `email_delivery_failed`.
+- `POST /api/account/verification-email` -> 202 (200 if already confirmed).
+- Settings has a **My Account** tab using these (`/settings?tab=account`).
 
 ## 2. Permissions
 
@@ -225,9 +258,10 @@ discard, cancel or automatic timer endpoint is provided.
 - `POST /accept-invitation` with `{token, full_name, password}` plus CSRF/cookie
   -> 201, logs in. Invitations last seven days.
 - Tokens are sent only by email, not returned in API responses. The emailed
-  `/join?token=...` page submits acceptance. Kate's SMTP sender needs `SMTP_HOST`,
-  `SMTP_PORT` (defaults to 465), `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`,
-  and `PUBLIC_BASE_URL`. A 201 means SMTP submission, not guaranteed delivery.
+  `/join?token=...` page submits acceptance. The shared sender (`app/mailer.py`)
+  needs `SMTP_HOST`, `SMTP_PORT` (defaults to 465), `SMTP_USERNAME`,
+  `SMTP_PASSWORD`, `SMTP_FROM` and `PUBLIC_BASE_URL`; see
+  `Documents/email-setup.md`. A 201 means SMTP submission, not guaranteed delivery.
   Missing/failing SMTP returns 502 `email_delivery_failed` and expires the unsent
   invitation so another attempt is allowed. Do not log or publicly expose tokens.
 

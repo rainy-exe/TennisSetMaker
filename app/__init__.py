@@ -36,6 +36,7 @@ def create_app(config=None):
 
     # Import blueprints after the app/extensions have been created.
     # This also avoids circular import problems.
+    from app.account import account
     from app.api import api
     from app.auth import auth_bp, session_actor_provider
     from app.routes import main
@@ -53,10 +54,11 @@ def create_app(config=None):
     app.register_blueprint(auth_bp)
     app.register_blueprint(api, url_prefix="/api")
     app.register_blueprint(team, url_prefix="/api")
+    app.register_blueprint(account, url_prefix="/api")
 
     @app.after_request
     def private_response_headers(response):
-        if request.blueprint in {"api", "team", "auth", "main"}:
+        if request.blueprint in {"api", "team", "auth", "main", "account"}:
             response.headers["Cache-Control"] = "no-store"
         return response
 

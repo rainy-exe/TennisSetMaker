@@ -131,7 +131,8 @@
                             </label>
 
                             <input type="password" id="signupPassword" name="password" class="input"
-                                placeholder="Create a password" autocomplete="new-password" required>
+                                placeholder="At least 8 characters" autocomplete="new-password"
+                                minlength="8" maxlength="128" required>
 
                         </div>
 
@@ -239,8 +240,9 @@ document.getElementById("signupForm").addEventListener("submit", async function 
             throw new Error(result.message || result.error || "Registration failed.");
         }
 
-        // Step 3: Redirect to dashboard
-        window.location.href = "{{ url_for('auth.login_page') }}";
+        // Step 3: Send the new owner to log in
+        window.location.href = "{{ url_for('auth.login_page') }}?registered=" +
+            (result.verification_email_sent ? "verify" : "1");
 
     } catch (error) {
         errorElement.textContent = error.message;

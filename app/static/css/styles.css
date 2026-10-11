@@ -180,6 +180,17 @@ select {
   flex: 0 0 auto;
 }
 
+.admin-copy {
+  min-width: 0;
+}
+
+.admin-copy strong,
+.admin-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .admin-copy strong {
   display: block;
   font-size: 11px;
@@ -4995,6 +5006,37 @@ select {
   color: var(--red);
   font-size: 11px;
   margin-bottom: 14px;
+}
+
+.form-success {
+  color: var(--green-dark);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+/* Settings > My Account */
+.account-section {
+  padding: 24px;
+  max-width: 480px;
+  margin-bottom: 18px;
+}
+
+.account-section h2 {
+  font-size: 16px;
+  margin: 0 0 4px;
+}
+
+.account-section .page-subtitle {
+  margin-bottom: 16px;
+}
+
+.account-email-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
 /* =========================

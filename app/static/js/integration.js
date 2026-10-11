@@ -289,7 +289,6 @@
       const roleFilter = document.getElementById("roleFilter");
       const statusFilter = document.getElementById("statusFilter");
       const list = document.getElementById("accountTableBody");
-      document.getElementById("adminEmail").textContent = login.user.email;
       const add = document.getElementById("addAccountButton");
       add.textContent = "Invite Member";
       add.onclick = () => location.assign("/settings/invite-member");

@@ -1,14 +1,12 @@
-import os
 import secrets
 import smtplib
-import ssl
 from datetime import timedelta
-from email.message import EmailMessage
 from urllib.parse import urlencode
 
 from flask import Blueprint, current_app, jsonify, url_for
 from sqlalchemy import select
 
+from app import mailer
 from app.api import body, commit_or_conflict
 from app.auth import user_payload, validate_email
 from app.errors import ApiError
@@ -108,39 +106,24 @@ def list_invitations():
     return jsonify({"invitations": [invitation_payload(item) for item in invitations]})
 
 def send_invitation_email(invitation):
-    smtp_host = os.environ.get("SMTP_HOST")
-    smtp_port = int(os.environ.get("SMTP_PORT", "465"))
-    smtp_username = os.environ.get("SMTP_USERNAME")
-    smtp_password = os.environ.get("SMTP_PASSWORD")
-    smtp_from = os.environ.get("SMTP_FROM")
-    base_url = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
-    club = db.session.get(Club, invitation.club_id)
-
-    if not all([
-        smtp_host,
-        smtp_username,
-        smtp_password,
-        smtp_from,
-        base_url,
-    ]):
+    if not mailer.mail_configured():
         raise RuntimeError("SMTP configuration is incomplete.")
+
+    club = db.session.get(Club, invitation.club_id)
+    name = mailer.app_name()
 
     # Build invitation link using the existing /join page.
     join_path = url_for("auth.join_page")
-    invitation_url = (
-        f"{base_url}{join_path}?"
-        f"{urlencode({'token': invitation.token})}"
+    invitation_url = mailer.public_url(
+        f"{join_path}?{urlencode({'token': invitation.token})}"
     )
 
-    message = EmailMessage()
-    message["Subject"] = "You're invited to join SetMaker"
-    message["From"] = smtp_from
-    message["To"] = invitation.email
-
-    message.set_content(
+    mailer.send_email(
+        invitation.email,
+        f"You're invited to join {name}",
         f"""Hello,
 
-You have been invited to join a club on SetMaker.
+You have been invited to join a club on {name}.
 
 Club: {club.name}
 Role: {invitation.role.capitalize()}
@@ -153,18 +136,10 @@ This invitation expires in 7 days.
 
 If you weren't expecting this invitation, you can ignore this email.
 
-SetMaker Team
-"""
+{name} Team
+""",
     )
 
-    with smtplib.SMTP_SSL(
-        smtp_host,
-        smtp_port,
-        context=ssl.create_default_context(),
-        timeout=10,
-    ) as smtp:
-        smtp.login(smtp_username, smtp_password)
-        smtp.send_message(message)
 
 @team.post("/invitations")
 @require_roles(*MANAGERS)

@@ -99,6 +99,27 @@ class User(TimestampMixin, db.Model):
         default=True,
     )
 
+    # Bumped on password reset/change; logins made before that stop working.
+    session_version = db.Column(
+        db.Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+
+    # Set once the user clicks a link sent to this address (verification,
+    # password reset, accepted invitation or confirmed email change).
+    email_verified_at = db.Column(
+        db.DateTime,
+        nullable=True,
+    )
+
+    # Last password-reset / verification / email-change email (resend cooldown).
+    last_account_email_at = db.Column(
+        db.DateTime,
+        nullable=True,
+    )
+
     club = db.relationship(
         "Club",
         back_populates="users",

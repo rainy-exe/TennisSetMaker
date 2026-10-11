@@ -40,3 +40,4 @@ env/
 # OS cruft
 .DS_Store
 
+.flaskenv
