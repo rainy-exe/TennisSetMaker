@@ -45,6 +45,19 @@
     if (parent) parent.append(node);
     return node;
   }
+  function genderDotClass(gender) {
+    const value = (gender || "").toUpperCase();
+
+    if (value === "F" || value === "FEMALE") {
+        return "female";
+    }
+
+    if (value === "M" || value === "MALE") {
+        return "male";
+    }
+
+    return "unknown";
+}
   function button(text, parent, action) {
     const node = element("button", text, parent);
     node.type = "button";
@@ -221,62 +234,52 @@
         });
       }
     }
-    if (data.page === "sessions" || data.page === "history") {
+    if (data.page === "sessions") {
       const sessions = (await api("/api/sessions")).sessions;
-      const history = data.page === "history";
-      const list = document.getElementById(history ? "historyTableBody" : "sessionsPageList");
-      const search = document.getElementById(history ? "historySearch" : "sessionSearch");
-      const date = document.getElementById(history ? "historyDate" : "sessionDateFilter");
-      const mode = document.getElementById(history ? "historyType" : "sessionModeFilter");
+      const list = document.getElementById("sessionsPageList");
+      const search = document.getElementById("sessionSearch");
+      const date = document.getElementById("sessionDateFilter");
+      const mode = document.getElementById("sessionModeFilter");
       const formats = {open: "Open Play", mixed: "Mixed Doubles", same_gender: "Same-Gender Doubles"};
       let statusFilter = "";
       mode.replaceChildren();
       for (const [value, label] of [["", "All Formats"], ...Object.entries(formats)]) {
         element("option", label, mode).value = value;
       }
-      if (!history) {
-        for (const [id, status] of [["activeSessionCount", "active"], ["upcomingSessionCount", "draft"], ["completedSessionCount", "completed"]]) {
-          document.getElementById(id).textContent = sessions.filter(s => s.status === status).length;
-          const tab = document.getElementById(id).closest("button");
-          tab.classList.remove("active");
-          tab.onclick = () => {
-            statusFilter = status;
-            document.querySelectorAll(".session-tab").forEach(other => other.classList.toggle("active", other === tab));
-            drawSessions();
-          };
-        }
+      for (const [id, status] of [["activeSessionCount", "active"], ["upcomingSessionCount", "draft"], ["completedSessionCount", "completed"]]) {
+        document.getElementById(id).textContent = sessions.filter(s => s.status === status).length;
+        const tab = document.getElementById(id).closest("button");
+        tab.classList.remove("active");
+        tab.onclick = () => {
+          statusFilter = status;
+          document.querySelectorAll(".session-tab").forEach(other => other.classList.toggle("active", other === tab));
+          drawSessions();
+        };
       }
       function drawSessions() {
-        const visible = sessions.filter(s => (!history || s.status === "completed") &&
-          (!statusFilter || s.status === statusFilter) &&
+        const visible = sessions.filter(s => (!statusFilter || s.status === statusFilter) &&
           s.name.toLowerCase().includes(search.value.trim().toLowerCase()) &&
           (!date.value || s.starts_at.slice(0, 10) === date.value) &&
           (!mode.value || s.round_format === mode.value));
         list.replaceChildren();
         for (const session of visible) {
-          const row = element(history ? "tr" : "article", undefined, list);
-          const nameCell = history ? element("td", undefined, row) : row;
-          const link = element("a", session.name, nameCell);
+          const row = element("article", undefined, list);
+          const link = element("a", session.name, row);
           link.href = `/sessions/${session.id}`;
-          if (history) {
-            for (const value of [session.starts_at.slice(0, 10), session.participants.length, session.court_ids.length, session.number_of_rounds, formats[session.round_format]]) element("td", value, row);
-            const action = element("a", "View saved rounds", element("td", undefined, row)); action.href = link.href;
-          } else {
-            row.className = "card";
-            element("p", `${session.starts_at} · ${session.status} · ${formats[session.round_format]}`, row);
-          }
+          row.className = "card";
+          element("p", `${session.starts_at} · ${session.status} · ${formats[session.round_format]}`, row);
         }
-        document.getElementById(history ? "historyEmptyState" : "sessionsEmptyState").hidden = visible.length > 0;
-        document.getElementById(history ? "historyCount" : "sessionsResultCount").textContent = `${visible.length} sessions`;
+        document.getElementById("sessionsEmptyState").hidden = visible.length > 0;
+        document.getElementById("sessionsResultCount").textContent = `${visible.length} sessions`;
       }
       for (const input of [search, date, mode]) input.addEventListener("input", drawSessions);
-      document.getElementById(history ? "clearHistoryFilters" : "clearSessionFilters").onclick = () => {
+      document.getElementById("clearSessionFilters").onclick = () => {
         for (const input of [search, date, mode]) input.value = "";
         statusFilter = "";
         document.querySelectorAll(".session-tab").forEach(tab => tab.classList.remove("active"));
         drawSessions();
       };
-      document.querySelector(history ? ".history-pagination" : ".sessions-pagination")?.remove();
+      document.querySelector(".sessions-pagination")?.remove();
       drawSessions();
     }
     if (data.page === "accounts") {
@@ -335,6 +338,170 @@
       if (!active.length) element("p", "No active sessions yet.", list);
       document.getElementById("recentActivity").textContent = "Open a session to view its saved rounds.";
     }
+    if (data.page === "history") {
+        const response = await api("/api/sessions");
+        const formats = {open: "Open Play", mixed: "Mixed Doubles", same_gender: "Same-Gender Doubles"};
+
+        const completedSessions = response.sessions.filter(
+            session => session.status === "completed"
+        );
+
+        const tableBody = document.getElementById("historyTableBody");
+        const emptyState = document.getElementById("historyEmptyState");
+        const count = document.getElementById("historyCount");
+
+        const search = document.getElementById("historySearch");
+        const date = document.getElementById("historyDate");
+        const type = document.getElementById("historyType");
+        const clearButton = document.getElementById("clearHistoryFilters");
+        type.replaceChildren();
+        for (const [value, label] of [["", "All Formats"], ...Object.entries(formats)]) {
+            element("option", label, type).value = value;
+        }
+
+        const pagination = document.querySelector(".history-pagination");
+        const pageButtons = pagination.querySelectorAll("button");
+
+        const previousButton = pageButtons[0];
+        const pageNumberButton = pageButtons[1];
+        const nextButton = pageButtons[2];
+
+        const pageSize = 10;
+        let currentPage = 1;
+
+        function renderHistory() {
+            const query = search.value.trim().toLowerCase();
+            const selectedDate = date.value;
+            const selectedType = type.value;
+
+            const filtered = completedSessions.filter(session => {
+                const matchesName = session.name.toLowerCase().includes(query);
+
+                const matchesDate =
+                    !selectedDate ||
+                    session.starts_at.slice(0, 10) === selectedDate;
+
+                const matchesType =
+                    !selectedType ||
+                    session.round_format === selectedType;
+
+                return matchesName && matchesDate && matchesType;
+            });
+
+            const totalPages = Math.max(
+                1,
+                Math.ceil(filtered.length / pageSize)
+            );
+
+            currentPage = Math.min(currentPage, totalPages);
+
+            const startIndex = (currentPage - 1) * pageSize;
+            const visibleSessions = filtered.slice(
+                startIndex,
+                startIndex + pageSize
+            );
+
+            tableBody.replaceChildren();
+
+            for (const session of visibleSessions) {
+                const row = element("tr", undefined, tableBody);
+
+                const sessionCell = element("td", undefined, row);
+                const sessionLink = element(
+                    "a",
+                    session.name,
+                    sessionCell
+                );
+                sessionLink.href = `/sessions/${session.id}`;
+                sessionLink.style.fontWeight = "700";
+                sessionLink.style.color = "var(--green)";
+
+                const dateCell = element("td", undefined, row);
+                dateCell.textContent = session.starts_at
+                    .slice(0, 10);
+
+                element(
+                    "td",
+                    String(session.participants.length),
+                    row
+                );
+
+                element(
+                    "td",
+                    String(session.court_ids.length),
+                    row
+                );
+
+                element(
+                    "td",
+                    `${session.number_of_rounds} planned`,
+                    row
+                );
+
+                element(
+                    "td",
+                    formats[session.round_format] || session.round_format,
+                    row
+                );
+
+                const actionCell = element("td", undefined, row);
+
+                const viewLink = element(
+                    "a",
+                    "View Results",
+                    actionCell
+                );
+
+                viewLink.href = `/sessions/${session.id}`;
+                viewLink.className = "btn btn-sm";
+            }
+
+            emptyState.hidden = filtered.length > 0;
+            emptyState.style.display =
+                filtered.length > 0 ? "none" : "";
+
+            count.textContent =
+                `${filtered.length} completed session${filtered.length === 1 ? "" : "s"}`;
+
+            pageNumberButton.textContent =
+                `${currentPage} / ${totalPages}`;
+
+            previousButton.disabled = currentPage <= 1;
+            nextButton.disabled = currentPage >= totalPages;
+            pageNumberButton.disabled = true;
+        }
+
+        function resetAndRender() {
+            currentPage = 1;
+            renderHistory();
+        }
+
+        search.addEventListener("input", resetAndRender);
+        date.addEventListener("change", resetAndRender);
+        type.addEventListener("change", resetAndRender);
+
+        clearButton.addEventListener("click", () => {
+            search.value = "";
+            date.value = "";
+            type.value = "";
+
+            resetAndRender();
+        });
+
+        previousButton.addEventListener("click", () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderHistory();
+            }
+        });
+
+        nextButton.addEventListener("click", () => {
+            currentPage++;
+            renderHistory();
+        });
+
+        renderHistory();
+    }
     if (data.page === "active-session") {
       const session = (await api(`/api/sessions/${data.session.id}`)).session;
       const players = (await api("/api/players?include_inactive=true")).players;
@@ -388,8 +555,13 @@
         const line = element("div", undefined, parent);
         line.className = "player-line";
 
-        const moveIcon = element("span", "✥", line);
-        moveIcon.className = "move-icon";
+        const player = byId.get(playerId);
+
+        const genderDot = element("span", undefined, line);
+        genderDot.className = `gender-dot ${genderDotClass(player?.gender)}`;
+        genderDot.title =
+            player?.gender === "F" ? "Female" :
+            player?.gender === "M" ? "Male" : "Unknown";
 
         const select = element("select", undefined, line);
         select.className = "player-inline-select";
@@ -515,6 +687,50 @@
         element("span", `Round ${saved.number}`, roundButton);
     }
       draw(round);
+
+      // End the current session and move to History.
+      const endSessionBtn = document.getElementById("endSessionBtn");
+
+      if (endSessionBtn) {
+          endSessionBtn.disabled =
+              ["completed", "cancelled"].includes(session.status);
+
+          endSessionBtn.onclick = async () => {
+              // Prevent accidentally discarding manual player changes.
+              if (
+                  selectedRound?.status === "generated" &&
+                  JSON.stringify(final) !== JSON.stringify(selectedRound.final)
+              ) {
+                  notice.textContent =
+                      "Please save or undo your manual changes before ending the session.";
+                  return;
+              }
+
+              const confirmed = window.confirm(
+                  `Are you sure you want to end "${session.name}"?\n\n` +
+                  "The session will be marked as completed and its saved matches will be preserved."
+              );
+
+              if (!confirmed) return;
+
+              endSessionBtn.disabled = true;
+              notice.textContent = "";
+
+              try {
+                  await api(
+                      `/api/sessions/${session.id}/end`,
+                      "POST"
+                  );
+
+                  // Move to History after successful completion.
+                  window.location.assign("/history");
+
+              } catch (error) {
+                  showError(error);
+                  endSessionBtn.disabled = false;
+              }
+          };
+      }
       if (!round || round.status === "completed") {
         if (["draft", "active"].includes(session.status)) button("Generate Next Round", actions, async () => {
           await api(`/api/sessions/${session.id}/rounds/generate`, "POST"); location.reload();

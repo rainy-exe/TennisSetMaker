@@ -179,6 +179,26 @@ For backend checks, install `requirements-dev.txt` in the same environment, then
 run `python -m pytest` and `python -m flask --app run.py db check` with the same
 `DATABASE_URL` used for the upgrade.
 
+For closeout, run the backend and both algorithm suites in separate processes
+(Prototype3/4 reuse module and test names):
+
+```bash
+python -m pytest tests -q
+python -m pytest Backend/Set_Algorithm/Prototype4/tests -q
+python -m pytest Backend/Set_Algorithm/Prototype3/tests -q
+```
+
+`tests/test_session_closeout_integration.py` runs fresh migrations, real
+login/CSRF and Prototype4 with synthetic data. It checks CSV import, pairing and
+sit-out overrides, late arrival/leave, next-round actual history, early session
+end, restart/reload, club/role boundaries and database rollback in all three
+formats. It does not verify real SMTP delivery or deployed phone access.
+
+Before release, also check History with more than ten completed sessions,
+its next/previous buttons and same-gender filter. Save a manual edit, end the
+session, then reload and check the saved final results. The frontend user guide,
+deployment URL, reachable QR and real invitation email still need team checks.
+
 ## 4. Check CSV and QR
 
 Owner/Admin can upload a synthetic UTF-8 CSV on `/players`:

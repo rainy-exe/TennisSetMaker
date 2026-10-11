@@ -272,10 +272,19 @@ def test_token_results_show_saved_final_override_not_generated_or_private_fields
     assert displayed["club_name"] == "Synthetic Club"
     assert "Private Other Club" not in response.text
     names = {p["id"]: p["name"] for p in players}
+    genders = {p["id"]: p["gender"] for p in players}
     assert displayed["matches"][0]["team_a"] == [
-        names[p] for p in final["assignments"][0]["team_a_player_ids"]
+        {"name": names[p], "gender": genders[p]}
+        for p in final["assignments"][0]["team_a_player_ids"]
     ]
-    assert displayed["sit_out_players"] == [names[played]]
+    assert displayed["sit_out_players"] == [
+        {"name": names[played], "gender": genders[played]}
+    ]
+    assert all(
+        set(player) == {"name", "gender"}
+        for match in displayed["matches"]
+        for player in match["team_a"] + match["team_b"]
+    )
     assert (
         not {"skill", "notes", "email", "password_hash", "generated"} & displayed.keys()
     )

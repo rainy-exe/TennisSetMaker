@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,56 +7,113 @@
 
     <title>SetMaker | Live Session Results</title>
 
-    <link
-        rel="stylesheet"
-        href="{{ url_for('static', filename='css/styles.css') }}"
-    >
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/styles.css') }}">
 
     <style>
         .public-results {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto;
-            padding: 32px 20px;
+            padding: 30px 20px 60px;
         }
 
         .public-header {
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: 28px;
+        }
+
+        .public-header h1 {
+            color: #2f873b;
+            font-size: 25px;
+            margin-bottom: 10px;
+        }
+
+        .public-header h2 {
+            font-size: 21px;
+            margin-bottom: 10px;
+        }
+
+        .public-round {
+            font-size: 14px;
+            font-weight: 700;
+            color: #666;
         }
 
         .public-match-grid {
             display: grid;
             grid-template-columns: repeat(
                 auto-fit,
-                minmax(260px, 1fr)
+                minmax(min(100%, 320px), 1fr)
             );
-            gap: 20px;
+            gap: 18px;
         }
 
         .public-match {
-            padding: 24px;
+            overflow: hidden;
         }
 
         .public-team {
-            margin: 16px 0;
-        }
-
-        .public-team h3 {
-            margin-bottom: 8px;
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 12px;
+            border-radius: 6px;
         }
 
         .public-player {
-            padding: 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 12px;
+            margin-top: 5px;
+            background: #eef0f2;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .gender-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            min-width: 12px;
+            border-radius: 50%;
+        }
+
+        .gender-dot.male {
+            background: #3b82f6;
+        }
+
+        .gender-dot.female {
+            background: #ef4444;
+        }
+
+        .gender-dot.unknown {
+            background: #9ca3af;
         }
 
         .public-sitout {
-            margin-top: 24px;
-            padding: 24px;
+            margin-top: 22px;
+            padding: 18px;
+        }
+
+        .public-sitout-list {
+            display: grid;
+            grid-template-columns: repeat(
+                auto-fit,
+                minmax(min(100%, 220px), 1fr)
+            );
+            gap: 8px;
         }
 
         .public-message {
             text-align: center;
-            padding: 40px 20px;
+            padding: 30px;
+        }
+
+        .public-footer {
+            text-align: center;
+            margin-top: 28px;
+            color: #777;
+            font-size: 12px;
         }
     </style>
 </head>
@@ -71,10 +129,18 @@
             {% endif %}
 
             {% if result.round_number %}
-                <p>Round {{ result.round_number }}</p>
+                <p class="public-round">
+                    Round {{ result.round_number }}
+                </p>
             {% endif %}
 
             <p>Live Tennis Match Assignments</p>
+
+            <p>
+                <span class="gender-dot male"></span> Male
+                &nbsp;&nbsp;
+                <span class="gender-dot female"></span> Female
+            </p>
         </header>
 
         {% if not result.session_name %}
@@ -91,67 +157,91 @@
 
         {% else %}
 
-            <div class="public-match-grid">
+            <section class="public-match-grid">
 
                 {% for match in result.matches %}
 
-                    <div class="card public-match">
-                        <h2>Court {{ match.court }}</h2>
+                    <article class="card public-match">
+
+                        <div class="match-card-header">
+                            Court {{ match.court }}
+                        </div>
 
                         <div class="public-team">
-                            <h3>Team A</h3>
+                            <div class="team-label">TEAM A</div>
 
                             {% for player in match.team_a %}
                                 <div class="public-player">
-                                    {{ player }}
+                                    <span
+                                        class="gender-dot {% if player.gender == 'M' %}male{% elif player.gender == 'F' %}female{% else %}unknown{% endif %}"
+                                        aria-label="{{ 'Male' if player.gender == 'M' else 'Female' if player.gender == 'F' else 'Unknown gender' }}"
+                                        title="{{ 'Male' if player.gender == 'M' else 'Female' if player.gender == 'F' else 'Unknown gender' }}"
+                                    ></span>
+
+                                    <span>{{ player.name }}</span>
                                 </div>
                             {% endfor %}
                         </div>
 
-                        <hr>
+                        <div class="vs">VS</div>
 
                         <div class="public-team">
-                            <h3>Team B</h3>
+                            <div class="team-label">TEAM B</div>
 
                             {% for player in match.team_b %}
                                 <div class="public-player">
-                                    {{ player }}
+                                    <span
+                                        class="gender-dot {% if player.gender == 'M' %}male{% elif player.gender == 'F' %}female{% else %}unknown{% endif %}"
+                                        aria-label="{{ 'Male' if player.gender == 'M' else 'Female' if player.gender == 'F' else 'Unknown gender' }}"
+                                        title="{{ 'Male' if player.gender == 'M' else 'Female' if player.gender == 'F' else 'Unknown gender' }}"
+                                    ></span>
+
+                                    <span>{{ player.name }}</span>
                                 </div>
                             {% endfor %}
                         </div>
 
-                    </div>
+                    </article>
 
                 {% endfor %}
 
-            </div>
+            </section>
 
             {% if result.sit_out_players %}
 
                 <section class="card public-sitout">
-                    <h2>Sitting Out</h2>
+                    <h2 class="section-title">Sitting Out</h2>
 
-                    {% for player in result.sit_out_players %}
-                        <p>{{ player }}</p>
-                    {% endfor %}
+                    <div class="public-sitout-list">
+
+                        {% for player in result.sit_out_players %}
+                            <div class="public-player">
+                                <span
+                                    class="gender-dot {% if player.gender == 'M' %}male{% elif player.gender == 'F' %}female{% else %}unknown{% endif %}"
+                                    aria-label="{{ 'Male' if player.gender == 'M' else 'Female' if player.gender == 'F' else 'Unknown gender' }}"
+                                ></span>
+
+                                <span>{{ player.name }}</span>
+                            </div>
+                        {% endfor %}
+
+                    </div>
                 </section>
 
             {% endif %}
 
         {% endif %}
 
-        <p style="text-align:center; margin-top:30px;">
+        <footer class="public-footer">
             Results refresh automatically every 15 seconds.
-        </p>
+        </footer>
 
     </main>
 
     <script>
-        // Reload the latest results without changing the QR code.
-        setInterval(function () {
+        setInterval(() => {
             window.location.reload();
         }, 15000);
     </script>
-
 </body>
 </html>

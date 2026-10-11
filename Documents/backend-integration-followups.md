@@ -90,6 +90,17 @@ next-round generation, late arrival and remainder unavailability. Reloading uses
 the persisted final state; completed rounds are locked. Overrides send an
 expected revision and stale edits return 409 instead of overwriting a newer save.
 
+The latest history page keeps Kate's ten-per-page pagination and uses completed
+sessions only. Session and history initialisation are separate, so the older
+session handler no longer removes history's pagination controls. Same-gender
+sessions have their own filter and label. Kate's public results retain the new
+name/gender display without exposing skill or account details.
+
+End Session saves the current final round and closes the session atomically;
+it does not create the remaining planned rounds. Closed sessions reject later
+availability edits. Database errors return an explicit failure and preserve
+the previous saved state.
+
 Migration `b7d482f19c06` adds nullable player notes/court preference and court
 cover, without rebuilding parent tables or changing historical assignments.
 The established 1–10 skill range is retained; the proposed 1–7 restriction was

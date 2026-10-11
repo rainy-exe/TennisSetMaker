@@ -238,6 +238,13 @@ def public_session(token):
             ).all()
 
             player_names = {player.id: player.name for player in players}
+            player_genders = {p.id: p.gender for p in players}
+
+            def public_player(player_id):
+                return {
+                    "name": player_names.get(player_id, "Unknown player"),
+                    "gender": player_genders.get(player_id),
+                }
 
             court_numbers = {court.id: court.number for court in courts}
 
@@ -246,19 +253,18 @@ def public_session(token):
                     {
                         "court": court_numbers.get(assignment["court_id"], "Unknown"),
                         "team_a": [
-                            player_names.get(pid, "Unknown player")
+                            public_player(pid)
                             for pid in assignment["team_a_player_ids"]
                         ],
                         "team_b": [
-                            player_names.get(pid, "Unknown player")
+                            public_player(pid)
                             for pid in assignment["team_b_player_ids"]
                         ],
                     }
                 )
 
             result["sit_out_players"] = [
-                player_names.get(pid, "Unknown player")
-                for pid in final["sit_out_player_ids"]
+                public_player(pid) for pid in final["sit_out_player_ids"]
             ]
 
     response = render_template("public-session.html", result=result)

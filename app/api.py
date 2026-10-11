@@ -6,7 +6,7 @@ from difflib import SequenceMatcher
 
 from flask import Blueprint, jsonify, redirect, request, url_for
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.errors import ApiError
 from app.extensions import db
@@ -996,6 +996,12 @@ def add_late_player(session_id):
 @require_authenticated
 def mark_player_unavailable(session_id, player_id):
     session = session_for_club(session_id)
+    if session.status in {"completed", "cancelled"}:
+        raise ApiError(
+            "Player availability cannot change in a closed session.",
+            409,
+            "session_closed",
+        )
     participation = db.session.get(SessionParticipation, (session.id, player_id))
     if participation is None:
         raise ApiError("Player is not in this session.", 404, "not_found")
@@ -1041,6 +1047,46 @@ def override_round(round_id):
         round_, data.get("assignments"), data.get("sit_out_player_ids"), actor
     )
     return jsonify({"round": serialize_round(round_)})
+
+
+@api.post("/sessions/<session_id>/end")
+@require_authenticated
+def end_session(session_id):
+    session = session_for_club(session_id)
+
+    if session.status in {"completed", "cancelled"}:
+        raise ApiError(
+            "This session is already closed.",
+            409,
+            "session_closed",
+        )
+
+    # Complete the current generated round, if one exists.
+    latest_round = max(session.rounds, key=lambda r: r.number, default=None)
+
+    if latest_round is not None and latest_round.status == "generated":
+        latest_round.status = "completed"
+        latest_round.completed_at = utc_now()
+
+    # Close the session without deleting its records.
+    session.status = "completed"
+
+    try:
+        db.session.commit()
+    except SQLAlchemyError as error:
+        db.session.rollback()
+        raise ApiError(
+            "The session could not be ended; its saved rounds are unchanged.",
+            500,
+            "session_persistence_failed",
+        ) from error
+
+    return jsonify(
+        {
+            "message": "Session ended successfully.",
+            "session": serialize_session(session),
+        }
+    )
 
 
 @api.post("/rounds/<round_id>/complete")

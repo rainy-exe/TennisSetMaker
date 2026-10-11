@@ -199,6 +199,15 @@ increases. After refresh, GET saved state and display **final**; do not regenera
 Only completed final results feed the next round's history.
 Round status: `generated -> completed`; session: `draft -> active -> completed`.
 
+`POST /api/sessions/<id>/end` closes a session early and completes its current
+generated round using the saved **final** assignments. Save any pending manual
+edits first. Unplayed planned rounds are not created; ending a draft records no
+played rounds. The response is `{message, session}`. Owner/Admin/Staff can end
+their own club's session with CSRF; repeated end or later availability changes
+return 409 `session_closed`. A database failure rolls back both round and session
+and returns 500 `session_persistence_failed`. Owner/Admin can reopen the latest
+completed round; Staff cannot.
+
 Late/unavailable changes apply to the next ungenerated round, not existing rounds.
 Round `eligibility` entries contain `player_id`, `status`, `reason`;
 statuses are `eligible`, `not_arrived`, `unavailable`, `inactive`,
@@ -238,7 +247,8 @@ namesakes individually through player creation; bulk import does not overwrite.
 Authenticated users can get a PNG at `GET /club/qr-code`. It links to
 `/club/<token>/live`, Kate's read-only bearer-link page, which shows final
 assignments/sit-outs for the latest-created session and refreshes every 15s.
-Names and court numbers only; no skill, notes or account data. Anyone holding
+Names, gender indicators and court numbers only; no skill, notes or account
+data. Anyone holding
 the link can read those results, even without login. Do not publish the token
 or treat this as authenticated access; sharing/revocation policy needs team
 confirmation. `PUBLIC_BASE_URL` must point to an address viewers can reach.

@@ -53,11 +53,11 @@
                     Templates
                 </a>
 
-                <a href="#" aria-disabled="true" title="Not implemented" class="nav-link">
+                <a href="{{ url_for('main.history') }}" class="nav-link">
                     History
                 </a>
 
-                <a href="#" aria-disabled="true" title="Not implemented" class="nav-link">
+                <a href="{{ url_for('main.settings') }}" class="nav-link">
                     Settings
                 </a>
 
@@ -102,7 +102,7 @@
 
                 </div>
 
-                <button type="button" class="btn" disabled title="Complete rounds to finish the session">
+                <button type="button" class="btn" id="endSessionBtn">
                     End Session
                 </button>
 
