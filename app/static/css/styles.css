@@ -5332,3 +5332,31 @@ html.smooth-scroll {
 .match-card .team-label {
     margin-bottom: 5px;
 }
+
+.gender-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 10px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.gender-dot.male {
+  background-color: #3b82f6; /* blue */
+}
+
+.gender-dot.female {
+  background-color: #ef4444; /* red */
+}
+
+.gender-dot.unknown {
+  background-color: #9ca3af; /* grey */
+}
+
+.player-line,
+.sitout-player {
+  display: flex;
+  align-items: center;
+}

@@ -41,6 +41,19 @@
     if (parent) parent.append(node);
     return node;
   }
+  function genderDotClass(gender) {
+    const value = (gender || "").toUpperCase();
+
+    if (value === "F" || value === "FEMALE") {
+        return "female";
+    }
+
+    if (value === "M" || value === "MALE") {
+        return "male";
+    }
+
+    return "unknown";
+}
   function button(text, parent, action) {
     const node = element("button", text, parent);
     node.type = "button";
@@ -446,8 +459,13 @@
         const line = element("div", undefined, parent);
         line.className = "player-line";
 
-        const moveIcon = element("span", "✥", line);
-        moveIcon.className = "move-icon";
+        const player = byId.get(playerId);
+
+        const genderDot = element("span", undefined, line);
+        genderDot.className = `gender-dot ${genderDotClass(player?.gender)}`;
+        genderDot.title =
+            player?.gender === "F" ? "Female" :
+            player?.gender === "M" ? "Male" : "Unknown";
 
         const select = element("select", undefined, line);
         select.className = "player-inline-select";
