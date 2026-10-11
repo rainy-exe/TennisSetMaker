@@ -1,6 +1,6 @@
 # Algorithm adapter guide — Rai / Eric
 
-Branch: `backend-integration-followups`.
+Integration branch: `integration-final-checks`.
 [Quick start](backend-quickstart.md) runs the bundled
 `Backend/Set_Algorithm/Prototype4`. No separate export or algorithm rewrite needed.
 
@@ -39,12 +39,13 @@ def generate(self, players, court_ids, round_number, mixed_mode, strict_format):
 `court_ids` is an ordered list of stable IDs, not Court objects.
 Session court order is saved from priority/number; inactive courts are filtered
 each round. Lower priority is preferred; mid-session priority edits do not
-reorder its saved selection. `round_number` starts at 1; format flags are booleans.
+reorder its saved selection. `round_number` starts at 1. `mixed_mode` is an integer:
+`0` open, `1` mixed, `2` same-gender; `strict_format` is boolean.
 Start time, duration and tea break stay in session metadata.
 
 Players who have not yet arrived, are unavailable, inactive or missing skill
 are excluded, not counted as sit-outs. Generation needs four eligible rated players and one
-active selected court. Supported formats are open/mixed, not singles or same-gender-only.
+active selected court. Supported formats: `open`, `mixed`, `same_gender`; no singles.
 
 Return these dataclasses:
 
@@ -63,14 +64,16 @@ result = AlgorithmRound(
 Every eligible player appears exactly once. Each court is used once, with two
 teams of two. Expected playing count:
 `floor(min(player_count, court_count * 4) / 4) * 4`.
-Strict mixed requires one M and one F per team. Invalid output is rejected
+Strict mixed requires one M and one F per team. Strict same-gender requires
+same-gender partners; an MM versus FF spares court is allowed, as in Prototype4.
+Invalid output is rejected
 before saving, not silently repaired.
 
-## Current Prototype3 mapping
+## Current Prototype4 mapping (Prototype3-compatible fields)
 
 Fresh prototype Players are built for each call:
 
-| Backend | Prototype3 |
+| Backend | Prototype Player |
 | --- | --- |
 | Stable `id` | Both `player_id` and `name` (avoids same-name collisions) |
 | `rating`, gender and sit-out fields | Corresponding Player fields |
@@ -81,20 +84,22 @@ Fresh prototype Players are built for each call:
 Adapter calls:
 
 ```python
-select_round_players(temporary_players, num_to_play, rng=random.Random(seed))
-assign_courts_for_round(playing, len(court_ids), 1 if mixed_mode else 0, 2)
+select_round_players(temporary_players, num_to_play, rng=random.Random(seed), mixed_mode=mixed_mode)
+assign_courts_for_round(playing, len(court_ids), mixed_mode, 2)
 ```
 
 `2` is the fixed current variety mode, not a custom weight preset.
-Prototype3 does not receive `round_number` or `strict_format` directly;
-the backend builds round history and validates strict mixed after matching.
+Neither prototype receives `round_number` or `strict_format` directly;
+the backend builds history and validates the strict format after matching.
+Prototype3 selection omits the unsupported `mixed_mode` keyword. Requesting
+same-gender with that older engine returns 503 `algorithm_incompatible`, not open play.
 
 Optional `TENNIS_ALGORITHM_PATH` points to compatible
 `helpers.py`, `refinement.py`, `algorithm.py`.
-Prototype4 from merged PR #25 is the default. The adapter passes the three new
+Prototype4, including merged PR #26, is the default. The adapter passes the three new
 history fields when the selected Player constructor accepts them; Prototype3
 continues to work when explicitly selected for compatibility checks.
-Errors: missing dependency 503 `algorithm_unavailable`; strict mixed failure
+Errors: missing dependency 503 `algorithm_unavailable`; strict-format failure
 422 `no_valid_solution`; invalid output 502 `invalid_algorithm_result`.
 Prototype3 has no separate structured no-solution result.
 
@@ -118,17 +123,18 @@ Prototype3 has no separate structured no-solution result.
 
 1. **Dynamic ratio:** Prototype3 still uses `sit_out_count`. Prototype4 from PR #25
    now receives session and last-50-round counts from the backend. Its formula
-   and client-facing behaviour still need team/client confirmation; this does
-   selects the merged Prototype4, not the unmerged same-gender fix in PR #26.
+   and client-facing behaviour still need team/client confirmation. The adapter
+   uses the same-gender selection changes from merged PR #26 as well.
 2. **Court type/preference:** backend stores type and handles availability/order;
    engine receives IDs only. Richer court input/scoring needs an agreed contract.
 3. **Future contract changes:** keep stable IDs and update the adapter together
    when changing Player constructors or output shape; routes should not import
    algorithm internals.
-4. **Unchanged decisions:** variety mode stays at 2, formats stay open/mixed,
-   and partner/opponent history stays club-wide over 120 days. Changing the
-   default mode, adding same-gender semantics or resetting that history per
-   session needs agreement first. Court preference scoring remains algorithm work.
+4. **Unchanged decisions:** variety mode stays at 2 and partner/opponent history
+   stays club-wide over 120 days. Changing the default variety mode or resetting
+   that history per session needs agreement first. Court preference scoring remains
+   algorithm work. Strict format rejects an invalid result; it does not run a new
+   matching search or guarantee the algorithm finds every feasible arrangement.
 
 Run `python -m pytest` for real Prototype3/4 adapter and override/history/availability tests.
 Tests can inject `ALGORITHM_ENGINE`; normal startup uses the bundled engine.

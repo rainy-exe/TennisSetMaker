@@ -33,12 +33,15 @@
                         <li><a href="#getting-started">1. Getting started</a></li>
                         <li><a href="#roles">2. Roles &amp; permissions</a></li>
                         <li><a href="#players">3. Managing players</a></li>
-                        <li><a href="#courts">4. Managing courts</a></li>
-                        <li><a href="#templates">5. Session templates</a></li>
-                        <li><a href="#create-session">6. Creating a session</a></li>
-                        <li><a href="#running-session">7. Running a live session</a></li>
-                        <li><a href="#team">8. Team members &amp; club details</a></li>
-                        <li><a href="#troubleshooting">9. Troubleshooting</a></li>
+                        <li><a href="#csv-import">4. Importing players from CSV</a></li>
+                        <li><a href="#courts">5. Managing courts</a></li>
+                        <li><a href="#templates">6. Session templates</a></li>
+                        <li><a href="#create-session">7. Creating a session</a></li>
+                        <li><a href="#running-session">8. Running a live session</a></li>
+                        <li><a href="#qr-code">9. Sharing matches with a QR code</a></li>
+                        <li><a href="#history">10. Session history</a></li>
+                        <li><a href="#team">11. Team members &amp; club details</a></li>
+                        <li><a href="#troubleshooting">12. Troubleshooting</a></li>
                     </ol>
 
                 </nav>
@@ -62,16 +65,17 @@
                         <h3>Signing in</h3>
                         <ul>
                             <li>Log in with the email and password for your club account.</li>
-                            <li>If you were invited by your club, open the invitation link, confirm your details and set a password.</li>
+                            <li>If you were invited by your club, open the link in your invitation email, confirm your details and set a password. Invitation links expire after 7 days.</li>
                             <li>Forgotten your password? Use <strong>Forgot password?</strong> on the login page.</li>
                         </ul>
 
                         <h3>Recommended first steps</h3>
                         <ol class="support-steps">
                             <li>Add your club's <a href="#courts">courts</a> and set their priority.</li>
-                            <li>Add your <a href="#players">players</a>, including a skill rating for each.</li>
+                            <li>Add your <a href="#players">players</a> one at a time, or <a href="#csv-import">import them from a CSV file</a>. Each player needs a skill rating.</li>
                             <li>Optionally save a <a href="#templates">template</a> for sessions you run regularly.</li>
                             <li><a href="#create-session">Create a session</a> and generate the first round.</li>
+                            <li>Show the <a href="#qr-code">QR code</a> so players can see their courts on their phones.</li>
                         </ol>
 
                     </section>
@@ -101,7 +105,11 @@
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td>Create and run sessions, edit matches, add late players</td>
+                                        <td>Create, run and end sessions, edit matches, add late players</td>
+                                        <td>Yes</td><td>Yes</td><td>Yes</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Show the session QR code and view session history</td>
                                         <td>Yes</td><td>Yes</td><td>Yes</td>
                                     </tr>
                                     <tr>
@@ -117,6 +125,10 @@
                                         <td>Yes</td><td>Yes</td><td>No</td>
                                     </tr>
                                     <tr>
+                                        <td>Import players from a CSV file</td>
+                                        <td>Yes</td><td>Yes</td><td>No</td>
+                                    </tr>
+                                    <tr>
                                         <td>Delete players</td>
                                         <td>Yes</td><td>Yes</td><td>No</td>
                                     </tr>
@@ -125,11 +137,11 @@
                                         <td>Yes</td><td>Yes</td><td>No</td>
                                     </tr>
                                     <tr>
-                                        <td>Create, edit and remove templates</td>
+                                        <td>Create and edit templates</td>
                                         <td>Yes</td><td>Yes</td><td>No</td>
                                     </tr>
                                     <tr>
-                                        <td>Reopen a completed round</td>
+                                        <td>Change the club name</td>
                                         <td>Yes</td><td>Yes</td><td>No</td>
                                     </tr>
                                     <tr>
@@ -155,29 +167,109 @@
                         </h2>
 
                         <p>
-                            The <a href="{{ url_for('players') }}">Players</a> page is your club roster.
-                            Search by name, then select a player to see their details and notes.
+                            The <a href="{{ url_for('main.players') }}">Players</a> page is your club roster.
+                            Type in the search box to filter by name, then click a player to see their details and notes.
                         </p>
 
                         <h3>Adding a player</h3>
                         <ol class="support-steps">
                             <li>Click <strong>+ Add Player</strong>.</li>
                             <li>Enter their name and gender, and optionally notes and a court surface preference.</li>
-                            <li>Owners and admins choose a <strong>rating from 1 to 10</strong>. Staff can leave this blank for an admin to fill in later.</li>
+                            <li>Owners and admins choose a <strong>rating from 1 to 10</strong>. Staff can leave this blank for an owner or admin to fill in later.</li>
                             <li>Click <strong>Add Player</strong>.</li>
                         </ol>
 
+                        <p>
+                            Adding a lot of players at once? <a href="#csv-import">Import them from a CSV file</a> instead.
+                        </p>
+
                         <div class="support-callout">
                             <strong>A player must have a skill rating before they can be placed in a set.</strong>
-                            Players without one are left out when a round is generated.
+                            Players without one don't appear under Attending Players when you create a session.
                         </div>
 
                         <h3>Duplicates, editing and deleting</h3>
                         <ul>
-                            <li>If a player with a similar name already exists, SetMaker warns you before saving so you don't create a duplicate.</li>
+                            <li>If a player with a similar name already exists, SetMaker warns you before saving. If they really are a different person, tick <strong>Confirm this is a different person</strong> and save again.</li>
                             <li>Use <strong>Edit</strong> to update a player's details at any time.</li>
-                            <li><strong>Delete</strong> (owners and admins) deactivates the player. They stop appearing in new sessions, but their past rounds are kept.</li>
+                            <li><strong>Delete</strong> (owners and admins) asks you to confirm, then removes the player from your roster. They stop appearing in new sessions, but the rounds they've already played are kept.</li>
                         </ul>
+
+                    </section>
+
+
+                    <!-- CSV import -->
+                    <section class="card support-section" id="csv-import">
+
+                        <h2 class="section-title">
+                            4. Importing players from CSV
+                        </h2>
+
+                        <p>
+                            Owners and admins can add many players at once from a spreadsheet. Save it as a
+                            <strong>CSV (UTF-8)</strong> file, then on the <a href="{{ url_for('main.players') }}">Players</a> page
+                            drag it onto the <strong>Drop a CSV of players here</strong> box, or click <strong>browse</strong> to choose it.
+                            The import starts straight away.
+                        </p>
+
+                        <h3>Columns</h3>
+                        <p>The first row must be the column names. They can be in any order, and capital letters don't matter.</p>
+
+                        <div class="support-table-wrap">
+                            <table class="support-table">
+                                <thead>
+                                    <tr>
+                                        <th>Column</th>
+                                        <th>Required</th>
+                                        <th>Accepted values</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Name</td>
+                                        <td>Yes</td>
+                                        <td>The player's name</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Gender</td>
+                                        <td>Yes</td>
+                                        <td>M, F, Male or Female</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Rating</td>
+                                        <td>Yes</td>
+                                        <td>A whole number from 1 to 10</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Notes</td>
+                                        <td>No</td>
+                                        <td>Any text</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Court Preference</td>
+                                        <td>No</td>
+                                        <td>Clay, Hard, Grass or Synthetic</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h3>Example</h3>
+                        <pre><code>Name,Gender,Rating,Notes,Court Preference
+Alex Smith,M,6,,Hard
+Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
+
+                        <h3>After the import</h3>
+                        <ul>
+                            <li>A message at the top of the page shows how many players were imported and how many rows were skipped.</li>
+                            <li>A row is <strong>skipped</strong> if the name matches or closely matches an existing player (or an earlier row in the file), or if a required value is missing or not accepted.</li>
+                            <li>Skipped rows aren't added. Fix them in your spreadsheet and import just those rows again, or add them by hand.</li>
+                        </ul>
+
+                        <div class="support-callout">
+                            Files must be <strong>.csv</strong>, under <strong>2 MB</strong> and no more than <strong>1,000 players</strong>.
+                            If Excel offers several CSV options, choose <strong>CSV UTF-8</strong>.
+                        </div>
 
                     </section>
 
@@ -186,17 +278,18 @@
                     <section class="card support-section" id="courts">
 
                         <h2 class="section-title">
-                            4. Managing courts
+                            5. Managing courts
                         </h2>
 
                         <p>
-                            The <a href="{{ url_for('courts') }}">Courts</a> page lists every court at your club.
+                            The <a href="{{ url_for('main.courts') }}">Courts</a> page lists every court at your club.
                         </p>
 
                         <ul>
                             <li><strong>Add Court</strong> to record a court's number, surface type, cover and priority.</li>
-                            <li><strong>Priority</strong> decides which courts are filled first. Your best courts should have the highest priority.</li>
-                            <li>Use the toggle to mark a court <strong>Inactive</strong> (for example, during resurfacing). Inactive courts aren't offered when you create a session.</li>
+                            <li><strong>Priority</strong> decides which courts are filled first. Courts with a <strong>lower number</strong> are filled first, so give your best court priority 0 or 1.</li>
+                            <li>Use the toggle to mark a court <strong>Inactive</strong> (for example, during resurfacing). Inactive courts aren't offered when you create a session or template.</li>
+                            <li>Click <strong>Edit</strong> to change a court's details.</li>
                         </ul>
 
                     </section>
@@ -206,12 +299,12 @@
                     <section class="card support-section" id="templates">
 
                         <h2 class="section-title">
-                            5. Session templates
+                            6. Session templates
                         </h2>
 
                         <p>
                             Templates save the settings you use every week so you don't have to re-enter them.
-                            Owners and admins manage them from the <a href="{{ url_for('templates') }}">Templates</a> page.
+                            Owners and admins create and edit them from the <a href="{{ url_for('main.templates') }}">Templates</a> page.
                         </p>
 
                         <p>A template stores:</p>
@@ -219,8 +312,13 @@
                             <li>Match format: <strong>Mixed Doubles</strong> or <strong>Open Play</strong> (any gender).</li>
                             <li>Number of rounds, round length, start time and total session length.</li>
                             <li>An optional tea break after a chosen round.</li>
-                            <li>Which courts to use. Leave <strong>Set as default priority order</strong> on to follow the Courts page, or turn it off to choose a custom order for this template.</li>
+                            <li>Which courts to use. Leave <strong>Set as default priority order</strong> on to follow the Courts page, or turn it off to choose a custom set of courts for this template.</li>
                         </ul>
+
+                        <p>
+                            To use one, click <strong>Use Template</strong> on its card. Anyone can do this, including staff.
+                            You'll go to Create Session with the template's settings already filled in.
+                        </p>
 
                     </section>
 
@@ -229,16 +327,16 @@
                     <section class="card support-section" id="create-session">
 
                         <h2 class="section-title">
-                            6. Creating a session
+                            7. Creating a session
                         </h2>
 
                         <ol class="support-steps">
-                            <li>From the <a href="{{ url_for('dashboard') }}">Dashboard</a>, click <strong>+ Create Session</strong>.</li>
+                            <li>From the <a href="{{ url_for('main.dashboard') }}">Dashboard</a>, click <strong>+ Create Session</strong>, or click <strong>Use Template</strong> on a template.</li>
                             <li>Enter a session name, date and start time.</li>
                             <li>Set the number of rounds, round duration, session duration and an optional tea break.</li>
                             <li>Choose a <strong>match format</strong> and tick the courts you're using.</li>
-                            <li>Under <strong>Attending Players</strong>, tick everyone who is playing today.</li>
-                            <li>Click <strong>Create &amp; Generate Session</strong>. SetMaker saves the session and builds Round 1.</li>
+                            <li>Under <strong>Attending Players</strong>, tick everyone who is playing today. Only players with a skill rating are listed.</li>
+                            <li>Click <strong>Create &amp; Generate Session</strong>. SetMaker saves the session, builds Round 1 and opens the live session.</li>
                         </ol>
 
                         <div class="support-callout">
@@ -248,8 +346,8 @@
                         </div>
 
                         <p>
-                            If you started from a template, its settings are filled in for you. You can still change them
-                            for this session only.
+                            If you started from a template, you can still change any setting for this session only.
+                            The template itself isn't changed.
                         </p>
 
                     </section>
@@ -259,18 +357,19 @@
                     <section class="card support-section" id="running-session">
 
                         <h2 class="section-title">
-                            7. Running a live session
+                            8. Running a live session
                         </h2>
 
                         <p>
-                            Open a session from the Dashboard to see each court's teams, who is sitting out,
-                            and every round played so far.
+                            The live session page shows the player, court and match counts, each court's teams,
+                            who is sitting out, and a button for every round so far. Click a round button to look back at
+                            an earlier round.
                         </p>
 
                         <h3>Each round</h3>
                         <ol class="support-steps">
-                            <li>Check the suggested matches. To swap someone, change the player in that slot.</li>
-                            <li>Click <strong>Save Changes</strong> to make your edits official, or <strong>Undo Unsaved Changes</strong> to go back.</li>
+                            <li>Check the suggested matches. To swap someone, change the player in that slot or in the Sitting Out list.</li>
+                            <li>Click <strong>Save Changes</strong> to make your edits official, or <strong>Undo Unsaved Changes</strong> to go back. Each player can only appear once per round.</li>
                             <li>When play finishes, click <strong>Complete Round</strong>. Completed rounds are locked.</li>
                             <li>Click <strong>Generate Next Round</strong>. SetMaker uses earlier rounds to rotate sit-outs fairly and mix up partners.</li>
                         </ol>
@@ -281,15 +380,71 @@
                             <li><strong>Unavailable From Next Round</strong>: choose a player who is leaving. They won't be placed in later rounds, and their earlier rounds are kept.</li>
                         </ul>
 
-                        <h3>Correcting a completed round</h3>
-                        <p>
-                            Owners and admins can reopen a completed round to fix a mistake, as long as the next round
-                            hasn't been generated yet.
-                        </p>
+                        <h3>Ending the session</h3>
+                        <ol class="support-steps">
+                            <li>Save or undo any edits to the current round.</li>
+                            <li>Click <strong>End Session</strong> at the top of the page and confirm.</li>
+                            <li>The current round is completed, the session is marked complete, and you're taken to <a href="#history">History</a>. All saved matches are kept.</li>
+                        </ol>
 
                         <p>
-                            The session is marked complete automatically when its final round is completed.
+                            You don't have to play every planned round. End Session works at any point.
                         </p>
+
+                    </section>
+
+
+                    <!-- QR code -->
+                    <section class="card support-section" id="qr-code">
+
+                        <h2 class="section-title">
+                            9. Sharing matches with a QR code
+                        </h2>
+
+                        <p>
+                            Every live session page shows your club's QR code, labelled <strong>Scan for Session Results</strong>.
+                            Players scan it with their phone camera to see where they're playing, without logging in.
+                        </p>
+
+                        <h3>What players see</h3>
+                        <ul>
+                            <li>Your club name, the session name and the current round number.</li>
+                            <li>Each court with its Team A and Team B players, and who is sitting out.</li>
+                            <li>The page refreshes every 15 seconds, so players can leave it open between rounds.</li>
+                        </ul>
+
+                        <h3>Good to know</h3>
+                        <ul>
+                            <li><strong>The code never changes.</strong> It always shows your club's most recently created session, so you can print it once and put it up at the club.</li>
+                            <li>Players only see <strong>saved</strong> matches. Click <strong>Save Changes</strong> after swapping players so the public page updates.</li>
+                            <li>Before Round 1 is generated, players see <em>Waiting for matches to be generated</em>.</li>
+                        </ul>
+
+                        <div class="support-callout">
+                            <strong>Anyone with the QR code or its link can see player names and court assignments.</strong>
+                            Skill ratings, notes and contact details are never shown on the public page.
+                        </div>
+
+                    </section>
+
+
+                    <!-- History -->
+                    <section class="card support-section" id="history">
+
+                        <h2 class="section-title">
+                            10. Session history
+                        </h2>
+
+                        <p>
+                            The <a href="{{ url_for('main.history') }}">History</a> page lists every completed session,
+                            with its date, number of players, courts, planned rounds and format.
+                        </p>
+
+                        <ul>
+                            <li>Search by session name, or filter by date or <strong>Session Type</strong> (Mixed Doubles or Open Play). <strong>Clear Filters</strong> resets them.</li>
+                            <li>Click a session name or <strong>View Results</strong> to see every round that was played.</li>
+                            <li>History shows 10 sessions per page. Use the arrows at the bottom to see more.</li>
+                        </ul>
 
                     </section>
 
@@ -298,14 +453,29 @@
                     <section class="card support-section" id="team">
 
                         <h2 class="section-title">
-                            8. Team members &amp; club details
+                            11. Team members &amp; club details
                         </h2>
 
-                        <ul>
-                            <li><strong>Team Members</strong> lists everyone with access to your club and their role.</li>
-                            <li>Click <strong>+ Invite Team Member</strong>, enter their name, email and role, then <strong>Send Invite</strong>. They finish setting up their account from the invitation link.</li>
-                            <li><strong>Club Details</strong> holds your club's name, contact email, phone and address.</li>
-                        </ul>
+                        <p>Both are on the <a href="{{ url_for('main.settings') }}">Settings</a> page.</p>
+
+                        <h3>Inviting a team member</h3>
+                        <ol class="support-steps">
+                            <li>On the <strong>Team Members</strong> tab, click <strong>+ Invite Team Member</strong>.</li>
+                            <li>Enter their name and email, and choose their role.</li>
+                            <li>Click <strong>Send Invite</strong>. SetMaker emails them an invitation link.</li>
+                            <li>They open the link, set a password and can then log in. The link expires after 7 days.</li>
+                        </ol>
+
+                        <p>
+                            If they didn't get the email or the link has expired, send a new invitation to the same address.
+                            The new link replaces the old one.
+                        </p>
+
+                        <h3>Club details</h3>
+                        <p>
+                            The <strong>Club Details</strong> tab shows your club's name, which appears across the app and on the
+                            public QR code page. Owners and admins can change it and click <strong>Save Changes</strong>.
+                        </p>
 
                     </section>
 
@@ -314,12 +484,12 @@
                     <section class="card support-section" id="troubleshooting">
 
                         <h2 class="section-title">
-                            9. Troubleshooting
+                            12. Troubleshooting
                         </h2>
 
                         <dl class="support-faq">
 
-                            <dt>A player is missing from the generated round.</dt>
+                            <dt>A player is missing from Attending Players or the generated round.</dt>
                             <dd>
                                 Check that they have a skill rating, are still active, and haven't been marked unavailable.
                                 Late players only join from the next round that's generated after they were added.
@@ -327,8 +497,8 @@
 
                             <dt>"Generation failed" after creating a session.</dt>
                             <dd>
-                                The session itself was saved. Open it and click <strong>Generate Next Round</strong> to try again
-                                and see the reason. Usually there are too few eligible players for the selected courts.
+                                The session itself was saved. Click <strong>Generate Next Round</strong> on the live session page
+                                to try again and see the reason. Usually there are too few eligible players for the selected courts.
                             </dd>
 
                             <dt>I can't complete the round.</dt>
@@ -342,12 +512,44 @@
                                 the round at the same time; if so, reload the page and try again.
                             </dd>
 
-                            <dt>I can't reopen a round.</dt>
+                            <dt>I can't end the session.</dt>
                             <dd>
-                                Only owners and admins can reopen rounds, and only before the next round has been generated.
+                                Save or undo your changes to the current round first. If the button is greyed out,
+                                the session has already ended. You can find it on the History page.
                             </dd>
 
-                            <dt>I can't set skill ratings, add courts or edit templates.</dt>
+                            <dt>My CSV import skipped some rows.</dt>
+                            <dd>
+                                Those players are probably already on your roster (or have a very similar name), or a row has a
+                                missing name, a gender other than M/F/Male/Female, or a rating outside 1 to 10.
+                                See <a href="#csv-import">Importing players from CSV</a>.
+                            </dd>
+
+                            <dt>My CSV file was rejected.</dt>
+                            <dd>
+                                The file must end in .csv, be under 2 MB, have no more than 1,000 rows, include Name, Gender and
+                                Rating columns, and be saved as CSV UTF-8. Each column name can only appear once.
+                            </dd>
+
+                            <dt>Players see an old session on the QR page.</dt>
+                            <dd>
+                                The public page shows your most recently <em>created</em> session and only <em>saved</em> matches.
+                                Check you've saved your changes, and wait up to 15 seconds for it to refresh.
+                            </dd>
+
+                            <dt>The QR code doesn't open on players' phones.</dt>
+                            <dd>
+                                The phone must be able to reach the same web address you use for SetMaker. Ask whoever runs
+                                SetMaker for your club to check its public web address is set up.
+                            </dd>
+
+                            <dt>An invited team member didn't get their email.</dt>
+                            <dd>
+                                Ask them to check their spam folder, then send a new invitation. If emails never arrive, ask whoever
+                                runs SetMaker to check its email settings.
+                            </dd>
+
+                            <dt>I can't set skill ratings, import players, add courts or edit templates.</dt>
                             <dd>
                                 Those actions are for owners and admins. Ask one of them, or see <a href="#roles">Roles &amp; permissions</a>.
                             </dd>

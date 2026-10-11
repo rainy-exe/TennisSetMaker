@@ -38,6 +38,37 @@
   </div>
   {% endif %}
 
+  {% if request.args.get('imported') %}
+  <div class="card import-result">
+    Imported {{ request.args.get('imported') }} player{{ '' if request.args.get('imported') == '1' else 's' }}.
+    {% if request.args.get('skipped', '0') != '0' %}
+      Skipped {{ request.args.get('skipped') }} (duplicates or missing details).
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if request.args.get('import_error') %}
+  <div class="card import-result import-error">{{ request.args.get('import_error') }}</div>
+  {% endif %}
+
+  {% if page_data.can_manage %}
+  <form
+      method="POST"
+      action="{{ url_for('api.import_players_csv') }}"
+      enctype="multipart/form-data"
+      id="csv-import-form"
+  >
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="csv-dropzone" id="csv-dropzone">
+      <input type="file" name="csv_file" id="csv-file-input" accept=".csv,text/csv" hidden />
+      <span class="csv-dropzone-icon">⇪</span>
+      <span>
+        <strong>Drop a CSV of players here</strong> or <span class="csv-dropzone-link">browse</span>
+        <span class="csv-dropzone-hint">Columns: Name, Gender, Rating (Notes and Court Preference optional)</span>
+      </span>
+    </label>
+  </form>
+  {% endif %}
+
   {% set pref_colors = {'Clay': 'orange', 'Hard': 'blue', 'Grass': 'green', 'Synthetic': 'gray'} %}
 
   <div class="players-layout">
@@ -70,7 +101,7 @@
           <td>
             {{ player.rating }}
             <span class="rating-dots">
-              {% for i in range(10) %}
+              {% for i in range(7) %}
                 <span class="{{ 'filled' if i < player.rating_dots else '' }}"></span>
               {% endfor %}
             </span>
@@ -80,8 +111,14 @@
             <div class="row-actions">
             <a class="btn btn-sm" href="{{ url_for('main.edit_player', player_id=player.id) }}">Edit</a>
             {% if page_data.can_manage %}
-            <form method="POST" action="{{ url_for('main.delete_player', player_id=player.id) }}" class="delete-form" data-player-name="{{ player.name }}" style="display:inline">
+            <form method="POST"
+                action="{{ url_for('main.delete_player', player_id=player.id) }}"
+                class="delete-form"
+                data-player-name="{{ player.name }}"
+                style="display:inline">
+
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
               <button class="btn btn-sm" type="submit">Delete</button>
             </form>
             {% endif %}
@@ -136,7 +173,7 @@
 <div class="modal-overlay" id="delete-modal-overlay" style="display: none;">
   <div class="card modal-card">
     <div class="modal-title">Delete player?</div>
-    <p class="modal-text">Deactivate <strong id="delete-modal-name"></strong>? Past round history will be preserved.</p>
+    <p class="modal-text">Are you sure you want to delete <strong id="delete-modal-name"></strong>? This can't be undone.</p>
     <div class="modal-actions">
       <button class="btn" type="button" id="delete-modal-cancel">Cancel</button>
       <button class="btn btn-primary" type="button" id="delete-modal-confirm" style="background: var(--red); border-color: var(--red);">Delete</button>
@@ -210,7 +247,7 @@
     partners.forEach(function (partner) {
       var row = document.createElement('div');
       row.className = 'partner-row';
-      row.textContent = partner.name;
+      row.innerHTML = '<span class="partner-check">✓</span> ' + partner.name + ' (' + partner.match_score + ' match score)';
       container.appendChild(row);
     });
   }
@@ -224,7 +261,7 @@
     history.forEach(function (entry) {
       var row = document.createElement('div');
       row.className = 'history-row';
-      row.textContent = entry;
+      row.innerHTML = '<span class="history-dot">•</span> ' + entry;
       container.appendChild(row);
     });
   }
@@ -235,8 +272,7 @@
 
     document.getElementById('detail-avatar').textContent = initials(player.name);
     document.getElementById('detail-name').textContent = player.name;
-    document.getElementById('detail-since').textContent = 'Member since Unknown';
-
+    document.getElementById('detail-since').textContent = 'Member since ' + player.member_since;
     var notesEl = document.getElementById('detail-notes');
     if (player.notes) {
       notesEl.textContent = player.notes;
@@ -285,14 +321,44 @@
         row.style.display = '';
         var match = originalName.slice(0, query.length);
         var rest = originalName.slice(query.length);
-        var highlighted = document.createElement('mark');
-        highlighted.className = 'search-hl';
-        highlighted.textContent = match;
-        nameSpan.replaceChildren(highlighted, document.createTextNode(rest));
+        nameSpan.innerHTML = '<mark class="search-hl">' + match + '</mark>' + rest;
       } else {
         row.style.display = 'none';
       }
     });
+  });
+
+  var dropzone = document.getElementById('csv-dropzone');
+  var csvInput = document.getElementById('csv-file-input');
+  var csvForm = document.getElementById('csv-import-form');
+
+  csvInput.addEventListener('change', function () {
+    if (csvInput.files.length) csvForm.submit();
+  });
+
+  ['dragenter', 'dragover'].forEach(function (type) {
+    dropzone.addEventListener(type, function (event) {
+      event.preventDefault();
+      dropzone.classList.add('dragging');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(function (type) {
+    dropzone.addEventListener(type, function (event) {
+      event.preventDefault();
+      dropzone.classList.remove('dragging');
+    });
+  });
+
+  dropzone.addEventListener('drop', function (event) {
+    var file = event.dataTransfer.files[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      alert('Please drop a .csv file.');
+      return;
+    }
+    csvInput.files = event.dataTransfer.files;
+    csvForm.submit();
   });
 </script>
 

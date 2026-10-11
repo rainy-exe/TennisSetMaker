@@ -7,7 +7,7 @@
 
     <title>SetMaker | Create Account</title>
 
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body class="login-body">
@@ -64,7 +64,7 @@
                 <div class="login-form-wrap signup-form-wrap">
 
                     <!-- Back -->
-                    <a href="main.html" class="back-home">
+                    <a href="{{ url_for('main.home') }}" class="back-home">
                         ← Back to Home
                     </a>
 
@@ -82,7 +82,7 @@
                          SIGN UP FORM
                     ========================== -->
 
-                    <form id="signupForm">
+                    <form id="signupForm" method="post">
 
                         <!-- Full Name -->
                         <div class="field">
@@ -148,18 +148,7 @@
 
                         </div>
 
-
-                        <!-- Terms -->
-                        <label class="signup-terms">
-
-                            <input type="checkbox" id="signupTerms" required>
-
-                            <span>
-                                I agree to the Terms of Service and Privacy Policy.
-                            </span>
-
-                        </label>
-
+                        <p id="signup-error" class="form-error" role="alert" hidden></p>
 
                         <!-- Submit -->
                         <button type="submit" class="btn btn-primary login-submit">
@@ -174,7 +163,7 @@
 
                         Already have an account?
 
-                        <a href="login.html">
+                        <a href="{{ url_for('auth.login_page') }}">
                             Log In
                         </a>
 
@@ -187,6 +176,82 @@
         </div>
 
     </main>
+
+
+<script>
+document.getElementById("signupForm").addEventListener("submit", async function (event) {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+
+    const fullName = document.getElementById("signupName").value.trim();
+    const clubName = document.getElementById("signupClub").value.trim();
+    const email = document.getElementById("signupEmail").value.trim();
+    const password = document.getElementById("signupPassword").value;
+    const confirmPassword = document.getElementById("signupConfirmPassword").value;
+
+    const errorElement = document.getElementById("signup-error");
+    const submitButton = form.querySelector('button[type="submit"]');
+
+    errorElement.hidden = true;
+    errorElement.textContent = "";
+
+    // Validate password confirmation
+    if (password !== confirmPassword) {
+        errorElement.textContent = "Passwords do not match.";
+        errorElement.hidden = false;
+        return;
+    }
+
+    submitButton.disabled = true;
+
+    try {
+        // Step 1: Obtain CSRF token
+        const csrfResponse = await fetch("{{ url_for('auth.csrf_token') }}", {
+            credentials: "same-origin"
+        });
+
+        if (!csrfResponse.ok) {
+            throw new Error("Unable to obtain a security token.");
+        }
+
+        const csrfData = await csrfResponse.json();
+
+        // Step 2: Register a new club and owner
+        const response = await fetch("{{ url_for('auth.register') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfData.csrf_token
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({
+                full_name: fullName,
+                club_name: clubName,
+                email: email,
+                password: password
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || result.error || "Registration failed.");
+        }
+
+        // Step 3: Redirect to dashboard
+        window.location.href = "{{ url_for('auth.login_page') }}";
+
+    } catch (error) {
+        errorElement.textContent = error.message;
+        errorElement.hidden = false;
+
+    } finally {
+        submitButton.disabled = false;
+    }
+});
+</script>
+
 
 </body>
 

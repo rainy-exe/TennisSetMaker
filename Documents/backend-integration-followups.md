@@ -6,7 +6,7 @@ matching algorithm is introduced.
 
 The original follow-up was backend-only. The later integration pass connects
 the management pages now present on `environment` to the same JSON APIs,
-without merging the still-open frontend PRs. Use the factory through `run.py`;
+using their existing layout and controls. Use the factory through `run.py`;
 the old root `app.py` CSV demo is not the persistence/authentication implementation.
 
 ## Login and CSRF
@@ -19,7 +19,8 @@ new token. Fetch a new token before subsequent writes. Logout is now
 `POST /logout`, not GET.
 
 `POST /login` expects JSON email/password, not URL query parameters.
-Registration uses `POST /register`; the older `/api/signup` only checks reCAPTCHA
+Registration uses `POST /register` with `full_name`, email, password and club name,
+then requires login; the older `/api/signup` only checks reCAPTCHA
 and does not create an account. Set a deployment-specific `SECRET_KEY` and
 configure `RECAPTCHA_SECRET_KEY` when using reCAPTCHA.
 
@@ -28,12 +29,11 @@ enabled on every production connection. The old fake-identity unit fixtures
 explicitly retain their former unenforced-FK behavior; real integration tests
 keep both CSRF and foreign keys enabled.
 
-Kate's `/login-page` and `/signup-page` endpoints can render team-provided templates.
-Until those templates are integrated, they return an explicit 503 JSON
-`frontend_unavailable` error rather than an unhandled missing-template 500.
-Login/signup/accounts/invitation screens remain frontend dependencies. Existing
-dashboard, player/court/template and session pages are connected; the small
-`base.html` compatibility shell can be replaced by the frontend team's layout.
+Kate's `/login-page`, `/signup-page` and `/join` now render the team templates.
+Missing templates still return 503 `frontend_unavailable`, not an unhandled 500.
+Dashboard, player/court/template, session/history and account pages are connected
+to persisted club-scoped data. Accounts uses the existing team/invitation APIs;
+no second member-management service is introduced.
 All management routes require authentication and reuse club/role checks.
 
 ## Team APIs
@@ -47,10 +47,11 @@ All management routes require authentication and reuse club/role checks.
 | `POST /api/invitations` | JSON `email`, `role`; Owner invites Admin/Staff, Admin invites Staff |
 | `DELETE /api/invitations/<id>` | Revokes a pending invitation by expiring it |
 
-An invitation lasts seven days. Creation returns the bearer `token` once and
-`accept_endpoint: "/accept-invitation"`. This is a POST API endpoint, not a
-browser invitation link. A client must send JSON `token` and `password` with
-CSRF to accept it; no email is claimed to have been sent. Acceptance is one-use
+An invitation lasts seven days. Kate's sender emails `/join?token=...`; API
+responses never contain bearer tokens. Creation requires SMTP configuration and
+returns `{invitation, message}` after submission. Missing/failing SMTP returns
+502 and expires the unsent invitation so it does not block retry. Acceptance
+sends JSON `token`, `full_name` and `password` with CSRF and is one-use
 and atomic. Revoked/expired invitations, disabled clubs and inactive/unauthorised
 inviters are rejected. Removed members lose existing session access, and their
 pending invitations are invalidated.
@@ -89,18 +90,31 @@ next-round generation, late arrival and remainder unavailability. Reloading uses
 the persisted final state; completed rounds are locked. Overrides send an
 expected revision and stale edits return 409 instead of overwriting a newer save.
 
+The latest history page keeps Kate's ten-per-page pagination and uses completed
+sessions only. Session and history initialisation are separate, so the older
+session handler no longer removes history's pagination controls. Same-gender
+sessions have their own filter and label. Kate's public results retain the new
+name/gender display without exposing skill or account details.
+
+End Session saves the current final round and closes the session atomically;
+it does not create the remaining planned rounds. Closed sessions reject later
+availability edits. Database errors return an explicit failure and preserve
+the previous saved state.
+
 Migration `b7d482f19c06` adds nullable player notes/court preference and court
 cover, without rebuilding parent tables or changing historical assignments.
 The established 1–10 skill range is retained; the proposed 1–7 restriction was
 not consistent with the existing API, migrations or stored records.
 
-Open/mixed formats and fixed variety mode 2 remain the current contract.
-Same-gender mode awaits algorithm PR #26 and team confirmation; it is visibly
-disabled instead of silently treating it as open. Cross-session partner/opponent
+Open/mixed/same-gender formats and fixed variety mode 2 are the current contract.
+The adapter passes gender mode 0/1/2 to both Prototype4 selection and assignment.
+Strict same-gender requires same-gender partners but permits MM versus FF spares.
+Cross-session partner/opponent
 history still uses 120 days; the PR #26 discussion about resetting it needs
 coordination before changing existing behaviour. Court drag-order UI, detailed
-player statistics, account screens, invitation UI, result/QR screens and export
-are not completed by this pass. No password-reset email is claimed to be sent.
+player statistics and export
+are not completed by this pass. Kate's QR result route is retained and tested
+against final assignments, not replaced. No password-reset email is claimed to be sent.
 
 ## Migration safety
 
@@ -110,6 +124,23 @@ cannot safely invent a club/owner mapping. A regression test retains a completed
 round's generated/final history byte-for-byte at the SQL dump level after refusal.
 Databases already at the Accounts revision are unaffected.
 
+Migration `c82e741bd509` expands the session/template format checks to same-gender.
+It follows Kate's QR revision `187dfc1e85e4`, keeping one migration head.
+SQLite copies both referenced tables in one transaction, checks foreign keys and
+restores enforcement; failure rolls back both copies. Generated/final records
+are retained. Downgrade refuses same-gender records or populated account names,
+rather than discarding them. Back up the database before applying migrations.
+
+Migration `d947ef8621ab` backfills missing club QR tokens. Existing tokens stay
+unchanged; the data-only downgrade does not invalidate shared links. The model
+uses the same named unique index as Kate's migration. `qrcode[pil]` is declared
+in requirements so a fresh installation can start and render QR images.
+
+Kate's CSV handler and form are retained. Truncated rows are safely skipped,
+malformed CSV rejects the whole file before writes, and tests cover permission,
+CSRF, duplicates, club isolation and transaction failure. Bulk import skips
+potential namesakes; individual CRUD still allows explicit confirmation.
+
 Back up any pre-Accounts populated database and coordinate a real club/user ID
 mapping with Kate before upgrading it. This is not an automatic legacy-data
 conversion; do not delete data to bypass the check. Run this migration online,
@@ -117,9 +148,14 @@ not as an offline SQL export, so the preflight can inspect the target database.
 
 ## Remaining coordination
 
-- Password reset/email delivery is not implemented/configured. The endpoint
+- Password reset is not implemented. The endpoint
   returns an explicit 503 and does not claim an email was sent.
-- QR sharing needs a decision on authenticated-club access versus bearer access
-  for players. Do not publish anonymous results by default.
-- Account/management frontend integration belongs to the frontend workstream.
+- Kate's QR route uses an unguessable permanent bearer link, not login. Sharing,
+  revocation and whether draft rounds should be visible still need team approval
+  before deployment. Existing latest-created-session selection is unchanged.
+- Phone access is not verified. A QR pointing at localhost cannot reach another
+  computer: configure `PUBLIC_BASE_URL` for deployment or a reachable test LAN.
+- Real invitation delivery still needs deployment SMTP configuration and testing.
+- Kate's CSV import was pushed in `3315402`; no competing importer was added.
+- The client-facing user guide stays with the frontend team.
 - Do not merge or send reviews without the user's confirmation.

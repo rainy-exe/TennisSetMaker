@@ -11,6 +11,23 @@ from flask import current_app
 from app.errors import ApiError
 
 _load_lock = Lock()
+ROUND_FORMAT_MODES = {"open": 0, "mixed": 1, "same_gender": 2}
+
+
+def format_matches(mode, team_a, team_b, players_by_id):
+    if mode == 1:
+        return all(
+            len({players_by_id[p].gender for p in team}) == 2
+            for team in (team_a, team_b)
+        )
+    if mode == 2:
+        # Prototype4 permits an MM v FF spares court, but no mixed partners
+        # in strict same-gender mode (raw_same_gender_score's client rule).
+        return all(
+            len({players_by_id[p].gender for p in team}) == 1
+            for team in (team_a, team_b)
+        )
+    return True
 
 
 @dataclass
@@ -111,6 +128,9 @@ class PrototypeAlgorithmEngine:
 
     def generate(self, players, court_ids, round_number, mixed_mode, strict_format):
         self._load()
+        mode = int(mixed_mode)
+        if mode not in ROUND_FORMAT_MODES.values():
+            raise ApiError("Unsupported algorithm gender mode.")
         temporary = []
         player_fields = inspect.signature(self._helpers.Player).parameters
         for source in players:
@@ -138,30 +158,65 @@ class PrototypeAlgorithmEngine:
 
         capped = min(len(temporary), len(court_ids) * 4)
         num_to_play = (capped // 4) * 4
+        selection_options = {"rng": random.Random(self.seed)}
+        if (
+            "mixed_mode"
+            in inspect.signature(self._algorithm.select_round_players).parameters
+        ):
+            selection_options["mixed_mode"] = mode
+        elif mode == 2:
+            raise ApiError(
+                "Same-gender selection requires the latest Prototype4 algorithm.",
+                503,
+                "algorithm_incompatible",
+            )
         playing, sitting = self._algorithm.select_round_players(
-            temporary, num_to_play, rng=random.Random(self.seed)
+            temporary, num_to_play, **selection_options
         )
         generated = self._algorithm.assign_courts_for_round(
             playing,
             len(court_ids),
-            1 if mixed_mode else 0,
+            mode,
             2,
         )
 
         assignments = []
+        by_id = {player.id: player for player in players}
         for result in generated:
+            if (
+                not isinstance(result, dict)
+                or type(result.get("court")) is not int
+                or not 1 <= result["court"] <= len(court_ids)
+                or any(
+                    not isinstance(result.get(team), (list, tuple))
+                    or len(result[team]) != 2
+                    for team in ("team_a", "team_b")
+                )
+            ):
+                raise ApiError(
+                    "The algorithm returned an invalid court or team shape.",
+                    502,
+                    "invalid_algorithm_result",
+                )
             court_id = court_ids[result["court"] - 1]
-            team_a = [player.player_id for player in result["team_a"]]
-            team_b = [player.player_id for player in result["team_b"]]
-            if mixed_mode and strict_format:
-                by_id = {player.id: player for player in players}
-                for team in (team_a, team_b):
-                    if len({by_id[player_id].gender for player_id in team}) != 2:
-                        raise ApiError(
-                            "No result satisfies the strict mixed-team format.",
-                            422,
-                            "no_valid_solution",
-                        )
+            team_a = [getattr(player, "player_id", None) for player in result["team_a"]]
+            team_b = [getattr(player, "player_id", None) for player in result["team_b"]]
+            if any(player_id not in by_id for player_id in team_a + team_b):
+                raise ApiError(
+                    "The algorithm returned an unknown player.",
+                    502,
+                    "invalid_algorithm_result",
+                )
+            if (
+                mode
+                and strict_format
+                and not format_matches(mode, team_a, team_b, by_id)
+            ):
+                raise ApiError(
+                    "No result satisfies the strict round format.",
+                    422,
+                    "no_valid_solution",
+                )
             assignments.append(CourtAssignment(court_id, team_a, team_b))
 
         return AlgorithmRound(assignments, [player.player_id for player in sitting])

@@ -53,11 +53,11 @@
                     Templates
                 </a>
 
-                <a href="#" aria-disabled="true" title="Not implemented" class="nav-link">
+                <a href="{{ url_for('main.history') }}" class="nav-link">
                     History
                 </a>
 
-                <a href="#" aria-disabled="true" title="Not implemented" class="nav-link">
+                <a href="{{ url_for('main.settings') }}" class="nav-link">
                     Settings
                 </a>
 
@@ -102,7 +102,7 @@
 
                 </div>
 
-                <button type="button" class="btn" disabled title="Complete rounds to finish the session">
+                <button type="button" class="btn" id="endSessionBtn">
                     End Session
                 </button>
 
@@ -330,6 +330,15 @@
             </div>
         </main>
 
+    </div>
+    <div class="session-qr-widget">
+        <img
+            src="{{ url_for('main.club_qr_code') }}"
+            alt="Permanent club session QR code"
+            class="session-qr-image"
+        >
+
+        <p>Scan for Session Results</p>
     </div>
 
 {% include '_integration_scripts.html' %}

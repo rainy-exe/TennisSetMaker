@@ -5,7 +5,12 @@ from flask import current_app
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.algorithm_adapter import AlgorithmPlayer, get_algorithm_engine
+from app.algorithm_adapter import (
+    ROUND_FORMAT_MODES,
+    AlgorithmPlayer,
+    format_matches,
+    get_algorithm_engine,
+)
 from app.errors import ApiError
 from app.extensions import db
 from app.models import (
@@ -222,7 +227,7 @@ def generate_next_round(session):
         algorithm_players,
         [link.court_id for link in available_courts],
         round_number,
-        session.round_format == "mixed",
+        ROUND_FORMAT_MODES[session.round_format],
         session.strict_format,
     )
 
@@ -259,15 +264,19 @@ def generate_next_round(session):
             502,
             "invalid_algorithm_result",
         )
-    if session.round_format == "mixed" and session.strict_format:
+    if session.round_format != "open" and session.strict_format:
         players_by_id = {player.id: player for player in eligible_players}
         if any(
-            len({players_by_id[player_id].gender for player_id in team}) != 2
+            not format_matches(
+                ROUND_FORMAT_MODES[session.round_format],
+                assignment.team_a,
+                assignment.team_b,
+                players_by_id,
+            )
             for assignment in result.assignments
-            for team in (assignment.team_a, assignment.team_b)
         ):
             raise ApiError(
-                "No result satisfies the strict mixed-team format.",
+                "No result satisfies the strict round format.",
                 422,
                 "no_valid_solution",
             )
@@ -370,7 +379,7 @@ def validate_override(round_, assignments, sit_out_ids):
                 "unexpected": sorted(set(all_ids) - eligible_ids),
             },
         )
-    if round_.session.round_format == "mixed" and round_.session.strict_format:
+    if round_.session.round_format != "open" and round_.session.strict_format:
         players = {
             player.id: player
             for player in db.session.scalars(
@@ -378,12 +387,11 @@ def validate_override(round_, assignments, sit_out_ids):
             ).all()
         }
         for _, team_a, team_b in normalized:
-            if any(
-                len({players[player_id].gender for player_id in team}) != 2
-                for team in (team_a, team_b)
+            if not format_matches(
+                ROUND_FORMAT_MODES[round_.session.round_format], team_a, team_b, players
             ):
                 raise ApiError(
-                    "Every team must be mixed when strict format is enabled."
+                    "Every court must satisfy the session's strict round format."
                 )
     return normalized
 

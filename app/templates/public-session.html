@@ -1,0 +1,247 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SetMaker | Live Session Results</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/styles.css') }}">
+
+    <style>
+        .public-results {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px 20px 60px;
+        }
+
+        .public-header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .public-header h1 {
+            color: #2f873b;
+            font-size: 25px;
+            margin-bottom: 10px;
+        }
+
+        .public-header h2 {
+            font-size: 21px;
+            margin-bottom: 10px;
+        }
+
+        .public-round {
+            font-size: 14px;
+            font-weight: 700;
+            color: #666;
+        }
+
+        .public-match-grid {
+            display: grid;
+            grid-template-columns: repeat(
+                auto-fit,
+                minmax(min(100%, 320px), 1fr)
+            );
+            gap: 18px;
+        }
+
+        .public-match {
+            overflow: hidden;
+        }
+
+        .public-team {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 12px;
+            border-radius: 6px;
+        }
+
+        .public-player {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 12px;
+            margin-top: 5px;
+            background: #eef0f2;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .gender-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            min-width: 12px;
+            border-radius: 50%;
+        }
+
+        .gender-dot.male {
+            background: #3b82f6;
+        }
+
+        .gender-dot.female {
+            background: #ef4444;
+        }
+
+        .gender-dot.unknown {
+            background: #9ca3af;
+        }
+
+        .public-sitout {
+            margin-top: 22px;
+            padding: 18px;
+        }
+
+        .public-sitout-list {
+            display: grid;
+            grid-template-columns: repeat(
+                auto-fit,
+                minmax(min(100%, 220px), 1fr)
+            );
+            gap: 8px;
+        }
+
+        .public-message {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .public-footer {
+            text-align: center;
+            margin-top: 28px;
+            color: #777;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="public-results">
+
+        <header class="public-header">
+            <h1>{{ result.club_name }}</h1>
+
+            {% if result.session_name %}
+                <h2>{{ result.session_name }}</h2>
+            {% endif %}
+
+            {% if result.round_number %}
+                <p class="public-round">
+                    Round {{ result.round_number }}
+                </p>
+            {% endif %}
+
+            <p>Live Tennis Match Assignments</p>
+
+            <p>
+                <span class="gender-dot male"></span> Male
+                &nbsp;&nbsp;
+                <span class="gender-dot female"></span> Female
+            </p>
+        </header>
+
+        {% if not result.session_name %}
+
+            <div class="card public-message">
+                <h2>No session has been created yet</h2>
+            </div>
+
+        {% elif not result.round_number %}
+
+            <div class="card public-message">
+                <h2>Waiting for matches to be generated</h2>
+            </div>
+
+        {% else %}
+
+            <section class="public-match-grid">
+
+                {% for match in result.matches %}
+
+                    <article class="card public-match">
+
+                        <div class="match-card-header">
+                            Court {{ match.court }}
+                        </div>
+
+                        <div class="public-team">
+                            <div class="team-label">TEAM A</div>
+
+                            {% for player in match.team_a %}
+                                <div class="public-player">
+                                    <span
+                                        class="gender-dot {% if player.gender == 'M' %}male{% elif player.gender == 'F' %}female{% else %}unknown{% endif %}"
+                                        aria-label="{{ 'Male' if player.gender == 'M' else 'Female' if player.gender == 'F' else 'Unknown gender' }}"
+                                        title="{{ 'Male' if player.gender == 'M' else 'Female' if player.gender == 'F' else 'Unknown gender' }}"
+                                    ></span>
+
+                                    <span>{{ player.name }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="vs">VS</div>
+
+                        <div class="public-team">
+                            <div class="team-label">TEAM B</div>
+
+                            {% for player in match.team_b %}
+                                <div class="public-player">
+                                    <span
+                                        class="gender-dot {% if player.gender == 'M' %}male{% elif player.gender == 'F' %}female{% else %}unknown{% endif %}"
+                                        aria-label="{{ 'Male' if player.gender == 'M' else 'Female' if player.gender == 'F' else 'Unknown gender' }}"
+                                        title="{{ 'Male' if player.gender == 'M' else 'Female' if player.gender == 'F' else 'Unknown gender' }}"
+                                    ></span>
+
+                                    <span>{{ player.name }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                    </article>
+
+                {% endfor %}
+
+            </section>
+
+            {% if result.sit_out_players %}
+
+                <section class="card public-sitout">
+                    <h2 class="section-title">Sitting Out</h2>
+
+                    <div class="public-sitout-list">
+
+                        {% for player in result.sit_out_players %}
+                            <div class="public-player">
+                                <span
+                                    class="gender-dot {% if player.gender == 'M' %}male{% elif player.gender == 'F' %}female{% else %}unknown{% endif %}"
+                                    aria-label="{{ 'Male' if player.gender == 'M' else 'Female' if player.gender == 'F' else 'Unknown gender' }}"
+                                ></span>
+
+                                <span>{{ player.name }}</span>
+                            </div>
+                        {% endfor %}
+
+                    </div>
+                </section>
+
+            {% endif %}
+
+        {% endif %}
+
+        <footer class="public-footer">
+            Results refresh automatically every 15 seconds.
+        </footer>
+
+    </main>
+
+    <script>
+        setInterval(() => {
+            window.location.reload();
+        }, 15000);
+    </script>
+</body>
+</html>

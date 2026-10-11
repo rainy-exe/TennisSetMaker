@@ -28,7 +28,7 @@
             <td><span class="badge blue">{{ member.role }}</span></td>
             <td>{{ member.joined }}</td>
             <td class="row-actions">
-              <a class="btn btn-icon-only" href="{{ url_for('settings_member', member_id=member.id) }}">⋯</a>
+              <a class="btn btn-icon-only" href="{{ url_for('main.settings_member', member_id=member.id) }}">⋯</a>
             </td>
           </tr>
           {% endfor %}
@@ -37,7 +37,7 @@
       <div class="team-table-footer">{{ team_members|length }} of {{ team_seat_limit }} team members</div>
     </div>
 
-    <a class="btn btn-primary" href="#"><span>+</span> Invite Team Member</a>
+    <a class="btn btn-primary" href="{{ url_for('main.invite_member') }}"><span>+</span> Invite Team Member</a>
   </div>
 
   <!-- Club Details Tab -->
@@ -48,7 +48,7 @@
     </div>
 
     <div class="card" style="padding: 24px; max-width: 480px;">
-      <form method="POST" action="{{ url_for('update_club') }}">
+      <form method="POST" action="{{ url_for('invite_member') }}">
         <div class="field">
           <label>Club Name</label>
           <input class="input" type="text" name="club_name" value="{{ club.name }}" />

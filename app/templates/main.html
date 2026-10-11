@@ -7,7 +7,7 @@
 
     <title>SetMaker</title>
 
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body class="landing-body">
@@ -45,11 +45,11 @@
 
         <div class="landing-actions">
 
-            <a href="login.html" class="btn">
+            <a href="{{ url_for('auth.login_page') }}" class="btn">
                 Log In
             </a>
 
-            <a href="signup.html" class="btn btn-primary">
+            <a href="{{ url_for('auth.signup_page') }}" class="btn btn-primary">
                 Get Started
             </a>
 
@@ -79,7 +79,7 @@
 
                 <div class="hero-actions">
 
-                    <a href="login.html" class="btn btn-primary hero-btn">
+                    <a href="{{ url_for('auth.login_page') }}" class="btn btn-primary hero-btn">
                         Get Started
                     </a>
 
@@ -288,11 +288,12 @@
                 Create your first session and start playing smarter today.
             </p>
 
-            <a href="login.html" class="btn cta-button">
+            <a href="{{ url_for('auth.login_page') }}" class="btn cta-button">
                 Get Started
             </a>
 
         </section>
+    </main>
 
 </body>
 

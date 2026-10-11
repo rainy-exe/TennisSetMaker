@@ -7,7 +7,7 @@
 
     <title>SetMaker | Sessions</title>
 
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
 <body>
@@ -33,35 +33,35 @@
 
             <nav class="nav">
 
-                <a href="dashboard.html" class="nav-link">
+                <a href="{{ url_for('main.dashboard') }}" class="nav-link">
                     Dashboard
                 </a>
 
-                <a href="sessions.html" class="nav-link active">
+                <a href="{{ url_for('main.sessions') }}" class="nav-link active">
                     Sessions
                 </a>
 
-                <a href="#" class="nav-link">
+                <a href="{{ url_for('main.players') }}" class="nav-link">
                     Players
                 </a>
 
-                <a href="#" class="nav-link">
+                <a href="{{ url_for('main.courts') }}" class="nav-link">
                     Courts
                 </a>
 
-                <a href="#" class="nav-link">
+                <a href="{{ url_for('main.templates') }}" class="nav-link">
                     Templates
                 </a>
 
-                <a href="history.html" class="nav-link">
+                <a href="{{ url_for('main.history') }}" class="nav-link">
                     History
                 </a>
 
-                <a href="#" class="nav-link">
+                <a href="{{ url_for('main.settings') }}" class="nav-link">
                     Settings
                 </a>
 
-                <a href="accounts.html" class="nav-link">
+                <a href="{{ url_for('main.accounts') }}" class="nav-link">
                     Accounts
                 </a>
 
@@ -111,7 +111,7 @@
                 </div>
 
 
-                <a href="create-session.html" class="btn btn-primary">
+                <a href="{{ url_for('main.create_session') }}" class="btn btn-primary">
                     <span class="btn-icon">+</span>
                     Create Session
                 </a>
@@ -259,7 +259,7 @@
                     </p>
 
 
-                    <a href="create-session.html" class="btn btn-primary">
+                    <a href="{{ url_for('main.create_session') }}" class="btn btn-primary">
                         Create Session
                     </a>
 
@@ -300,6 +300,7 @@
 
     </div>
 
+{% include '_integration_scripts.html' %}
 </body>
 
 </html>

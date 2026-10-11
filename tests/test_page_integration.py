@@ -168,6 +168,7 @@ def test_migrated_real_login_pages_and_default_prototype4_flow(tmp_path):
             "/register",
             {
                 "email": "integrated@example.invalid",
+                "full_name": "Synthetic Integration Owner",
                 "password": "Synthetic-only",
                 "club_name": "Synthetic Integration",
             },

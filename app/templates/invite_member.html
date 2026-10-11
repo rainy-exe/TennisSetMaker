@@ -15,7 +15,8 @@
       {% endfor %}
     {% endif %}
 
-    <form method="POST" action="{{ url_for('invite_member') }}">
+    <form id="inviteMemberForm">
+      <input type="hidden" id="csrfToken" value="{{ csrf_token() }}">
       <div class="field">
         <label>Name</label>
         <input class="input" type="text" name="name" value="{{ form.name or '' }}" />
@@ -44,10 +45,67 @@
       </div>
 
       <div class="form-actions">
-        <a class="btn" href="{{ url_for('settings') }}">Cancel</a>
+        <a class="btn" href="{{ url_for('main.settings') }}">Cancel</a>
         <button class="btn btn-primary" type="submit">Send Invite</button>
       </div>
     </form>
   </div>
 </main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById("inviteMemberForm").addEventListener("submit", async function(event) {
+    event.preventDefault();
+
+    const form = this;
+    const email = form.querySelector('[name="email"]').value.trim();
+    const selectedRole = form.querySelector('[name="role"]:checked');
+    const csrfToken = document.getElementById("csrfToken").value;
+
+    if (!selectedRole) {
+        alert("Please select a role.");
+        return;
+    }
+
+    const submitButton = form.querySelector('[type="submit"]');
+    submitButton.disabled = true;
+
+    try {
+        const response = await fetch("/api/invitations", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({
+                email: email,
+                role: selectedRole.value.toLowerCase()
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.message ||
+                (typeof result.error === "string" ? result.error : result.error?.message) ||
+                "Could not create invitation."
+            );
+        }
+
+        alert(
+            "Invitation email submitted successfully to " + email +
+            ". Please ask the recipient to check their inbox."
+        );
+
+        window.location.href = "{{ url_for('main.settings') }}";
+    } catch (error) {
+        alert(error.message);
+    } finally {
+        submitButton.disabled = false;
+    }
+});
+</script>
 {% endblock %}

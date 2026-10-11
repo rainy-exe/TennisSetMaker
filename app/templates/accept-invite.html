@@ -7,7 +7,8 @@
 
     <title>SetMaker | Accept Invitation</title>
 
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <meta name="referrer" content="no-referrer">
 </head>
 
 <body class="login-body">
@@ -63,7 +64,7 @@
 
                 <div class="login-form-wrap invite-form-wrap">
 
-                    <a href="login.html" class="back-home">
+                    <a href="{{ url_for('auth.login_page') }}" class="back-home">
                         ← Back to Log In
                     </a>
 
@@ -152,6 +153,7 @@
                     ========================== -->
 
                     <form id="acceptInviteForm">
+                        <input type="hidden" id="csrfToken" value="{{ csrf_token() }}">
 
                         <div class="field">
 
@@ -160,7 +162,7 @@
                             </label>
 
                             <input type="text" id="inviteName" name="name" class="input" placeholder="Your full name"
-                                autocomplete="name">
+                                autocomplete="name" maxlength="120" required>
 
                         </div>
 
@@ -172,7 +174,7 @@
                             </label>
 
                             <input type="password" id="invitePassword" name="password" class="input"
-                                placeholder="Create a password" autocomplete="new-password">
+                                placeholder="Create a password" autocomplete="new-password" maxlength="128" required>
 
                         </div>
 
@@ -184,10 +186,11 @@
                             </label>
 
                             <input type="password" id="inviteConfirmPassword" name="confirmPassword" class="input"
-                                placeholder="Confirm your password" autocomplete="new-password">
+                                placeholder="Confirm your password" autocomplete="new-password" required>
 
                         </div>
 
+                        <p id="inviteError" role="alert" style="color: #c0392b;" hidden></p>
 
                         <button type="submit" class="btn btn-primary login-submit">
                             Accept Invitation
@@ -199,7 +202,7 @@
                     <p class="invite-login-link">
                         Already have a SetMaker account?
 
-                        <a href="login.html">
+                        <a href="{{ url_for('auth.login_page') }}">
                             Log In
                         </a>
                     </p>
@@ -211,6 +214,86 @@
         </div>
 
     </main>
+
+<script>
+document.getElementById("acceptInviteForm").addEventListener("submit", async function (event) {
+    event.preventDefault();
+
+    const fullName = document.getElementById("inviteName").value.trim();
+    const password = document.getElementById("invitePassword").value;
+    const confirmPassword = document.getElementById("inviteConfirmPassword").value;
+    const csrfToken = document.getElementById("csrfToken").value;
+    const errorElement = document.getElementById("inviteError");
+
+    const token = new URLSearchParams(window.location.search).get("token");
+
+    const submitButton = this.querySelector('button[type="submit"]');
+
+    errorElement.hidden = true;
+    errorElement.textContent = "";
+
+    // Validate the invitation link.
+    if (!token) {
+        errorElement.textContent = "Invalid invitation link. No token was provided.";
+        errorElement.hidden = false;
+        return;
+    }
+
+    // Check full name.
+    if (!fullName || fullName.length > 120) {
+        errorElement.textContent = "Please enter a valid full name.";
+        errorElement.hidden = false;
+        return;
+    }
+
+    // Check passwords.
+    if (password !== confirmPassword) {
+        errorElement.textContent = "Passwords do not match.";
+        errorElement.hidden = false;
+        return;
+    }
+
+    submitButton.disabled = true;
+    submitButton.textContent = "Creating account...";
+
+    try {
+        const response = await fetch("{{ url_for('auth.accept_invitation') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({
+                token: token,
+                full_name: fullName,
+                password: password
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.message ||
+                (typeof result.error === "string" ? result.error : result.error?.message) ||
+                "Could not accept invitation."
+            );
+        }
+
+        // Account created successfully.
+        window.location.href = "{{ url_for('main.dashboard') }}";
+
+    } catch (error) {
+        errorElement.textContent = error.message;
+        errorElement.hidden = false;
+
+        submitButton.disabled = false;
+        submitButton.textContent = "Accept Invitation";
+    }
+});
+</script>
+
 
 </body>
 

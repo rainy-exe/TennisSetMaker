@@ -32,6 +32,11 @@ class Club(TimestampMixin, db.Model):
     id = db.Column(db.String(36), primary_key=True, default=new_id)
     name = db.Column(db.String(120), nullable=False)
     active = db.Column(db.Boolean, nullable=False, default=True)
+    public_token = db.Column(
+        db.String(64),
+        nullable=True,
+        default=lambda: uuid.uuid4().hex,
+    )
 
     users = db.relationship(
         "User",
@@ -46,6 +51,7 @@ class Club(TimestampMixin, db.Model):
     )
 
     __table_args__ = (
+        db.Index("uq_clubs_public_token", "public_token", unique=True),
         db.CheckConstraint(
             "length(trim(name)) > 0",
             name="ck_club_name_nonempty",
@@ -63,6 +69,11 @@ class User(TimestampMixin, db.Model):
         db.ForeignKey("clubs.id"),
         nullable=False,
         index=True,
+    )
+    
+    full_name = db.Column(
+        db.String(120),
+        nullable=True,
     )
 
     email = db.Column(
@@ -351,7 +362,7 @@ class SessionTemplate(TimestampMixin, db.Model):
              name="ck_template_duration_positive"
         ),
         db.CheckConstraint(
-            "round_format IN ('open', 'mixed')",
+            "round_format IN ('open', 'mixed', 'same_gender')",
             name="ck_template_round_format"
         ),
         db.CheckConstraint(
@@ -429,7 +440,7 @@ class TennisSession(TimestampMixin, db.Model):
             "round_duration_minutes > 0", name="ck_session_duration_positive"
         ),
         db.CheckConstraint(
-            "round_format IN ('open', 'mixed')",
+            "round_format IN ('open', 'mixed', 'same_gender')",
             name="ck_session_round_format"
         ),
         db.CheckConstraint(
