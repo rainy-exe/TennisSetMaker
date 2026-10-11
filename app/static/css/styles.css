@@ -182,6 +182,85 @@ select {
 
 .admin-copy {
   min-width: 0;
+  flex: 1 1 auto;
+  text-align: left;
+}
+
+/* Sidebar user menu (My Account / Log Out) */
+.user-menu {
+  margin-top: auto;
+  position: relative;
+}
+
+.user-menu .admin-card {
+  width: 100%;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.user-menu .admin-card:hover,
+.user-menu .admin-card[aria-expanded="true"] {
+  background: #eef1ef;
+}
+
+.user-menu-chevron {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  color: #7d8389;
+  transform: rotate(180deg);
+  transition: transform 0.15s ease;
+}
+
+.user-menu .admin-card[aria-expanded="true"] .user-menu-chevron {
+  transform: rotate(0deg);
+}
+
+.user-menu-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  box-shadow: 0 8px 24px rgba(20, 30, 25, 0.12);
+  padding: 5px;
+  z-index: 20;
+}
+
+.user-menu-list[hidden] {
+  display: none;
+}
+
+.user-menu-list form {
+  margin: 0;
+}
+
+.user-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: #4f555b;
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.user-menu-item:hover,
+.user-menu-item:focus-visible {
+  background: #f4f6f4;
+  color: #206a2a;
 }
 
 .admin-copy strong,
@@ -1182,6 +1261,19 @@ select {
 
   .admin-card {
     display: none;
+  }
+
+  .user-menu {
+    margin-top: 10px;
+  }
+
+  .user-menu .admin-card {
+    display: flex;
+  }
+
+  .user-menu-list {
+    top: calc(100% + 6px);
+    bottom: auto;
   }
 
   .main {

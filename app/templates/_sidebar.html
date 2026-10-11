@@ -109,12 +109,63 @@
     </a>
   </nav>
   {% if me %}
-  <div class="admin-card" title="{{ me.name }} · {{ me.club }}">
-    <div class="avatar">{{ me.initial }}</div>
-    <div class="admin-copy">
-      <strong>{{ me.name }}</strong>
-      <span>{{ me.club }}</span>
+  <div class="user-menu">
+    <div class="user-menu-list" id="userMenu" hidden>
+      <a class="user-menu-item" href="{{ url_for('main.settings', tab='account') }}">
+        <span class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </span>
+        My Account
+      </a>
+      <form method="post" action="{{ url_for('auth.logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="user-menu-item">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </span>
+          Log Out
+        </button>
+      </form>
     </div>
+    <button type="button" class="admin-card user-menu-toggle" id="userMenuToggle"
+      aria-haspopup="true" aria-expanded="false" aria-controls="userMenu"
+      title="{{ me.name }} · {{ me.club }}">
+      <span class="avatar">{{ me.initial }}</span>
+      <span class="admin-copy">
+        <strong>{{ me.name }}</strong>
+        <span>{{ me.club }}</span>
+      </span>
+      <svg class="user-menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="18 15 12 9 6 15"></polyline>
+      </svg>
+    </button>
   </div>
+  <script>
+    (function () {
+      var toggle = document.getElementById("userMenuToggle");
+      var menu = document.getElementById("userMenu");
+      function setOpen(open) {
+        menu.hidden = !open;
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      }
+      toggle.addEventListener("click", function (event) {
+        event.stopPropagation();
+        setOpen(menu.hidden);
+      });
+      document.addEventListener("click", function (event) {
+        if (!menu.hidden && !menu.contains(event.target)) { setOpen(false); }
+      });
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && !menu.hidden) { setOpen(false); toggle.focus(); }
+      });
+    })();
+  </script>
   {% endif %}
 </aside>

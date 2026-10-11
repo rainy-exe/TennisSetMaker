@@ -85,7 +85,9 @@ const { round } = await api(`/api/sessions/${session.id}/rounds/generate`, {
   confirmation link is sent and the reply has `verification_email_sent: true`.
   Include `recaptcha_token` when reCAPTCHA is configured.
   Existing-club members join by invitation. `/api/signup` only checks reCAPTCHA.
-- `POST /logout` needs CSRF but returns a **302 redirect**, not JSON.
+- `POST /logout` needs CSRF but returns a **302 redirect** (to
+  `/login-page?logged_out=1`), not JSON. The sidebar user menu has a Log Out
+  button that posts it, and a My Account link.
   Handle it separately from this helper.
 - Missing account templates return 503 `frontend_unavailable`.
   Protected QR sharing is not ready. All email (invitations, password reset,
@@ -102,8 +104,11 @@ const { round } = await api(`/api/sessions/${session.id}/rounds/generate`, {
   `POST /reset-password`. Links expire after 1 hour and work once. A reset logs
   out every device and emails a "password changed" notice.
 - `GET /verify-email?token=...` confirms the address (links last 3 days).
-- `GET /confirm-email-change?token=...` applies a requested email change
-  (links last 24 hours) and notifies the old address.
+- `GET /confirm-email-change?token=...` (link sent to the **current** address,
+  lasts 24 hours) shows an "Approve change" button, which form-posts `token`
+  and `csrf_token` to `POST /confirm-email-change`. Approving switches the login
+  email, marks it unconfirmed and sends a confirmation link to the new address.
+  Opening the link alone changes nothing, so mail scanners can't approve it.
 
 ### My account (any logged-in role)
 
@@ -112,8 +117,8 @@ const { round } = await api(`/api/sessions/${session.id}/rounds/generate`, {
 - `POST /api/account/password` `{current_password, new_password}`: other
   devices are logged out, this one stays logged in. Wrong current password ->
   400 `wrong_password`.
-- `POST /api/account/email` `{new_email, current_password}` -> 202; the change
-  happens when the link sent to the new address is clicked. 409 `email_exists`,
+- `POST /api/account/email` `{new_email, current_password}` -> 202; emails an
+  approval link to the current address (see above). 409 `email_exists`,
   503 `email_unavailable` without mail settings, 502 `email_delivery_failed`.
 - `POST /api/account/verification-email` -> 202 (200 if already confirmed).
 - Settings has a **My Account** tab using these (`/settings?tab=account`).

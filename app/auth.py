@@ -27,7 +27,6 @@ from app.account_security import (
     login_user,
     mark_account_email_sent,
     new_password_from,
-    notify_email_changed,
     notify_password_changed,
     send_password_reset,
     send_verification,
@@ -348,7 +347,7 @@ def logout():
         "info",
     )
 
-    return redirect(url_for("auth.login_page"))
+    return redirect(url_for("auth.login_page", logged_out=1))
 
 
 # ---------------------------------------------------------
@@ -699,12 +698,13 @@ def verify_email():
     )
 
 
-@auth_bp.get("/confirm-email-change")
-def confirm_email_change():
-    user, new_email = email_change_from_token(request.args.get("token", ""))
+def email_change_problem(token):
+    """(user, new_email, None) if the approval link can be used, otherwise
+    (None, None, error page)."""
+    user, new_email = email_change_from_token(token)
 
     if user is None:
-        return email_status_page(
+        return None, None, email_status_page(
             "Link not valid",
             "This link is invalid, has expired or was already used. "
             "Your login email has not changed.",
@@ -713,7 +713,7 @@ def confirm_email_change():
         )
 
     if User.query.filter_by(email=new_email).first() is not None:
-        return email_status_page(
+        return None, None, email_status_page(
             "Email already in use",
             f"{new_email} is already used by another account, so your login "
             "email has not changed.",
@@ -721,9 +721,37 @@ def confirm_email_change():
             status=409,
         )
 
-    old_email = user.email
+    return user, new_email, None
+
+
+@auth_bp.get("/confirm-email-change")
+def confirm_email_change():
+    # Opening the link only shows the question. The change needs a button
+    # press, so mail scanners that open links can't approve it.
+    token = request.args.get("token", "")
+    user, new_email, problem = email_change_problem(token)
+    if problem:
+        return problem
+
+    return render_account_page(
+        "email-status.html",
+        title="Approve email change",
+        message=f"Change the login email for this account from {user.email} "
+        f"to {new_email}? We'll then send a confirmation link to {new_email}.",
+        ok=True,
+        approve_token=token,
+    )
+
+
+@auth_bp.post("/confirm-email-change")
+def apply_email_change():
+    user, new_email, problem = email_change_problem(request.form.get("token", ""))
+    if problem:
+        return problem
+
     user.email = new_email
-    user.email_verified_at = utc_now()
+    # The new address hasn't been proved yet.
+    user.email_verified_at = None
 
     try:
         db.session.commit()
@@ -737,11 +765,27 @@ def confirm_email_change():
             status=409,
         )
 
-    notify_email_changed(user, old_email)
+    sent = False
+    if mailer.mail_configured():
+        try:
+            send_verification(user)
+            mark_account_email_sent(user)
+            db.session.commit()
+            sent = True
+        except mailer.MAIL_ERRORS:
+            db.session.rollback()
+            current_app.logger.exception("Verification email delivery failed")
 
+    follow_up = (
+        f"We've sent a confirmation link to {new_email}. Open it to confirm "
+        "the new address."
+        if sent
+        else "Confirm the new address from Settings > My Account."
+    )
     return email_status_page(
         "Email changed",
-        f"Your login email is now {new_email}. Use it next time you log in.",
+        f"Your login email is now {new_email}. Use it next time you log in. "
+        + follow_up,
         ok=True,
     )
 

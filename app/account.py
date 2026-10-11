@@ -140,8 +140,9 @@ def request_email_change():
     db.session.commit()
     return jsonify(
         {
-            "message": f"We've sent a confirmation link to {new_email}. "
-            "Your login email changes once you click it."
+            "message": f"To approve the change, open the link we've sent to "
+            f"your current email, {user.email}. Then confirm {new_email} "
+            "from the email we send there."
         }
     ), 202
 

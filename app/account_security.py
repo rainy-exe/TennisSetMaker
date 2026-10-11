@@ -305,20 +305,30 @@ The link expires in 3 days. If you didn't create an account, you can ignore this
 
 
 def send_email_change_confirmation(user, new_email):
+    """Goes to the CURRENT address, so someone using an unattended
+    logged-in browser can't move the account to an inbox they control.
+    Once approved, the new address gets a normal confirmation email."""
     name = mailer.app_name()
     mailer.send_email(
-        new_email,
-        f"Confirm your new {name} login email",
+        user.email,
+        f"Approve your {name} login email change",
         f"""{_greeting(user)}
 
-You asked to change the login email for your {name} account to this address.
-Click the link below to confirm. It expires in 24 hours.
+Someone (hopefully you) asked to change the login email for your {name} account
+from {user.email} to {new_email}.
+
+To approve the change, open the link below and press "Approve change".
+It expires in 24 hours.
 
 {link("auth.confirm_email_change", make_email_change_token(user, new_email))}
 
-Until you confirm, you keep logging in with your current email.
-If you didn't ask for this, you can ignore this email.
-{_signoff()}""",
+After you approve, we'll send a confirmation link to {new_email}.
+
+If you didn't ask for this, don't open the link. Your email won't change, but
+someone may know your password, so reset it straight away:
+
+{mailer.public_url(url_for("auth.forgot_password"))}
+{_contact_line()}{_signoff()}""",
     )
 
 
@@ -336,21 +346,6 @@ If this was you, there's nothing else to do.
 If it wasn't, reset your password straight away:
 
 {mailer.public_url(url_for("auth.forgot_password"))}
-{_contact_line()}{_signoff()}""",
-        background=True,
-    )
-
-
-def notify_email_changed(user, old_email):
-    name = mailer.app_name()
-    return mailer.send_best_effort(
-        old_email,
-        f"Your {name} login email was changed",
-        f"""{_greeting(user)}
-
-The login email for your {name} account was changed from {old_email} to {user.email}.
-
-If this wasn't you, contact your club owner or our support team straight away.
 {_contact_line()}{_signoff()}""",
         background=True,
     )

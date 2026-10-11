@@ -297,7 +297,14 @@ def test_change_password_keeps_this_device_and_logs_out_others(mail_app, outbox)
     assert [m["Subject"] for m in outbox] == ["Your SetMaker password was changed"]
 
 
-def test_change_email_needs_confirmation_from_the_new_address(mail_app, outbox):
+def approve(client, token):
+    csrf = client.get("/csrf-token").get_json()["csrf_token"]
+    return client.post(
+        "/confirm-email-change", data={"token": token, "csrf_token": csrf}
+    )
+
+
+def test_change_email_is_approved_from_the_current_address(mail_app, outbox):
     owner, someone_else = mail_app.test_client(), mail_app.test_client()
     register(owner)
     register(someone_else, "taken@example.invalid")
@@ -324,26 +331,57 @@ def test_change_email_needs_confirmation_from_the_new_address(mail_app, outbox):
         {"new_email": "New@Example.invalid", "current_password": PASSWORD},
     )
     assert requested.status_code == 202, requested.get_json()
-    assert outbox[-1]["To"] == "new@example.invalid"
-    path, token = link_in(outbox[-1])
+    # The approval link goes to the CURRENT address, not the new one.
+    assert [m["To"] for m in outbox] == ["owner@example.invalid"]
+    assert "new@example.invalid" in outbox[0].get_content()
+    path, token = link_in(outbox[0])
     assert path == "/confirm-email-change"
 
-    # Nothing changes until the link is clicked.
-    assert owner.get("/api/account").get_json()["user"]["email"] == "owner@example.invalid"
-
+    # Opening the link only asks; nothing changes without the button.
     page = owner.get(f"/confirm-email-change?token={token}")
     assert page.status_code == 200
-    assert "Email changed" in page.text
+    assert "Approve email change" in page.text
+    assert owner.get("/api/account").get_json()["user"]["email"] == "owner@example.invalid"
+
+    # The approval form needs the CSRF token.
+    assert owner.post("/confirm-email-change", data={"token": token}).status_code == 400
+
+    done = approve(owner, token)
+    assert done.status_code == 200
+    assert "Email changed" in done.text
     account = owner.get("/api/account").get_json()["user"]
     assert account["email"] == "new@example.invalid"
-    assert account["email_verified"] is True
-    assert outbox[-1]["To"] == "owner@example.invalid"
-    assert outbox[-1]["Subject"] == "Your SetMaker login email was changed"
+    assert account["email_verified"] is False
 
-    assert owner.get(f"/confirm-email-change?token={token}").status_code == 400
+    # The new address then gets a normal confirmation email.
+    assert outbox[-1]["To"] == "new@example.invalid"
+    path, verify_token = link_in(outbox[-1])
+    assert path == "/verify-email"
+    assert approve(owner, token).status_code == 400  # approval link works once
+    assert owner.get(f"/verify-email?token={verify_token}").status_code == 200
+    assert owner.get("/api/account").get_json()["user"]["email_verified"] is True
+
     fresh = mail_app.test_client()
     assert login(fresh, "owner@example.invalid").status_code == 401
     assert login(fresh, "new@example.invalid").status_code == 200
+
+
+def test_email_change_approval_fails_if_the_address_was_taken_meanwhile(mail_app, outbox):
+    owner = mail_app.test_client()
+    register(owner)
+    assert login(owner).status_code == 200
+    expire_cooldown(mail_app, "owner@example.invalid")
+    write(
+        owner,
+        "POST",
+        "/api/account/email",
+        {"new_email": "late@example.invalid", "current_password": PASSWORD},
+    )
+    _, token = link_in(outbox[-1])
+    register(mail_app.test_client(), "late@example.invalid")
+    assert owner.get(f"/confirm-email-change?token={token}").status_code == 409
+    assert approve(owner, token).status_code == 409
+    assert owner.get("/api/account").get_json()["user"]["email"] == "owner@example.invalid"
 
 
 def test_update_own_name_and_settings_tab(mail_app):
@@ -416,7 +454,24 @@ def test_sidebar_shows_the_logged_in_user_and_club_on_every_page(mail_app):
         page = client.get(path)
         assert page.status_code == 200, path
         sidebar = page.text.split('<aside class="sidebar">', 1)[1].split("</aside>", 1)[0]
-        assert '<div class="avatar">S</div>' in sidebar, path
+        assert '<span class="avatar">S</span>' in sidebar, path
         assert "Synthetic Owner" in sidebar and "Synthetic Club" in sidebar, path
-        assert sidebar.count('<span class="icon">') == 9, path  # owner also sees Accounts
+        nav = sidebar.split("<nav", 1)[1].split("</nav>", 1)[0]
+        assert nav.count('<span class="icon">') == 9, path  # owner also sees Accounts
         assert "admin@setmaker.io" not in page.text and "Club Admin" not in page.text
+
+
+def test_sidebar_user_menu_has_my_account_and_log_out(mail_app):
+    client = mail_app.test_client()
+    register(client)
+    assert login(client).status_code == 200
+    sidebar = client.get("/dashboard").text.split('<aside class="sidebar">', 1)[1]
+    sidebar = sidebar.split("</aside>", 1)[0]
+    assert 'href="/settings?tab=account"' in sidebar
+    assert 'action="/logout"' in sidebar and 'name="csrf_token"' in sidebar
+    csrf = client.get("/csrf-token").get_json()["csrf_token"]
+    response = client.post("/logout", data={"csrf_token": csrf})
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/login-page?logged_out=1")
+    assert not logged_in(client)
+    assert client.get("/api/account").status_code == 401

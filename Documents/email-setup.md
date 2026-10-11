@@ -111,7 +111,7 @@ bounced.
 | --- | --- | --- |
 | Password reset | 1 hour, works once | Logs out every device; sends a "password changed" notice. Same reply whether or not the account exists. |
 | Confirm email | 3 days | Optional; accounts work unconfirmed. Resend from My Account. Accepting an invitation or resetting a password also confirms it. |
-| Change email | 24 hours | Needs the current password; nothing changes until the new address clicks the link; the old address is told. |
+| Change email | 24 hours | Needs the current password. The approval link goes to the **current** address; nothing changes until "Approve change" is pressed there. The new address then gets a normal confirmation link and starts unconfirmed. |
 | Change password | n/a | Needs the current password; other devices are logged out. |
 
 Limits: 10 failed log-ins per email per visitor in 15 minutes; one account

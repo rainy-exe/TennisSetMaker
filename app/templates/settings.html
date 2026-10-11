@@ -55,8 +55,10 @@
   <!-- Club Details Tab -->
   <div class="tab-panel" id="tab-club">
     <div class="page-topline">
-      <h1 class="page-title">Club Details</h1>
-      <p class="page-subtitle">Information about your club shown across the app.</p>
+      <div>
+        <h1 class="page-title">Club Details</h1>
+        <p class="page-subtitle">Information about your club shown across the app.</p>
+      </div>
     </div>
 
     <div class="card" style="padding: 24px; max-width: 480px;">
@@ -136,6 +138,10 @@
       <p class="form-success" id="verificationSuccess" role="status" hidden></p>
 
       {% if my_account.email_configured %}
+      <p class="page-subtitle">
+        To change it, we email your current address to approve the change,
+        then send a confirmation link to the new one.
+      </p>
       <form id="accountEmailForm" novalidate>
         <div class="field">
           <label for="accountNewEmail">New Email</label>

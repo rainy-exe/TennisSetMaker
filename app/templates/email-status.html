@@ -73,9 +73,24 @@
                         {{ message }}
                     </p>
 
+                    {% if approve_token %}
+                    <form method="post" action="{{ url_for('auth.apply_email_change') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="token" value="{{ approve_token }}">
+                        <button type="submit" class="btn btn-primary login-submit">
+                            Approve Change
+                        </button>
+                    </form>
+
+                    <p class="reset-login-link">
+                        Didn't ask for this? Close this page; nothing will change.
+                        Then <a href="{{ url_for('auth.forgot_password') }}">reset your password</a>.
+                    </p>
+                    {% else %}
                     <a class="btn btn-primary login-submit" href="{{ url_for('auth.login_page') }}">
                         Go to Log In
                     </a>
+                    {% endif %}
 
                 </div>
 

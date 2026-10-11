@@ -163,7 +163,9 @@
     // Messages shown after being sent here from another page.
     const params = new URLSearchParams(window.location.search);
     let message = "";
-    if (params.has("reset")) {
+    if (params.has("logged_out")) {
+        message = "You've been logged out.";
+    } else if (params.has("reset")) {
         message = "Your password has been reset. Log in with your new password.";
     } else if (params.get("registered") === "verify") {
         message = "Account created. Log in to get started. We've also emailed you a link to confirm your address.";
