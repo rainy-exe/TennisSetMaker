@@ -1092,9 +1092,35 @@ select {
 .bottom-actions {
   margin-top: 24px;
   padding: 16px 18px;
+
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.bottom-actions > button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.bottom-actions > select {
+  flex: 1 1 180px;
+  min-width: 140px;
+  max-width: 240px;
+  height: 40px;
+}
+@media (max-width: 900px) {
+  .bottom-actions > button,
+  .bottom-actions > select {
+    flex: 1 1 180px;
+    max-width: 100%;
+  }
 }
 
 .bottom-left {
