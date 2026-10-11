@@ -232,6 +232,167 @@
       if (!active.length) element("p", "No active sessions yet.", list);
       document.getElementById("recentActivity").textContent = "Open a session to view its saved rounds.";
     }
+    if (data.page === "history") {
+        const response = await api("/api/sessions");
+
+        const completedSessions = response.sessions.filter(
+            session => session.status === "completed"
+        );
+
+        const tableBody = document.getElementById("historyTableBody");
+        const emptyState = document.getElementById("historyEmptyState");
+        const count = document.getElementById("historyCount");
+
+        const search = document.getElementById("historySearch");
+        const date = document.getElementById("historyDate");
+        const type = document.getElementById("historyType");
+        const clearButton = document.getElementById("clearHistoryFilters");
+
+        const pagination = document.querySelector(".history-pagination");
+        const pageButtons = pagination.querySelectorAll("button");
+
+        const previousButton = pageButtons[0];
+        const pageNumberButton = pageButtons[1];
+        const nextButton = pageButtons[2];
+
+        const pageSize = 10;
+        let currentPage = 1;
+
+        function renderHistory() {
+            const query = search.value.trim().toLowerCase();
+            const selectedDate = date.value;
+            const selectedType = type.value;
+
+            const filtered = completedSessions.filter(session => {
+                const matchesName = session.name.toLowerCase().includes(query);
+
+                const matchesDate =
+                    !selectedDate ||
+                    session.starts_at.slice(0, 10) === selectedDate;
+
+                const matchesType =
+                    !selectedType ||
+                    session.round_format === selectedType;
+
+                return matchesName && matchesDate && matchesType;
+            });
+
+            const totalPages = Math.max(
+                1,
+                Math.ceil(filtered.length / pageSize)
+            );
+
+            currentPage = Math.min(currentPage, totalPages);
+
+            const startIndex = (currentPage - 1) * pageSize;
+            const visibleSessions = filtered.slice(
+                startIndex,
+                startIndex + pageSize
+            );
+
+            tableBody.replaceChildren();
+
+            for (const session of visibleSessions) {
+                const row = element("tr", undefined, tableBody);
+
+                const sessionCell = element("td", undefined, row);
+                const sessionLink = element(
+                    "a",
+                    session.name,
+                    sessionCell
+                );
+                sessionLink.href = `/sessions/${session.id}`;
+                sessionLink.style.fontWeight = "700";
+                sessionLink.style.color = "var(--green)";
+
+                const dateCell = element("td", undefined, row);
+                dateCell.textContent = session.starts_at
+                    .slice(0, 10);
+
+                element(
+                    "td",
+                    String(session.participants.length),
+                    row
+                );
+
+                element(
+                    "td",
+                    String(session.court_ids.length),
+                    row
+                );
+
+                element(
+                    "td",
+                    `${session.number_of_rounds} planned`,
+                    row
+                );
+
+                element(
+                    "td",
+                    session.round_format === "mixed"
+                        ? "Mixed Doubles"
+                        : "Open Play",
+                    row
+                );
+
+                const actionCell = element("td", undefined, row);
+
+                const viewLink = element(
+                    "a",
+                    "View Results",
+                    actionCell
+                );
+
+                viewLink.href = `/sessions/${session.id}`;
+                viewLink.className = "btn btn-sm";
+            }
+
+            emptyState.hidden = filtered.length > 0;
+            emptyState.style.display =
+                filtered.length > 0 ? "none" : "";
+
+            count.textContent =
+                `${filtered.length} completed session${filtered.length === 1 ? "" : "s"}`;
+
+            pageNumberButton.textContent =
+                `${currentPage} / ${totalPages}`;
+
+            previousButton.disabled = currentPage <= 1;
+            nextButton.disabled = currentPage >= totalPages;
+            pageNumberButton.disabled = true;
+        }
+
+        function resetAndRender() {
+            currentPage = 1;
+            renderHistory();
+        }
+
+        search.addEventListener("input", resetAndRender);
+        date.addEventListener("change", resetAndRender);
+        type.addEventListener("change", resetAndRender);
+
+        clearButton.addEventListener("click", () => {
+            search.value = "";
+            date.value = "";
+            type.value = "";
+
+            resetAndRender();
+        });
+
+        previousButton.addEventListener("click", () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderHistory();
+            }
+        });
+
+        nextButton.addEventListener("click", () => {
+            currentPage++;
+            renderHistory();
+        });
+
+        renderHistory();
+    }
     if (data.page === "active-session") {
       const session = (await api(`/api/sessions/${data.session.id}`)).session;
       const players = (await api("/api/players?include_inactive=true")).players;
@@ -412,6 +573,50 @@
         element("span", `Round ${saved.number}`, roundButton);
     }
       draw(round);
+
+      // End the current session and move to History.
+      const endSessionBtn = document.getElementById("endSessionBtn");
+
+      if (endSessionBtn) {
+          endSessionBtn.disabled =
+              ["completed", "cancelled"].includes(session.status);
+
+          endSessionBtn.onclick = async () => {
+              // Prevent accidentally discarding manual player changes.
+              if (
+                  selectedRound?.status === "generated" &&
+                  JSON.stringify(final) !== JSON.stringify(selectedRound.final)
+              ) {
+                  notice.textContent =
+                      "Please save or undo your manual changes before ending the session.";
+                  return;
+              }
+
+              const confirmed = window.confirm(
+                  `Are you sure you want to end "${session.name}"?\n\n` +
+                  "The session will be marked as completed and its saved matches will be preserved."
+              );
+
+              if (!confirmed) return;
+
+              endSessionBtn.disabled = true;
+              notice.textContent = "";
+
+              try {
+                  await api(
+                      `/api/sessions/${session.id}/end`,
+                      "POST"
+                  );
+
+                  // Move to History after successful completion.
+                  window.location.assign("/history");
+
+              } catch (error) {
+                  showError(error);
+                  endSessionBtn.disabled = false;
+              }
+          };
+      }
       if (!round || round.status === "completed") {
         if (["draft", "active"].includes(session.status)) button("Generate Next Round", actions, async () => {
           await api(`/api/sessions/${session.id}/rounds/generate`, "POST"); location.reload();

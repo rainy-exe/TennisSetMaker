@@ -1042,6 +1042,38 @@ def override_round(round_id):
     )
     return jsonify({"round": serialize_round(round_)})
 
+@api.post("/sessions/<session_id>/end")
+@require_authenticated
+def end_session(session_id):
+    session = session_for_club(session_id)
+
+    if session.status in {"completed", "cancelled"}:
+        raise ApiError(
+            "This session is already closed.",
+            409,
+            "session_closed"
+        )
+
+    # Complete the current generated round, if one exists.
+    latest_round = max(
+        session.rounds,
+        key=lambda r: r.number,
+        default=None
+    )
+
+    if latest_round is not None and latest_round.status == "generated":
+        latest_round.status = "completed"
+        latest_round.completed_at = utc_now()
+
+    # Close the session without deleting its records.
+    session.status = "completed"
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Session ended successfully.",
+        "session": serialize_session(session)
+    })
 
 @api.post("/rounds/<round_id>/complete")
 @require_authenticated

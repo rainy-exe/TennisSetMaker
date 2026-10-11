@@ -172,22 +172,10 @@
                         Session Type
                     </label>
 
-                    <select
-                        id="historyType"
-                        class="select"
-                    >
-                        <option value="">
-                            All Types
-                        </option>
-
-                        <option value="social">
-                            Social Play
-                        </option>
-
-                        <option value="competitive">
-                            Competitive Ladder
-                        </option>
-
+                    <select id="historyType" class="select">
+                        <option value="">All Formats</option>
+                        <option value="open">Open Play</option>
+                        <option value="mixed">Mixed Doubles</option>
                     </select>
 
                 </div>
@@ -336,7 +324,7 @@
         </main>
 
     </div>
-
+{% include '_integration_scripts.html' %}
 </body>
 
 </html>
