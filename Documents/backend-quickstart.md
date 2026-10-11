@@ -1,12 +1,12 @@
 # Backend quick start
 
-Branch: `backend-integration-followups`. Python 3.11+ (tested: 3.12).
+Integration branch: `integration-final-checks`. Python 3.11+ (tested: 3.12).
 Use a separate checkout if you have local work; no branch merge is needed.
 
 ## 1. Set up a separate checkout
 
 ```bash
-git clone --branch backend-integration-followups --single-branch https://github.com/rainy-exe/TennisSetMaker.git TennisSetMaker-backend-test
+git clone --branch integration-final-checks --single-branch https://github.com/rainy-exe/TennisSetMaker.git TennisSetMaker-backend-test
 cd TennisSetMaker-backend-test
 ```
 
@@ -94,7 +94,8 @@ def call(method, path, body=None):
 email = f"demo-{uuid4().hex}@example.invalid"
 password = secrets.token_urlsafe(24)
 call("POST", "/register", {
-    "email": email, "password": password, "club_name": "Synthetic demo club"
+    "full_name": "Synthetic Demo Owner", "email": email,
+    "password": password, "club_name": "Synthetic demo club"
 })
 client = build_opener(HTTPCookieProcessor(CookieJar()))
 account = call("POST", "/login", {"email": email, "password": password})
@@ -177,3 +178,42 @@ Do not use private ratings CSV data. Demo credentials are generated, not printed
 For backend checks, install `requirements-dev.txt` in the same environment, then
 run `python -m pytest` and `python -m flask --app run.py db check` with the same
 `DATABASE_URL` used for the upgrade.
+
+For closeout, run the backend and both algorithm suites in separate processes
+(Prototype3/4 reuse module and test names):
+
+```bash
+python -m pytest tests -q
+python -m pytest Backend/Set_Algorithm/Prototype4/tests -q
+python -m pytest Backend/Set_Algorithm/Prototype3/tests -q
+```
+
+`tests/test_session_closeout_integration.py` runs fresh migrations, real
+login/CSRF and Prototype4 with synthetic data. It checks CSV import, pairing and
+sit-out overrides, late arrival/leave, next-round actual history, early session
+end, restart/reload, club/role boundaries and database rollback in all three
+formats. It does not verify real SMTP delivery or deployed phone access.
+
+Before release, also check History with more than ten completed sessions,
+its next/previous buttons and same-gender filter. Save a manual edit, end the
+session, then reload and check the saved final results. The frontend user guide,
+deployment URL, reachable QR and real invitation email still need team checks.
+
+## 4. Check CSV and QR
+
+Owner/Admin can upload a synthetic UTF-8 CSV on `/players`:
+
+```csv
+Name,Gender,Rating
+Synthetic Alpha,M,5
+Synthetic Bravo,F,5
+```
+
+For QR testing, install the updated requirements and apply migrations first.
+The active session page uses `/club/qr-code`; its link shows saved final results
+without login. Keep the link private until the team's sharing policy is confirmed.
+`PUBLIC_BASE_URL` controls the encoded address. A localhost address works on
+the server computer only. For a phone on the same trusted Wi-Fi, use the
+computer's LAN address and a reachable server binding, or use the deployed URL.
+Do not expose the Flask development server publicly. Hosting/real phone access
+is not claimed by the automated tests.

@@ -165,7 +165,8 @@ def main():
             f"{len(players) - num_to_play} will sit out this round.\n"
         )
 
-    playing, sitting_out = select_round_players(players, num_to_play, rng)
+    playing, sitting_out = select_round_players(players, num_to_play, rng,
+                                                mixed_mode=args.mixed_mode)
     court_results = assign_courts_for_round(playing, args.num_courts, args.mixed_mode, args.variety_mode)
     _record_sit_outs(players, sitting_out, args.round)
 

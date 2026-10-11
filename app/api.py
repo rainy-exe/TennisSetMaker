@@ -1,13 +1,12 @@
-import unicodedata
 import csv
 import io
+import unicodedata
 from datetime import datetime, time
 from difflib import SequenceMatcher
-from flask import Blueprint, jsonify, request, redirect, url_for
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, redirect, request, url_for
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.errors import ApiError
 from app.extensions import db
@@ -364,6 +363,7 @@ def create_player():
         {"player": serialize_player(player), "duplicate_warnings": warnings}
     ), 201
 
+
 @api.post("/players/import")
 @require_roles(*MANAGERS)
 def import_players_csv():
@@ -392,13 +392,12 @@ def import_players_csv():
         return go_back(import_error="CSV file must use UTF-8 encoding.")
 
     try:
-        reader = csv.DictReader(io.StringIO(text, newline=""))
+        reader = csv.DictReader(io.StringIO(text, newline=""), strict=True)
 
         if not reader.fieldnames:
             return go_back(import_error="CSV file is empty.")
 
-        columns = [column.strip().lower()
-                   for column in reader.fieldnames]
+        columns = [column.strip().lower() for column in reader.fieldnames]
 
         if len(columns) != len(set(columns)):
             return go_back(import_error="Duplicate CSV column names.")
@@ -415,9 +414,7 @@ def import_players_csv():
             select(Player).where(Player.club_id == actor.club_id)
         ).all()
 
-        known_names = [
-            player.normalized_name for player in existing_players
-        ]
+        known_names = [player.normalized_name for player in existing_players]
 
         imported = 0
         skipped = 0
@@ -425,11 +422,11 @@ def import_players_csv():
 
         for row_number, original_row in enumerate(reader, start=2):
             if row_number > 1001:
-                return go_back(
-                    import_error="CSV supports a maximum of 1000 players."
-                )
+                return go_back(import_error="CSV supports a maximum of 1000 players.")
 
-            if None in original_row:
+            if None in original_row or any(
+                value is None for value in original_row.values()
+            ):
                 skipped += 1
                 continue
 
@@ -447,7 +444,8 @@ def import_players_csv():
                     skipped += 1
                     continue
 
-                # Same duplicate rule as regular player creation.
+                # Skip potential duplicates in bulk imports. Individual creation
+                # still allows an organiser to explicitly confirm a namesake.
                 duplicate = any(
                     normalized == known
                     or SequenceMatcher(None, normalized, known).ratio() >= 0.92
@@ -458,9 +456,7 @@ def import_players_csv():
                     skipped += 1
                     continue
 
-                gender_input = clean_text(
-                    row.get("gender"), "gender", 20
-                ).upper()
+                gender_input = clean_text(row.get("gender"), "gender", 20).upper()
 
                 gender_mapping = {
                     "MALE": "M",
@@ -475,9 +471,7 @@ def import_players_csv():
                     skipped += 1
                     continue
 
-                rating = positive_int(
-                    int(row.get("rating", "")), "rating", 10
-                )
+                rating = positive_int(int(row.get("rating", "")), "rating", 10)
 
                 player = Player(
                     club_id=actor.club_id,
@@ -487,10 +481,13 @@ def import_players_csv():
                     skill=rating,
                 )
 
-                player_details(player, {
-                    "notes": row.get("notes") or None,
-                    "court_preference": row.get("court preference") or None,
-                })
+                player_details(
+                    player,
+                    {
+                        "notes": row.get("notes") or None,
+                        "court_preference": row.get("court preference") or None,
+                    },
+                )
 
                 new_players.append(player)
                 known_names.append(normalized)
@@ -508,11 +505,10 @@ def import_players_csv():
         try:
             commit_or_conflict("Could not import the players.")
         except ApiError:
-            return go_back(
-                import_error="Database error while importing players."
-            )
+            return go_back(import_error="Database error while importing players.")
 
     return go_back(imported=imported, skipped=skipped)
+
 
 @api.get("/players/<player_id>")
 @require_authenticated
@@ -651,8 +647,8 @@ def apply_template_fields(target, data, partial=False):
             raise ApiError(f"{field} is required.")
     if "round_format" in data:
         value = clean_text(data["round_format"], "round_format", 20).lower()
-        if value not in {"open", "mixed"}:
-            raise ApiError("round_format must be open or mixed.")
+        if value not in {"open", "mixed", "same_gender"}:
+            raise ApiError("round_format must be open, mixed or same_gender.")
         target.round_format = value
     if "start_time" in data:
         try:
@@ -823,7 +819,11 @@ def create_session():
         "session_duration_minutes",
         source.session_duration_minutes if source else None,
     )
-    round_format = data.get("round_format", source.round_format if source else "open")
+    round_format = clean_text(
+        data.get("round_format", source.round_format if source else "open"),
+        "round_format",
+        20,
+    ).lower()
     strict_format = data.get("strict_format", source.strict_format if source else False)
     tea_break = data.get(
         "tea_break_after_round", source.tea_break_after_round if source else None
@@ -833,8 +833,8 @@ def create_session():
     if session_duration is None:
         session_duration = number_of_rounds * duration
     session_duration = positive_int(session_duration, "session_duration_minutes", 1440)
-    if round_format not in {"open", "mixed"}:
-        raise ApiError("round_format must be open or mixed.")
+    if round_format not in {"open", "mixed", "same_gender"}:
+        raise ApiError("round_format must be open, mixed or same_gender.")
     strict_format = parse_bool(strict_format, "strict_format")
     if tea_break is not None:
         tea_break = positive_int(tea_break, "tea_break_after_round")
@@ -902,8 +902,8 @@ def update_session(session_id):
         )
     if "round_format" in data:
         round_format = clean_text(data["round_format"], "round_format", 20).lower()
-        if round_format not in {"open", "mixed"}:
-            raise ApiError("round_format must be open or mixed.")
+        if round_format not in {"open", "mixed", "same_gender"}:
+            raise ApiError("round_format must be open, mixed or same_gender.")
         session.round_format = round_format
     if "strict_format" in data:
         session.strict_format = parse_bool(data["strict_format"], "strict_format")
@@ -996,6 +996,12 @@ def add_late_player(session_id):
 @require_authenticated
 def mark_player_unavailable(session_id, player_id):
     session = session_for_club(session_id)
+    if session.status in {"completed", "cancelled"}:
+        raise ApiError(
+            "Player availability cannot change in a closed session.",
+            409,
+            "session_closed",
+        )
     participation = db.session.get(SessionParticipation, (session.id, player_id))
     if participation is None:
         raise ApiError("Player is not in this session.", 404, "not_found")
@@ -1042,6 +1048,7 @@ def override_round(round_id):
     )
     return jsonify({"round": serialize_round(round_)})
 
+
 @api.post("/sessions/<session_id>/end")
 @require_authenticated
 def end_session(session_id):
@@ -1051,15 +1058,11 @@ def end_session(session_id):
         raise ApiError(
             "This session is already closed.",
             409,
-            "session_closed"
+            "session_closed",
         )
 
     # Complete the current generated round, if one exists.
-    latest_round = max(
-        session.rounds,
-        key=lambda r: r.number,
-        default=None
-    )
+    latest_round = max(session.rounds, key=lambda r: r.number, default=None)
 
     if latest_round is not None and latest_round.status == "generated":
         latest_round.status = "completed"
@@ -1068,12 +1071,23 @@ def end_session(session_id):
     # Close the session without deleting its records.
     session.status = "completed"
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except SQLAlchemyError as error:
+        db.session.rollback()
+        raise ApiError(
+            "The session could not be ended; its saved rounds are unchanged.",
+            500,
+            "session_persistence_failed",
+        ) from error
 
-    return jsonify({
-        "message": "Session ended successfully.",
-        "session": serialize_session(session)
-    })
+    return jsonify(
+        {
+            "message": "Session ended successfully.",
+            "session": serialize_session(session),
+        }
+    )
+
 
 @api.post("/rounds/<round_id>/complete")
 @require_authenticated

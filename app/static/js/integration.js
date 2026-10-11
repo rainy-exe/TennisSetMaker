@@ -1,8 +1,11 @@
 /* Existing pages use the same authenticated JSON API as other consumers. */
 (async function () {
   "use strict";
-  const data = JSON.parse(document.getElementById("setmaker-page-data").textContent);
+  const pageData = document.getElementById("setmaker-page-data");
   const main = document.querySelector("main");
+  if (!pageData || !main || main.dataset.integrationReady) return;
+  main.dataset.integrationReady = "true";
+  const data = JSON.parse(pageData.textContent);
   const notice = document.createElement("p");
   notice.id = "integration-notice";
   notice.setAttribute("role", "status");
@@ -32,6 +35,7 @@
   const showError = error => { notice.textContent = error.message; };
   function roundFormat(value) {
     if (["Mixed Doubles", "mixedDoubles"].includes(value)) return "mixed";
+    if (["Same-Gender Doubles", "sameGenderDoubles"].includes(value)) return "same_gender";
     if (["Open Play (Any Gender)", "openPlay"].includes(value)) return "open";
     throw new Error("That round format is not available yet.");
   }
@@ -172,7 +176,7 @@
       const template = data.template;
       if (data.page === "template-form") {
         form.elements["template-name"].value = template?.name || "";
-        form.elements.format.value = template?.round_format === "mixed" ? "Mixed Doubles" : "Open Play (Any Gender)";
+        form.elements.format.value = {mixed: "Mixed Doubles", same_gender: "Same-Gender Doubles", open: "Open Play (Any Gender)"}[template?.round_format || "open"];
         field(form, "rounds", "Number of Rounds", template?.number_of_rounds || 6, "number");
         field(form, "round-length", "Round Length (minutes)", template?.round_duration_minutes || 30, "number");
         field(form, "start_time", "Start Time", template?.start_time || "13:00", "time");
@@ -205,7 +209,7 @@
         duration.value = template?.round_duration_minutes || 30;
         field(form, "session_duration_minutes", "Session Duration (minutes)", template?.session_duration_minutes || 180, "number");
         field(form, "tea_break_after_round", "Tea Break After Round (optional)", template?.tea_break_after_round, "number");
-        form.elements.matchFormat.value = template?.round_format === "mixed" ? "mixedDoubles" : "openPlay";
+        form.elements.matchFormat.value = {mixed: "mixedDoubles", same_gender: "sameGenderDoubles", open: "openPlay"}[template?.round_format || "open"];
         form.elements.allowRelaxation.checked = !template?.strict_format;
         choices(document.getElementById("courtOptions"), courts, "court_ids", template?.court_ids || courts.map(court => court.id));
         const playerChoices = element("section", undefined, form);
@@ -230,6 +234,95 @@
         });
       }
     }
+    if (data.page === "sessions") {
+      const sessions = (await api("/api/sessions")).sessions;
+      const list = document.getElementById("sessionsPageList");
+      const search = document.getElementById("sessionSearch");
+      const date = document.getElementById("sessionDateFilter");
+      const mode = document.getElementById("sessionModeFilter");
+      const formats = {open: "Open Play", mixed: "Mixed Doubles", same_gender: "Same-Gender Doubles"};
+      let statusFilter = "";
+      mode.replaceChildren();
+      for (const [value, label] of [["", "All Formats"], ...Object.entries(formats)]) {
+        element("option", label, mode).value = value;
+      }
+      for (const [id, status] of [["activeSessionCount", "active"], ["upcomingSessionCount", "draft"], ["completedSessionCount", "completed"]]) {
+        document.getElementById(id).textContent = sessions.filter(s => s.status === status).length;
+        const tab = document.getElementById(id).closest("button");
+        tab.classList.remove("active");
+        tab.onclick = () => {
+          statusFilter = status;
+          document.querySelectorAll(".session-tab").forEach(other => other.classList.toggle("active", other === tab));
+          drawSessions();
+        };
+      }
+      function drawSessions() {
+        const visible = sessions.filter(s => (!statusFilter || s.status === statusFilter) &&
+          s.name.toLowerCase().includes(search.value.trim().toLowerCase()) &&
+          (!date.value || s.starts_at.slice(0, 10) === date.value) &&
+          (!mode.value || s.round_format === mode.value));
+        list.replaceChildren();
+        for (const session of visible) {
+          const row = element("article", undefined, list);
+          const link = element("a", session.name, row);
+          link.href = `/sessions/${session.id}`;
+          row.className = "card";
+          element("p", `${session.starts_at} · ${session.status} · ${formats[session.round_format]}`, row);
+        }
+        document.getElementById("sessionsEmptyState").hidden = visible.length > 0;
+        document.getElementById("sessionsResultCount").textContent = `${visible.length} sessions`;
+      }
+      for (const input of [search, date, mode]) input.addEventListener("input", drawSessions);
+      document.getElementById("clearSessionFilters").onclick = () => {
+        for (const input of [search, date, mode]) input.value = "";
+        statusFilter = "";
+        document.querySelectorAll(".session-tab").forEach(tab => tab.classList.remove("active"));
+        drawSessions();
+      };
+      document.querySelector(".sessions-pagination")?.remove();
+      drawSessions();
+    }
+    if (data.page === "accounts") {
+      const [members, invitations, login] = await Promise.all([api("/api/users"), api("/api/invitations"), api("/check-session")]);
+      const ownRole = login.user.role;
+      const search = document.getElementById("accountSearch");
+      const roleFilter = document.getElementById("roleFilter");
+      const statusFilter = document.getElementById("statusFilter");
+      const list = document.getElementById("accountTableBody");
+      document.getElementById("adminEmail").textContent = login.user.email;
+      const add = document.getElementById("addAccountButton");
+      add.textContent = "Invite Member";
+      add.onclick = () => location.assign("/settings/invite-member");
+      const rows = members.users.map(u => ({...u, status: u.active ? "active" : "disabled"}));
+      rows.push(...invitations.invitations.filter(i => !i.accepted_at && new Date(`${i.expires_at}Z`) > new Date()).map(i => ({...i, status: "pending", invitation: true})));
+      function drawAccounts() {
+        const visible = rows.filter(u => `${u.full_name || ""} ${u.email}`.toLowerCase().includes(search.value.trim().toLowerCase()) &&
+          (!roleFilter.value || u.role === roleFilter.value) && (!statusFilter.value || u.status === statusFilter.value));
+        list.replaceChildren();
+        for (const member of visible) {
+          const row = element("tr", undefined, list);
+          for (const value of [member.full_name || "—", member.email, member.role, member.status, "—"]) element("td", value, row);
+          const actions = element("td", undefined, row);
+          if (member.role === "owner" || (ownRole !== "owner" && member.role !== "staff") || member.status === "disabled") continue;
+          if (!member.invitation) {
+            const role = element("select", undefined, actions);
+            for (const value of ownRole === "owner" ? ["admin", "staff"] : ["staff"]) element("option", value, role).value = value;
+            role.value = member.role;
+            button("Save Role", actions, async () => { await api(`/api/users/${member.id}`, "PATCH", {role: role.value}); location.reload(); });
+          }
+          button(member.invitation ? "Revoke" : "Remove", actions, async () => {
+            if (!window.confirm(`${member.invitation ? "Revoke invitation for" : "Remove"} ${member.email}?`)) return;
+            await api(`/api/${member.invitation ? "invitations" : "users"}/${member.id}`, "DELETE"); location.reload();
+          });
+        }
+        document.getElementById("accountsEmptyState").hidden = visible.length > 0;
+        document.getElementById("accountCount").textContent = `${visible.length} accounts and pending invitations`;
+      }
+      for (const input of [search, roleFilter, statusFilter]) input.addEventListener("input", drawAccounts);
+      document.getElementById("clearAccountFilters").onclick = () => { for (const input of [search, roleFilter, statusFilter]) input.value = ""; drawAccounts(); };
+      document.querySelector(".account-pagination")?.remove();
+      drawAccounts();
+    }
     if (data.page === "dashboard") {
       const [sessions, players, courts] = await Promise.all([api("/api/sessions"), api("/api/players"), api("/api/courts")]);
       document.getElementById("registeredPlayers").textContent = players.players.length;
@@ -247,6 +340,7 @@
     }
     if (data.page === "history") {
         const response = await api("/api/sessions");
+        const formats = {open: "Open Play", mixed: "Mixed Doubles", same_gender: "Same-Gender Doubles"};
 
         const completedSessions = response.sessions.filter(
             session => session.status === "completed"
@@ -260,6 +354,10 @@
         const date = document.getElementById("historyDate");
         const type = document.getElementById("historyType");
         const clearButton = document.getElementById("clearHistoryFilters");
+        type.replaceChildren();
+        for (const [value, label] of [["", "All Formats"], ...Object.entries(formats)]) {
+            element("option", label, type).value = value;
+        }
 
         const pagination = document.querySelector(".history-pagination");
         const pageButtons = pagination.querySelectorAll("button");
@@ -342,9 +440,7 @@
 
                 element(
                     "td",
-                    session.round_format === "mixed"
-                        ? "Mixed Doubles"
-                        : "Open Play",
+                    formats[session.round_format] || session.round_format,
                     row
                 );
 
