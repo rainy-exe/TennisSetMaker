@@ -20,97 +20,110 @@ window the algorithm uses):
 
 from collections import Counter, defaultdict
 
-from sqlalchemy import select
+from sqlalchemy import and_, case, func, select
+from sqlalchemy.orm import aliased
 
 from app.extensions import db
 from app.models import Player, Round, RoundPlayerOutcome, TennisSession
 
 RECENT_ROUNDS = 50  # same window as the algorithm's sit-out ratio
 EVEN_MARGIN = 1.0  # |balance| below this reads as "even"
+TOP_PARTNERS = 10
 
 
-def _club_rounds(club_id):
-    """Final outcomes of every completed round in the club, grouped by round."""
-    rows = db.session.execute(
+def _window_rows(club_id):
+    """Each player's last RECENT_ROUNDS completed rounds, filtered in the
+    database (like round_service._recent_history_for), so the work stays the
+    same size however much history the club has. One row per player-round,
+    newest first per player."""
+    final = aliased(RoundPlayerOutcome)
+    generated = aliased(RoundPlayerOutcome)
+    ranked = (
         select(
-            RoundPlayerOutcome.round_id,
-            RoundPlayerOutcome.player_id,
-            RoundPlayerOutcome.outcome,
-            RoundPlayerOutcome.court_id,
-            RoundPlayerOutcome.team,
-            Round.number,
-            Round.completed_at,
-            TennisSession.id,
-            TennisSession.name,
-            TennisSession.starts_at,
+            final.player_id.label("player_id"),
+            final.round_id.label("round_id"),
+            final.outcome.label("outcome"),
+            func.row_number()
+            .over(
+                partition_by=final.player_id,
+                order_by=(Round.completed_at.desc(), Round.number.desc(), Round.id.desc()),
+            )
+            .label("position"),
         )
-        .join(Round, Round.id == RoundPlayerOutcome.round_id)
+        .join(Round, Round.id == final.round_id)
         .join(TennisSession, TennisSession.id == Round.session_id)
         .where(
             TennisSession.club_id == club_id,
             Round.status == "completed",
-            RoundPlayerOutcome.version == "final",
+            final.version == "final",
         )
+        .subquery()
+    )
+    in_window = select(ranked.c.round_id).where(ranked.c.position <= RECENT_ROUNDS)
+    # How many were at each of those rounds, and how many sat out.
+    sizes = (
+        select(
+            RoundPlayerOutcome.round_id.label("round_id"),
+            func.count().label("size"),
+            func.sum(case((RoundPlayerOutcome.outcome == "sit_out", 1), else_=0)).label("sits"),
+        )
+        .where(
+            RoundPlayerOutcome.version == "final",
+            RoundPlayerOutcome.round_id.in_(in_window),
+        )
+        .group_by(RoundPlayerOutcome.round_id)
+        .subquery()
+    )
+    return db.session.execute(
+        select(
+            ranked.c.player_id,
+            ranked.c.round_id,
+            ranked.c.outcome,
+            sizes.c.size,
+            sizes.c.sits,
+            generated.outcome,
+            Round.number,
+            TennisSession.id,
+            TennisSession.name,
+            TennisSession.starts_at,
+        )
+        .select_from(ranked)
+        .join(sizes, sizes.c.round_id == ranked.c.round_id)
+        .join(Round, Round.id == ranked.c.round_id)
+        .join(TennisSession, TennisSession.id == Round.session_id)
+        .outerjoin(
+            generated,
+            and_(
+                generated.round_id == ranked.c.round_id,
+                generated.player_id == ranked.c.player_id,
+                generated.version == "generated",
+            ),
+        )
+        .where(ranked.c.position <= RECENT_ROUNDS)
+        .order_by(ranked.c.player_id, ranked.c.position)
     ).all()
 
-    generated_sit_outs = set(
-        db.session.execute(
-            select(RoundPlayerOutcome.round_id, RoundPlayerOutcome.player_id)
-            .join(Round, Round.id == RoundPlayerOutcome.round_id)
-            .join(TennisSession, TennisSession.id == Round.session_id)
-            .where(
-                TennisSession.club_id == club_id,
-                Round.status == "completed",
-                RoundPlayerOutcome.version == "generated",
-                RoundPlayerOutcome.outcome == "sit_out",
-            )
-        ).all()
-    )
 
-    rounds = {}
-    for (round_id, player_id, outcome, court_id, team, number, completed_at,
+def _build_windows(rows):
+    """{player_id: [round, ...]} newest first."""
+    windows = defaultdict(list)
+    for (player_id, round_id, outcome, size, sits, generated_outcome, number,
          session_id, session_name, starts_at) in rows:
-        info = rounds.setdefault(
-            round_id,
+        sat_out = outcome == "sit_out"
+        windows[player_id].append(
             {
-                "id": round_id,
+                "round_id": round_id,
                 "number": number,
-                "completed_at": completed_at,
                 "session_id": session_id,
                 "session_name": session_name,
                 "starts_at": starts_at,
-                "outcomes": {},
-                "teams": defaultdict(list),
-            },
+                "sat_out": sat_out,
+                # The algorithm had them playing; a staff change sat them out.
+                "staff": sat_out and generated_outcome == "playing",
+                "share": (sits or 0) / size if size else 0.0,
+            }
         )
-        sat_out = outcome == "sit_out"
-        info["outcomes"][player_id] = {
-            "sat_out": sat_out,
-            "staff": sat_out and (round_id, player_id) not in generated_sit_outs,
-        }
-        if not sat_out and court_id is not None:
-            info["teams"][(court_id, team)].append(player_id)
-
-    for info in rounds.values():
-        size = len(info["outcomes"])
-        sits = sum(1 for item in info["outcomes"].values() if item["sat_out"])
-        info["share"] = sits / size if size else 0.0
-    return rounds
-
-
-def _windows(rounds):
-    """Each player's most recent RECENT_ROUNDS rounds, newest first."""
-    by_player = defaultdict(list)
-    ordered = sorted(
-        rounds.values(),
-        key=lambda r: (r["completed_at"] or r["starts_at"], r["number"]),
-        reverse=True,
-    )
-    for info in ordered:
-        for player_id in info["outcomes"]:
-            if len(by_player[player_id]) < RECENT_ROUNDS:
-                by_player[player_id].append(info)
-    return by_player
+    return windows
 
 
 def _status(balance, rounds):
@@ -123,9 +136,9 @@ def _status(balance, rounds):
     return "even"
 
 
-def _summary(player_id, window):
-    sat_out = sum(1 for r in window if r["outcomes"][player_id]["sat_out"])
-    staff = sum(1 for r in window if r["outcomes"][player_id]["staff"])
+def _summary(window):
+    sat_out = sum(1 for r in window if r["sat_out"])
+    staff = sum(1 for r in window if r["staff"])
     expected = sum(r["share"] for r in window)
     balance = sat_out - expected
     return {
@@ -141,37 +154,43 @@ def _summary(player_id, window):
 
 def _club_rate(windows):
     rounds = sum(len(window) for window in windows.values())
-    sits = sum(
-        1
-        for player_id, window in windows.items()
-        for r in window
-        if r["outcomes"][player_id]["sat_out"]
-    )
+    sits = sum(1 for window in windows.values() for r in window if r["sat_out"])
     return round(sits / rounds, 3) if rounds else None
+
+
+def _partner_counts(player_id, team_rows):
+    """team_rows: (round_id, player_id, court_id, team) for players who played."""
+    teams = defaultdict(list)
+    for round_id, other_id, court_id, team in team_rows:
+        teams[(round_id, court_id, team)].append(other_id)
+    counts = Counter()
+    for members in teams.values():
+        if player_id in members:
+            counts.update(other for other in members if other != player_id)
+    return counts
 
 
 def club_summaries(club_id):
     """{player_id: summary} for everyone with history, plus the club rate."""
-    windows = _windows(_club_rounds(club_id))
-    summaries = {player_id: _summary(player_id, window) for player_id, window in windows.items()}
+    windows = _build_windows(_window_rows(club_id))
+    summaries = {player_id: _summary(window) for player_id, window in windows.items()}
     return summaries, _club_rate(windows)
 
 
 def player_report(club_id, player_id):
     """Everything the player detail card and full-screen view show."""
-    rounds = _club_rounds(club_id)
-    windows = _windows(rounds)
+    windows = _build_windows(_window_rows(club_id))
     window = windows.get(player_id, [])
-    summary = _summary(player_id, window)
+    summary = _summary(window)
 
     # Oldest first, so the timeline reads left to right.
     timeline = [
         {
-            "date": (r["starts_at"]).date().isoformat(),
+            "date": r["starts_at"].date().isoformat(),
             "session": r["session_name"],
             "round": r["number"],
-            "sat_out": r["outcomes"][player_id]["sat_out"],
-            "staff": r["outcomes"][player_id]["staff"],
+            "sat_out": r["sat_out"],
+            "staff": r["staff"],
         }
         for r in reversed(window)
     ]
@@ -190,26 +209,40 @@ def player_report(club_id, player_id):
             }
             sessions.append(entry)
         entry["rounds"] += 1
-        entry["sat_out"] += int(r["outcomes"][player_id]["sat_out"])
+        entry["sat_out"] += int(r["sat_out"])
         entry["expected"] += r["share"]
     for entry in sessions:
         entry["expected"] = round(entry["expected"], 1)
 
     partners = Counter()
-    for r in window:
-        for members in r["teams"].values():
-            if player_id in members:
-                partners.update(other for other in members if other != player_id)
+    round_ids = [r["round_id"] for r in window if not r["sat_out"]]
+    if round_ids:
+        partners = _partner_counts(
+            player_id,
+            db.session.execute(
+                select(
+                    RoundPlayerOutcome.round_id,
+                    RoundPlayerOutcome.player_id,
+                    RoundPlayerOutcome.court_id,
+                    RoundPlayerOutcome.team,
+                ).where(
+                    RoundPlayerOutcome.round_id.in_(round_ids),
+                    RoundPlayerOutcome.version == "final",
+                    RoundPlayerOutcome.outcome == "playing",
+                )
+            ).all(),
+        )
+    top = partners.most_common(TOP_PARTNERS)
     names = dict(
         db.session.execute(
-            select(Player.id, Player.name).where(Player.id.in_(list(partners) or [""]))
+            select(Player.id, Player.name).where(Player.id.in_([other for other, _ in top] or [""]))
         ).all()
     )
 
     club = []
     for other_id, other_window in windows.items():
         if len(other_window) >= 5 or other_id == player_id:
-            other = _summary(other_id, other_window)
+            other = _summary(other_window)
             club.append({"rate": other["rate"], "balance": other["balance"], "is_player": other_id == player_id})
 
     return {
@@ -218,9 +251,6 @@ def player_report(club_id, player_id):
         "club_rate": _club_rate(windows),
         "timeline": timeline,
         "sessions": sessions[:8],
-        "partners": [
-            {"name": names.get(other, "Unknown"), "rounds": count}
-            for other, count in partners.most_common(5)
-        ],
+        "partners": [{"name": names.get(other, "Unknown"), "rounds": count} for other, count in top],
         "club": club,
     }

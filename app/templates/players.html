@@ -186,8 +186,10 @@
       </div>
 
       <div class="insights-block">
-        <h3>Most frequent partners</h3>
+        <h3 class="insights-title-spaced">Most frequent partners</h3>
         <div id="insights-partners"></div>
+        <button type="button" class="btn btn-sm partners-more" id="insights-partners-more" hidden
+          aria-expanded="false" aria-controls="insights-partners"></button>
       </div>
     </section>
 
@@ -458,7 +460,8 @@
     var box = document.getElementById('insights-sessions');
     box.replaceChildren();
     if (!sessions.length) { el('p', 'detail-empty', 'No sessions yet.', box); return; }
-    var W = 460, H = 210, left = 28, bottom = 36, top = 12, right = 8;
+    // Draw at the real width so text and bars stay a sensible size.
+    var W = Math.max(280, Math.round(box.clientWidth || 460)), H = 210, left = 28, bottom = 36, top = 12, right = 8;
     var plotW = W - left - right, plotH = H - top - bottom;
     var max = Math.max(1, Math.ceil(Math.max.apply(null, sessions.map(function (x) { return Math.max(x.sat_out, x.expected); }))));
     var chart = svg('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'chart', role: 'img',
@@ -494,7 +497,7 @@
     box.replaceChildren();
     var points = report.club.filter(function (p) { return p.rate !== null; });
     if (points.length < 2) { el('p', 'detail-empty', 'Not enough club history yet.', box); return; }
-    var W = 460, H = 190, left = 16, right = 16, axisY = 150;
+    var W = Math.max(280, Math.round(box.clientWidth || 460)), H = 190, left = 16, right = 16, axisY = 150;
     var maxRate = Math.max(0.05, Math.max.apply(null, points.map(function (p) { return p.rate; })));
     maxRate = Math.ceil(maxRate * 20) / 20; // round up to 5%
     var x = function (rate) { return left + rate / maxRate * (W - left - right); };
@@ -529,12 +532,17 @@
     el('i', 'key other', null, el('span', null, null, legend)).parentNode.appendChild(document.createTextNode(' Other players (5+ rounds)'));
   }
 
+  var showAllPartners = false;
   function drawPartners(partners) {
     var box = document.getElementById('insights-partners');
+    var more = document.getElementById('insights-partners-more');
     box.replaceChildren();
+    more.hidden = partners.length <= 5;
+    more.textContent = showAllPartners ? 'Show top 5 ▲' : 'Show top ' + Math.min(partners.length, 10) + ' ▼';
+    more.setAttribute('aria-expanded', showAllPartners ? 'true' : 'false');
     if (!partners.length) { el('p', 'detail-empty', 'No rounds together yet.', box); return; }
     var max = partners[0].rounds;
-    partners.forEach(function (partner) {
+    partners.slice(0, showAllPartners ? 10 : 5).forEach(function (partner) {
       var row = el('div', 'partner-bar-row', null, box);
       el('span', 'partner-bar-name', partner.name, row);
       var track = el('span', 'partner-bar-track', null, row);
@@ -544,6 +552,24 @@
   }
 
   var insights = document.getElementById('player-insights');
+  var partnersMore = document.getElementById('insights-partners-more');
+  if (partnersMore) {
+    partnersMore.addEventListener('click', function () {
+      showAllPartners = !showAllPartners;
+      if (reports[currentId]) drawPartners(reports[currentId].partners);
+    });
+  }
+  // Redraw the charts at the new width when the window is resized.
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    if (!insights || insights.hidden || !reports[currentId]) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      var report = reports[currentId];
+      drawSessions(report.sessions.slice().reverse());
+      drawClub(report);
+    }, 150);
+  });
   var expandBtn = document.getElementById('detail-expand');
   var mainEl = document.querySelector('.players-main');
   function setFocus(on) {

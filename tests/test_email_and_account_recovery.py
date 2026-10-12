@@ -557,21 +557,22 @@ def test_sit_out_report_counts_expected_share_staff_changes_and_partners(mail_ap
         db.session.add_all([court, session])
         db.session.flush()
 
-        def add_round(number, teams, sitting, generated_sitting):
+        def add_round(number, teams, sitting, generated_teams, generated_sitting):
             round_ = Round(session_id=session.id, number=number, status="completed",
                            completed_at=datetime(2026, 10, 3, 13) + timedelta(minutes=30 * number))
             db.session.add(round_)
             db.session.flush()
-            for team_number, team in enumerate(teams, start=1):
-                for slot, player_index in enumerate(team, start=1):
-                    db.session.add(RoundPlayerOutcome(round_id=round_.id, player_id=ids[player_index], version="final",
-                                                      outcome="playing", court_id=court.id, team=team_number, slot=slot))
-            db.session.add(RoundPlayerOutcome(round_id=round_.id, player_id=ids[sitting], version="final", outcome="sit_out"))
-            db.session.add(RoundPlayerOutcome(round_id=round_.id, player_id=ids[generated_sitting], version="generated", outcome="sit_out"))
+            for version, layout, out in (("final", teams, sitting), ("generated", generated_teams, generated_sitting)):
+                for team_number, team in enumerate(layout, start=1):
+                    for slot, player_index in enumerate(team, start=1):
+                        db.session.add(RoundPlayerOutcome(
+                            round_id=round_.id, player_id=ids[player_index], version=version,
+                            outcome="playing", court_id=court.id, team=team_number, slot=slot))
+                db.session.add(RoundPlayerOutcome(round_id=round_.id, player_id=ids[out], version=version, outcome="sit_out"))
 
-        add_round(1, [(0, 1), (2, 3)], sitting=4, generated_sitting=4)
-        # Staff swapped P3 out for P4 in round 2.
-        add_round(2, [(0, 1), (2, 4)], sitting=3, generated_sitting=4)
+        add_round(1, [(0, 1), (2, 3)], 4, [(0, 1), (2, 3)], 4)
+        # The algorithm sat P4 out again; staff swapped P3 out instead.
+        add_round(2, [(0, 1), (2, 4)], 3, [(0, 1), (2, 3)], 4)
         db.session.commit()
 
     report = client.get(f"/api/players/{ids[0]}/sit-outs").get_json()
