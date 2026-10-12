@@ -174,6 +174,7 @@ Template example:
   "start_time": "13:00",
   "round_format": "open",
   "strict_format": false,
+  "variety_mode": 2,
   "tea_break_after_round": 3,
   "court_ids": ["<court-id-1>", "<court-id-2>"]
 }
@@ -183,7 +184,14 @@ Formats: `open`, `mixed`, `same_gender`. Strict mixed needs one M and one F per
 team; strict same-gender needs same-gender partners, allowing MM versus FF spares.
 Open does not guarantee same-gender teams. Limits: rounds 1–50, total minutes
 1–1440, round minutes 1–240; tea break is null or before the last round.
-Durations/tea break are metadata, not timers. Templates are not algorithm-weight presets.
+Durations/tea break are metadata, not timers.
+
+Pairing mode (`variety_mode`, templates and sessions): `1` avoid repeats (repeat
+avoidance first, skill gaps up to 4), `2` balanced skill (default; gaps within 2
+first), `3` round robin (gaps within 2, then meet as many people as possible).
+A session copies its template's mode unless the request sets one; the mode is
+passed to Prototype4's `assign_courts_for_round`. Migration `f4b2c8d1e6a7` adds
+the column (existing rows become `2`, which is what they already used).
 
 ## 4. Session flow
 

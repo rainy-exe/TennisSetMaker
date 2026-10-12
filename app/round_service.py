@@ -229,6 +229,7 @@ def generate_next_round(session):
         round_number,
         ROUND_FORMAT_MODES[session.round_format],
         session.strict_format,
+        variety_mode=session.variety_mode,
     )
 
     valid_ids = {player.id for player in eligible_players}

@@ -1970,7 +1970,9 @@ th[aria-sort="descending"] .th-sort {
   display: flex;
   align-items: center;
 
-  background-image: url("../images/tennis-hero.png");
+  /* Dark green shows instantly while the photo loads */
+  background-color: #1d3a30;
+  background-image: url("../images/tennis-hero.webp");
   background-size: cover;
   background-position: center;
 }
@@ -2342,7 +2344,9 @@ th[aria-sort="descending"] .th-sort {
 .login-image {
   position: relative;
 
-  background-image: url("../images/tennis-hero.png");
+  /* Dark green shows instantly while the photo loads */
+  background-color: #1d3a30;
+  background-image: url("../images/tennis-hero.webp");
   background-size: cover;
   background-position: center;
 }
@@ -6636,4 +6640,120 @@ html.smooth-scroll {
     border-left: 0;
     border-top: 1px solid var(--border-soft);
   }
+}
+
+
+/* =========================
+   PAIRING MODE, ROW LAYOUTS, TEMPLATE CARDS, COURT SURFACES
+========================= */
+
+/* Radio options side by side (Match Format, Pairing Mode) */
+.radio-group.radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+}
+
+.choice-with-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.choice-with-tip .info-tip-text {
+  top: calc(100% + 8px);
+  left: 0;
+  right: auto;
+}
+
+/* Court checkboxes side by side */
+.court-options.court-options-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+}
+
+/* Label with an (i) next to it (template Pairing Mode) */
+.label-with-tip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+
+.label-with-tip label {
+  margin-bottom: 0 !important;
+}
+
+.label-with-tip .info-tip-text {
+  top: calc(100% + 8px);
+  left: 0;
+  right: auto;
+}
+
+.info-tip-text.info-tip-wide {
+  width: 320px;
+}
+
+/* Space between a form's buttons and anything after them */
+.form-card .form-actions + .field,
+.card form .form-actions + .field {
+  margin-top: 18px;
+}
+
+/* Template cards: Edit top-right, details, then Use Template */
+.template-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.template-card .template-row {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 14px;
+  color: var(--muted);
+}
+
+.template-mode {
+  min-height: 22px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  background: var(--gray-soft);
+  color: #4f555b;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* Court surfaces */
+.badge.surface-clay {
+  background: #fbe9df;
+  color: #b4532a;
+}
+
+.badge.surface-hard {
+  background: var(--blue-soft);
+  color: #2f66b8;
+}
+
+.badge.surface-grass {
+  background: var(--green-soft);
+  color: #277432;
+}
+
+.badge.surface-synthetic {
+  background: #f0ebfb;
+  color: #6a4bc4;
+}
+
+.badge[class*="surface-"]:not(.surface-clay):not(.surface-hard):not(.surface-grass):not(.surface-synthetic) {
+  background: var(--gray-soft);
+  color: #666c72;
 }

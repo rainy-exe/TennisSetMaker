@@ -77,7 +77,10 @@
   function field(form, name, label, value, type = "text") {
     let input = form.elements?.namedItem(name) || form.querySelector(`[name="${name}"]`);
     if (!input) {
-      const row = element("div", undefined, form);
+      // New fields go above the divider / buttons, never below them.
+      const anchor = form.querySelector(":scope > .form-divider") || form.querySelector(":scope > .form-actions");
+      const row = element("div", undefined);
+      if (anchor) form.insertBefore(row, anchor); else form.append(row);
       row.className = "field";
       const caption = element("label", label, row);
       input = element("input", undefined, row);
@@ -362,6 +365,7 @@
       if (data.page === "template-form") {
         form.elements["template-name"].value = template?.name || "";
         form.elements.format.value = {mixed: "Mixed Doubles", same_gender: "Same-Gender Doubles", open: "Open Play (Any Gender)"}[template?.round_format || "open"];
+        form.elements.variety_mode.value = String(template?.variety_mode || 2);
         field(form, "rounds", "Number of Rounds", template?.number_of_rounds || 6, "number");
         field(form, "round-length", "Round Length (minutes)", template?.round_duration_minutes || 30, "number");
         field(form, "start_time", "Start Time", template?.start_time || "13:00", "time");
@@ -375,6 +379,7 @@
             round_duration_minutes: Number(values.get("round-length")), start_time: values.get("start_time"),
             session_duration_minutes: Number(values.get("session_duration_minutes")),
             round_format: roundFormat(values.get("format")),
+            variety_mode: Number(values.get("variety_mode") || 2),
             tea_break_after_round: values.get("tea_break_after_round") ? Number(values.get("tea_break_after_round")) : null,
             court_ids: useDefaults ? courts.map(court => court.id) : values.getAll("court_ids")};
           await api(template ? `/api/session-templates/${template.id}` : "/api/session-templates", template ? "PATCH" : "POST", payload);
@@ -396,6 +401,7 @@
         field(form, "tea_break_after_round", "Tea Break After Round (optional)", template?.tea_break_after_round, "number");
         form.elements.matchFormat.value = {mixed: "mixedDoubles", same_gender: "sameGenderDoubles", open: "openPlay"}[template?.round_format || "open"];
         form.elements.allowRelaxation.checked = !template?.strict_format;
+        form.elements.varietyMode.value = String(template?.variety_mode || 2);
         choices(document.getElementById("courtOptions"), courts, "court_ids", template?.court_ids || courts.map(court => court.id));
         playerPicker(players);
         form.elements.venue.closest(".field").hidden = true;
@@ -405,6 +411,7 @@
             number_of_rounds: Number(values.get("number_of_rounds")), round_duration_minutes: Number(values.get("roundDuration")),
             session_duration_minutes: Number(values.get("session_duration_minutes")),
             round_format: roundFormat(values.get("matchFormat")),
+            variety_mode: Number(values.get("varietyMode") || 2),
             strict_format: !values.has("allowRelaxation"), court_ids: values.getAll("court_ids"), player_ids: values.getAll("player_ids"),
             tea_break_after_round: values.get("tea_break_after_round") ? Number(values.get("tea_break_after_round")) : null};
           if (template) payload.template_id = template.id;

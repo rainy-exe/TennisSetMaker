@@ -363,6 +363,9 @@ class SessionTemplate(TimestampMixin, db.Model):
     start_time = db.Column(db.Time, nullable=False)
     round_format = db.Column(db.String(20), nullable=False, default="open")
     strict_format = db.Column(db.Boolean, nullable=False, default=False)
+    # Pairing mode passed to Prototype4: 1 = avoid repeats, 2 = balanced
+    # skill (default), 3 = round robin.
+    variety_mode = db.Column(db.Integer, nullable=False, default=2, server_default="2")
     tea_break_after_round = db.Column(db.Integer, nullable=True)
     active = db.Column(db.Boolean, nullable=False, default=True)
 
@@ -433,6 +436,9 @@ class TennisSession(TimestampMixin, db.Model):
     round_duration_minutes = db.Column(db.Integer, nullable=False)
     round_format = db.Column(db.String(20), nullable=False, default="open")
     strict_format = db.Column(db.Boolean, nullable=False, default=False)
+    # Pairing mode passed to Prototype4: 1 = avoid repeats, 2 = balanced
+    # skill (default), 3 = round robin.
+    variety_mode = db.Column(db.Integer, nullable=False, default=2, server_default="2")
     tea_break_after_round = db.Column(db.Integer, nullable=True)
     status = db.Column(db.String(20), nullable=False, default="draft")
     created_by = db.Column(

@@ -183,7 +183,7 @@
                                 Match Format
                             </label>
 
-                            <div class="radio-group">
+                            <div class="radio-group radio-row">
 
                                 <label class="choice">
                                     <input type="radio" name="matchFormat" value="mixedDoubles">
@@ -206,6 +206,48 @@
                             </div>
 
                         </div>
+                        <!-- Pairing Mode -->
+                        <div class="field">
+
+                            <span class="field-label">
+                                Pairing Mode
+                            </span>
+
+                            <div class="radio-group radio-row">
+
+                                <span class="choice-with-tip">
+                                    <label class="choice">
+                                        <input type="radio" name="varietyMode" value="2">
+                                        Balanced Skill
+                                    </label>
+                                    <span class="info-tip" tabindex="0" role="button"
+                                        aria-label="About Balanced Skill" aria-describedby="varietyTip2">i</span>
+                                    <span class="info-tip-text" role="tooltip" id="varietyTip2">Keeps teams and partners close in skill (gaps of 2 or less) first, then avoids repeat partners and opponents where it can. The default.</span>
+                                </span>
+
+                                <span class="choice-with-tip">
+                                    <label class="choice">
+                                        <input type="radio" name="varietyMode" value="3">
+                                        Round Robin
+                                    </label>
+                                    <span class="info-tip" tabindex="0" role="button"
+                                        aria-label="About Round Robin" aria-describedby="varietyTip3">i</span>
+                                    <span class="info-tip-text" role="tooltip" id="varietyTip3">Keeps skill gaps within 2, then mixes everyone up so players meet as many different people as possible during the session.</span>
+                                </span>
+
+                                <span class="choice-with-tip">
+                                    <label class="choice">
+                                        <input type="radio" name="varietyMode" value="1">
+                                        Avoid Repeats
+                                    </label>
+                                    <span class="info-tip" tabindex="0" role="button"
+                                        aria-label="About Avoid Repeats" aria-describedby="varietyTip1">i</span>
+                                    <span class="info-tip-text" role="tooltip" id="varietyTip1">Avoids repeat partners and opponents first, and will accept bigger skill gaps (up to 4) to do it.</span>
+                                </span>
+
+                            </div>
+
+                        </div>
                         <!-- Court Allocation -->
                         <div class="field">
 
@@ -213,7 +255,7 @@
                                 Court Allocation (Priority Reordering)
                             </label>
 
-                            <div class="court-options" id="courtOptions">
+                            <div class="court-options court-options-row" id="courtOptions">
 
                                 <div class="court-option selected">
 

@@ -10,7 +10,7 @@
     {% for court in courts %}
     <div class="court-row {{ 'disabled' if not court.active else '' }}">
       <span class="priority-dot">{{ court.priority }}</span>
-      <div class="court-info"><div class="court-name">Court {{ court.number }}</div><span class="badge blue">{{ court.court_type }}</span></div>
+      <div class="court-info"><div class="court-name">Court {{ court.number }}</div><span class="badge surface-{{ (court.court_type or '')|lower|replace(' ', '-') }}">{{ court.court_type }}</span></div>
       <span class="court-detail">{{ court.cover or '' }}</span>
       <span class="court-status">{{ 'Active' if court.active else 'Inactive' }}</span>
       {% if page_data.can_manage %}

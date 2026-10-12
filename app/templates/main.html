@@ -7,6 +7,9 @@
 
     <title>SetMaker</title>
 
+    <!-- Start the background photo download straight away, before the CSS asks for it -->
+    <link rel="preload" as="image" type="image/webp" fetchpriority="high"
+        href="{{ url_for('static', filename='images/tennis-hero.webp') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 

@@ -200,3 +200,41 @@ def test_strict_mixed_format_rejects_a_non_mixed_result(client, create_player):
     response = client.post(f"/api/sessions/{session['id']}/rounds/generate")
     assert response.status_code == 422
     assert response.get_json()["error"] == "no_valid_solution"
+
+
+def test_pairing_mode_flows_from_template_to_session_to_algorithm(client, create_player, app):
+    players = [create_player() for _ in range(4)]
+    court = client.post(
+        "/api/courts", json={"number": 3, "court_type": "hard"}
+    ).get_json()["court"]
+    assert client.post(
+        "/api/session-templates", json={"name": "Bad mode", "variety_mode": 4}
+    ).status_code == 400
+    template = client.post(
+        "/api/session-templates",
+        json={"name": "Round robin night", "variety_mode": 3, "court_ids": [court["id"]]},
+    ).get_json()["session_template"]
+    assert template["variety_mode"] == 3
+
+    payload = {
+        "template_id": template["id"],
+        "starts_at": "2026-09-12T13:00:00",
+        "player_ids": [player["id"] for player in players],
+    }
+    inherited = client.post("/api/sessions", json={**payload, "name": "Inherits"}).get_json()["session"]
+    assert inherited["variety_mode"] == 3
+    chosen = client.post(
+        "/api/sessions", json={**payload, "name": "Overrides", "variety_mode": 1}
+    ).get_json()["session"]
+    assert chosen["variety_mode"] == 1
+
+    assert client.post(f"/api/sessions/{chosen['id']}/rounds/generate").status_code == 201
+    assert app.fake_algorithm.calls[-1]["variety_mode"] == 1
+
+    plain = client.post(
+        "/api/sessions",
+        json={"name": "Default", "starts_at": "2026-09-12T13:00:00", "court_ids": [court["id"]],
+              "number_of_rounds": 2, "round_duration_minutes": 30,
+              "player_ids": [player["id"] for player in players]},
+    ).get_json()["session"]
+    assert plain["variety_mode"] == 2  # balanced skill by default
