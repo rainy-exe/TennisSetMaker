@@ -516,6 +516,15 @@ def get_player(player_id):
     return jsonify({"player": serialize_player(player_for_club(player_id))})
 
 
+@api.get("/players/<player_id>/sit-outs")
+@require_authenticated
+def player_sit_outs(player_id):
+    from app.sitout_stats import player_report
+
+    player = player_for_club(player_id)
+    return jsonify(player_report(player.club_id, player.id))
+
+
 @api.patch("/players/<player_id>")
 @require_authenticated
 def update_player(player_id):

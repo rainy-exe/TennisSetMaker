@@ -491,7 +491,7 @@ def test_players_table_shows_one_dot_per_rating_point_and_sortable_headings(mail
     register(client)
     assert login(client).status_code == 200
     for name, skill in (("Synthetic Ten", 10), ("Synthetic Four", 4)):
-        response = write(client, "POST", "/api/players", {"name": name, "gender": "F", "skill": skill})
+        response = write(client, "POST", "/api/players", {"name": name, "gender": "F", "skill": skill, "confirm_duplicate": True})
         assert response.status_code == 201, response.get_json()
     page = client.get("/players").text
     for name, skill in (("Synthetic Ten", 10), ("Synthetic Four", 4)):
@@ -531,3 +531,61 @@ def test_active_session_page_puts_the_qr_under_sitting_out():
     assert "session-qr-card" in aside
     assert "session-qr-widget" not in page
     assert 'class="btn btn-end" id="endSessionBtn"' in page
+
+
+def test_sit_out_report_counts_expected_share_staff_changes_and_partners(mail_app):
+    from datetime import datetime, timedelta
+
+    from app.models import Court, Round, RoundPlayerOutcome, TennisSession
+
+    client = mail_app.test_client()
+    owner = register(client)["user"]
+    assert login(client).status_code == 200
+    ids = []
+    for index, gender in enumerate("FMFMF"):
+        response = write(client, "POST", "/api/players", {"name": f"Synthetic P{index}", "gender": gender, "skill": 5, "confirm_duplicate": True})
+        assert response.status_code == 201, response.get_json()
+        ids.append(response.get_json()["player"]["id"])
+
+    with mail_app.app_context():
+        court = Court(club_id=owner["club_id"], number=1, court_type="Hard")
+        session = TennisSession(
+            club_id=owner["club_id"], name="Synthetic Social", starts_at=datetime(2026, 10, 3, 13),
+            number_of_rounds=2, session_duration_minutes=60, round_duration_minutes=30,
+            status="active", created_by=owner["id"],
+        )
+        db.session.add_all([court, session])
+        db.session.flush()
+
+        def add_round(number, teams, sitting, generated_sitting):
+            round_ = Round(session_id=session.id, number=number, status="completed",
+                           completed_at=datetime(2026, 10, 3, 13) + timedelta(minutes=30 * number))
+            db.session.add(round_)
+            db.session.flush()
+            for team_number, team in enumerate(teams, start=1):
+                for slot, player_index in enumerate(team, start=1):
+                    db.session.add(RoundPlayerOutcome(round_id=round_.id, player_id=ids[player_index], version="final",
+                                                      outcome="playing", court_id=court.id, team=team_number, slot=slot))
+            db.session.add(RoundPlayerOutcome(round_id=round_.id, player_id=ids[sitting], version="final", outcome="sit_out"))
+            db.session.add(RoundPlayerOutcome(round_id=round_.id, player_id=ids[generated_sitting], version="generated", outcome="sit_out"))
+
+        add_round(1, [(0, 1), (2, 3)], sitting=4, generated_sitting=4)
+        # Staff swapped P3 out for P4 in round 2.
+        add_round(2, [(0, 1), (2, 4)], sitting=3, generated_sitting=4)
+        db.session.commit()
+
+    report = client.get(f"/api/players/{ids[0]}/sit-outs").get_json()
+    assert report["summary"]["rounds"] == 2
+    assert report["summary"]["sat_out"] == 0
+    assert report["summary"]["expected"] == 0.4  # 1 of 5 sits each round
+    assert report["summary"]["status"] == "even"
+    assert report["partners"][0] == {"name": "Synthetic P1", "rounds": 2}
+    assert [round_["round"] for round_ in report["timeline"]] == [1, 2]
+
+    staff = client.get(f"/api/players/{ids[3]}/sit-outs").get_json()["summary"]
+    assert staff["sat_out"] == 1 and staff["staff_sat_out"] == 1
+
+    page = client.get("/players").text
+    assert 'data-sort="sitouts"' in page
+    assert "1 / 2" in page
+    assert client.get("/api/players/not-a-player/sit-outs").status_code == 404

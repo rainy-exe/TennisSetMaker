@@ -21,6 +21,7 @@ from app.errors import ApiError
 from app.extensions import db
 from app.models import Club, Court, Player, Round, TennisSession, User
 from app.permissions import Role, can_manage_skill, current_actor, require_roles
+from app.sitout_stats import club_summaries
 
 main = Blueprint("main", __name__)
 
@@ -111,12 +112,16 @@ def players():
     roster = [
         display_player(item) for item in endpoints.list_players().get_json()["players"]
     ]
+    sit_outs, club_rate = club_summaries(current_actor().club_id)
+    for item in roster:
+        item["sit_outs"] = sit_outs.get(item["id"])
     selected_id = request.args.get("selected")
     selected = next((p for p in roster if p["id"] == selected_id), None)
     return page(
         "players.html",
         "players",
         players=roster,
+        club_sit_out_rate=club_rate,
         selected_player=selected or (roster[0] if roster else None),
         duplicate_player=None,
     )
