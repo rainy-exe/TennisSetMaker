@@ -105,6 +105,10 @@
                          INVITATION DETAILS
                     ========================== -->
 
+                    {% if invite_problem %}
+                    <p class="form-error invite-problem" role="alert">{{ invite_problem }}</p>
+                    {% endif %}
+
                     <div class="invite-details-card">
 
                         <div class="invite-detail-row">
@@ -114,7 +118,7 @@
                             </span>
 
                             <strong id="inviteClubName">
-                                —
+                                {{ invite.club if invite else '—' }}
                             </strong>
 
                         </div>
@@ -127,7 +131,7 @@
                             </span>
 
                             <strong class="invite-role" id="inviteRole">
-                                —
+                                {{ invite.role if invite else '—' }}
                             </strong>
 
                         </div>
@@ -136,11 +140,11 @@
                         <div class="invite-detail-row">
 
                             <span>
-                                Invited Email
+                                Invited by
                             </span>
 
-                            <strong id="inviteEmail">
-                                —
+                            <strong id="inviteInvitedBy">
+                                {{ invite.invited_by if invite else '—' }}
                             </strong>
 
                         </div>
