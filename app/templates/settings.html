@@ -47,9 +47,6 @@
       </table>
       <div class="team-table-footer">{{ team_members|length }} team members</div>
     </div>
-    {% if page_data.can_manage %}
-    <a class="btn btn-primary" href="{{ url_for('main.invite_member') }}"><span>+</span> Invite Team Member</a>
-    {% endif %}
   </div>
 
   <!-- Club Details Tab -->

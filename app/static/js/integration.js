@@ -114,7 +114,7 @@
       document.querySelectorAll(".delete-form").forEach(form => form.remove());
     }
     if (data.page === "player-form") {
-      const form = document.querySelector("form");
+      const form = main.querySelector("form");
       if (!data.can_manage_skill) {
         form.elements.rating.disabled = true;
         form.elements.rating.required = false;
@@ -147,7 +147,7 @@
       });
     }
     if (data.page === "court-form") {
-      const form = document.querySelector("form");
+      const form = main.querySelector("form");
       if (data.court) {
         form.elements["court-name"].value = data.court.number;
         const surface = data.court.court_type.charAt(0).toUpperCase() + data.court.court_type.slice(1).toLowerCase();
@@ -171,7 +171,7 @@
       });
     }
     if (data.page === "template-form" || data.page === "session-form") {
-      const form = document.querySelector("form");
+      const form = main.querySelector("form");
       const courts = (await api("/api/courts")).courts.filter(court => court.active);
       const template = data.template;
       if (data.page === "template-form") {

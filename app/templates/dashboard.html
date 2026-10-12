@@ -27,8 +27,9 @@
 
                 <div>
 
+                    {% set me = sidebar_user() %}
                     <h1 class="page-title">
-                        Welcome back, Admin
+                        {% if me %}Welcome back, {{ me.first_name }}{% else %}Welcome back{% endif %}
                     </h1>
 
                     <p class="page-subtitle">

@@ -76,9 +76,9 @@
     <table class="players-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Rating</th>
-          <th>Gender</th>
+          <th aria-sort="ascending"><button type="button" class="th-sort" data-sort="name">Name <span class="sort-arrow" aria-hidden="true">▲</span></button></th>
+          <th aria-sort="none"><button type="button" class="th-sort" data-sort="rating">Rating <span class="sort-arrow" aria-hidden="true"></span></button></th>
+          <th aria-sort="none"><button type="button" class="th-sort" data-sort="gender">Gender <span class="sort-arrow" aria-hidden="true"></span></button></th>
           <th></th>
         </tr>
       </thead>
@@ -88,6 +88,8 @@
         class="{{ 'selected' if selected_player and player.id == selected_player.id else '' }}"
         data-player-id="{{ player.id }}"
         data-name="{{ player.name|lower }}"
+        data-rating="{{ player.rating if player.rating is not none else '' }}"
+        data-gender="{{ player.gender|upper }}"
         >
           <td class="player-name-cell">
             <span class="player-name-text">{{ player.name }}</span>
@@ -99,11 +101,9 @@
             {% endif %}
           </td>
           <td>
-            {{ player.rating }}
-            <span class="rating-dots">
-              {% for i in range(7) %}
-                <span class="{{ 'filled' if i < player.rating_dots else '' }}"></span>
-              {% endfor %}
+            {{ player.rating if player.rating is not none else '—' }}
+            <span class="rating-dots" aria-hidden="true">
+              {% for i in range(player.rating_dots) %}<span class="filled"></span>{% endfor %}
             </span>
           </td>
           <td>{{ player.gender|upper }}</td>
@@ -319,14 +319,62 @@
 
       if (name.startsWith(query)) {
         row.style.display = '';
-        var match = originalName.slice(0, query.length);
-        var rest = originalName.slice(query.length);
-        nameSpan.innerHTML = '<mark class="search-hl">' + match + '</mark>' + rest;
+        var mark = document.createElement('mark');
+        mark.className = 'search-hl';
+        mark.textContent = originalName.slice(0, query.length);
+        nameSpan.replaceChildren(mark, originalName.slice(query.length));
       } else {
         row.style.display = 'none';
       }
     });
   });
+
+  // Click a column heading to sort; click again to reverse. Starts by name A-Z.
+  (function () {
+    var tbody = document.querySelector('.players-table tbody');
+    var buttons = document.querySelectorAll('.players-table .th-sort');
+    var current = { key: 'name', dir: 1 };
+
+    function value(row, key) {
+      if (key === 'rating') {
+        return row.dataset.rating === '' ? null : Number(row.dataset.rating);
+      }
+      return row.dataset[key] || '';
+    }
+
+    function compare(a, b) {
+      var va = value(a, current.key), vb = value(b, current.key);
+      if (va === null || vb === null) {
+        if (va === vb) return a.dataset.name.localeCompare(b.dataset.name);
+        return va === null ? 1 : -1;  // players without a rating stay last
+      }
+      var result = typeof va === 'number' ? va - vb : va.localeCompare(vb);
+      if (result === 0) return a.dataset.name.localeCompare(b.dataset.name);
+      return result * current.dir;
+    }
+
+    function apply() {
+      Array.prototype.slice.call(tbody.rows).sort(compare).forEach(function (row) {
+        tbody.appendChild(row);
+      });
+      buttons.forEach(function (button) {
+        var active = button.dataset.sort === current.key;
+        button.querySelector('.sort-arrow').textContent = active ? (current.dir === 1 ? '▲' : '▼') : '';
+        button.parentElement.setAttribute('aria-sort', active ? (current.dir === 1 ? 'ascending' : 'descending') : 'none');
+      });
+    }
+
+    buttons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        if (current.key === button.dataset.sort) {
+          current.dir = -current.dir;
+        } else {
+          current = { key: button.dataset.sort, dir: 1 };
+        }
+        apply();
+      });
+    });
+  })();
 
   var dropzone = document.getElementById('csv-dropzone');
   var csvInput = document.getElementById('csv-file-input');

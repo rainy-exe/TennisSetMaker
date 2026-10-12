@@ -475,3 +475,36 @@ def test_sidebar_user_menu_has_my_account_and_log_out(mail_app):
     assert response.headers["Location"].endswith("/login-page?logged_out=1")
     assert not logged_in(client)
     assert client.get("/api/account").status_code == 401
+
+
+def test_dashboard_greets_the_user_by_first_name(mail_app):
+    client = mail_app.test_client()
+    register(client)  # full name "Synthetic Owner"
+    assert login(client).status_code == 200
+    page = client.get("/dashboard").text
+    assert "Welcome back, Synthetic" in page
+    assert "Welcome back, Admin" not in page
+
+
+def test_players_table_shows_one_dot_per_rating_point_and_sortable_headings(mail_app):
+    client = mail_app.test_client()
+    register(client)
+    assert login(client).status_code == 200
+    for name, skill in (("Synthetic Ten", 10), ("Synthetic Four", 4)):
+        response = write(client, "POST", "/api/players", {"name": name, "gender": "F", "skill": skill})
+        assert response.status_code == 201, response.get_json()
+    page = client.get("/players").text
+    for name, skill in (("Synthetic Ten", 10), ("Synthetic Four", 4)):
+        row = page.split(f'<span class="player-name-text">{name}</span>', 1)[1].split("</tr>", 1)[0]
+        assert row.count('<span class="filled"></span>') == skill, name
+    for key in ("name", "rating", "gender"):
+        assert f'data-sort="{key}"' in page
+
+
+def test_page_scripts_find_the_page_form_not_the_sidebar_logout_form():
+    # The sidebar now contains the Log Out form, so "the first form on the
+    # page" is no longer the court/player/template form.
+    from pathlib import Path
+
+    script = Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "integration.js"
+    assert 'document.querySelector("form")' not in script.read_text()

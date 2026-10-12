@@ -40,6 +40,7 @@ def sidebar_user():
         name = actor.role.value.capitalize()
     return {
         "name": name,
+        "first_name": name.split()[0] if name.split() else name,
         "club": club.name if club else "",
         "initial": name[:1].upper(),
         "can_manage": actor.role in endpoints.MANAGERS,
