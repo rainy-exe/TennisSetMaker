@@ -32,7 +32,11 @@
     }
     return result;
   }
-  const showError = error => { notice.textContent = error.message; };
+  const showError = error => {
+    notice.textContent = error.message;
+    // The notice sits at the top of the page; bring it into view.
+    notice.scrollIntoView({behavior: "smooth", block: "nearest"});
+  };
   function roundFormat(value) {
     if (["Mixed Doubles", "mixedDoubles"].includes(value)) return "mixed";
     if (["Same-Gender Doubles", "sameGenderDoubles"].includes(value)) return "same_gender";
@@ -64,6 +68,7 @@
     node.className = "btn";
     node.onclick = async () => {
       node.disabled = true;
+      notice.textContent = "";
       try { await action(); } catch (error) { showError(error); }
       finally { node.disabled = false; }
     };
@@ -98,24 +103,16 @@
       label.append(document.createTextNode(item.name || `Court ${item.number} (${item.court_type})`));
     }
   }
-  // Attending players: type to search, pick with arrows/Enter or the mouse.
-  // Chosen players show as chips holding hidden player_ids inputs.
-  function playerPicker(players) {
-    const input = document.getElementById("playerSearch");
-    const list = document.getElementById("playerSuggestions");
-    const chips = document.getElementById("attendingChips");
-    const count = document.getElementById("attendingCount");
-    const toggle = document.getElementById("allPlayersToggle");
-    const panel = document.getElementById("allPlayersPanel");
-    const chosen = new Map();
+  // Type-ahead player search: arrows/Enter or the mouse pick a suggestion.
+  // source() returns the players that can currently be picked.
+  function playerAutocomplete(input, list, source, onPick) {
     let matches = [];
     let active = -1;
     const byName = (a, b) => a.name.localeCompare(b.name);
-
     function findMatches(query) {
       const q = query.trim().toLowerCase();
       if (!q) return [];
-      const available = players.filter(player => !chosen.has(player.id));
+      const available = source();
       const starts = available.filter(player => player.name.toLowerCase().startsWith(q)).sort(byName);
       // Then anyone whose surname/initial starts with it ("s" finds "John S").
       const words = available.filter(player => !player.name.toLowerCase().startsWith(q) &&
@@ -143,24 +140,57 @@
       matches = findMatches(input.value);
       list.replaceChildren();
       if (!input.value.trim()) { close(); return; }
-      if (!matches.length) {
-        const empty = element("li", "No matching players", list);
-        empty.className = "empty";
-      }
+      if (!matches.length) element("li", "No matching players", list).className = "empty";
       matches.forEach((player, i) => {
         const item = element("li", undefined, list);
-        item.id = `player-option-${i}`;
+        item.id = `${list.id}-option-${i}`;
         item.setAttribute("role", "option");
         const dot = element("span", undefined, item);
         dot.className = `gender-dot ${genderDotClass(player.gender)}`;
         element("span", player.name, item);
-        item.addEventListener("mousedown", event => { event.preventDefault(); add(player); });
+        item.addEventListener("mousedown", event => { event.preventDefault(); pick(player); });
         item.addEventListener("mousemove", () => { if (active !== i) highlight(i); });
       });
       list.hidden = false;
       input.setAttribute("aria-expanded", "true");
       highlight(matches.length ? 0 : -1);
     }
+    function pick(player) {
+      input.value = "";
+      close();
+      onPick(player);
+    }
+    input.addEventListener("input", show);
+    input.addEventListener("focus", () => { if (input.value.trim()) show(); });
+    input.addEventListener("blur", close);
+    input.addEventListener("keydown", event => {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        if (list.hidden) { show(); return; }
+        if (!matches.length) return;
+        const step = event.key === "ArrowDown" ? 1 : -1;
+        highlight((active + step + matches.length) % matches.length);
+      } else if (event.key === "Enter") {
+        event.preventDefault();  // never submit a surrounding form from here
+        if (!list.hidden && matches[active]) pick(matches[active]);
+      } else if (event.key === "Escape") {
+        close();
+      }
+    });
+    return {close};
+  }
+  // Attending players (Create Session): chosen players show as chips
+  // holding hidden player_ids inputs.
+  function playerPicker(players) {
+    const input = document.getElementById("playerSearch");
+    const list = document.getElementById("playerSuggestions");
+    const chips = document.getElementById("attendingChips");
+    const count = document.getElementById("attendingCount");
+    const toggle = document.getElementById("allPlayersToggle");
+    const panel = document.getElementById("allPlayersPanel");
+    const chosen = new Map();
+    const byName = (a, b) => a.name.localeCompare(b.name);
+    playerAutocomplete(input, list, () => players.filter(player => !chosen.has(player.id)), add);
     function render() {
       chips.replaceChildren();
       for (const player of [...chosen.values()]) {
@@ -216,31 +246,42 @@
     function add(player) {
       chosen.set(player.id, player);
       render();
-      input.value = "";
-      close();
       input.focus();
     }
-    input.addEventListener("input", show);
-    input.addEventListener("focus", () => { if (input.value.trim()) show(); });
-    input.addEventListener("blur", close);
     input.addEventListener("keydown", event => {
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
-        if (list.hidden) { show(); return; }
-        if (!matches.length) return;
-        const step = event.key === "ArrowDown" ? 1 : -1;
-        highlight((active + step + matches.length) % matches.length);
-      } else if (event.key === "Enter") {
-        event.preventDefault();  // never submit the whole form from here
-        if (!list.hidden && matches[active]) add(matches[active]);
-      } else if (event.key === "Escape") {
-        close();
-      } else if (event.key === "Backspace" && !input.value && chosen.size) {
+      if (event.key === "Backspace" && !input.value && chosen.size) {
         chosen.delete([...chosen.keys()].pop());
         render();
       }
     });
     render();
+  }
+  // One session as a clickable card (Sessions page and Dashboard).
+  function sessionCard(session, parent) {
+    const formats = {open: "Open Play", mixed: "Mixed Doubles", same_gender: "Same-Gender Doubles"};
+    const statusLabels = {active: "Active", draft: "Upcoming", completed: "Completed", cancelled: "Cancelled"};
+    const statusClasses = {active: "active", draft: "upcoming", completed: "completed", cancelled: "cancelled"};
+    // The whole card is the link, so clicking anywhere opens the session.
+    const row = element("a", undefined, parent);
+    row.href = `/sessions/${session.id}`;
+    row.className = "sessions-page-card";
+    const info = element("div", undefined, row);
+    element("div", session.name, info).className = "sessions-page-title";
+    const meta = element("div", undefined, info);
+    meta.className = "sessions-page-meta";
+    const when = new Date(session.starts_at);
+    const valid = !Number.isNaN(when.getTime());
+    element("span", valid ? when.toLocaleDateString(undefined, {weekday: "short", day: "numeric", month: "short", year: "numeric"}) : session.starts_at.slice(0, 10), meta).className = "sessions-page-meta-item";
+    element("span", valid ? when.toLocaleTimeString(undefined, {hour: "numeric", minute: "2-digit"}) : session.starts_at.slice(11, 16), meta).className = "sessions-page-meta-item";
+    element("span", formats[session.round_format] || session.round_format, meta).className = `format-pill ${session.round_format}`;
+    for (const [value, label] of [[(session.participants || []).length, "players"], [session.number_of_rounds, "rounds"]]) {
+      const stat = element("div", undefined, row);
+      stat.className = "sessions-page-stat";
+      element("strong", String(value), stat);
+      element("span", label, stat);
+    }
+    element("span", statusLabels[session.status] || session.status, row).className = `session-status ${statusClasses[session.status] || ""}`;
+    return row;
   }
   function attachForm(form, save) {
     form.onsubmit = async event => {
@@ -403,33 +444,7 @@
           (!date.value || s.starts_at.slice(0, 10) === date.value) &&
           (!mode.value || s.round_format === mode.value));
         list.replaceChildren();
-        const statusLabels = {active: "Active", draft: "Upcoming", completed: "Completed", cancelled: "Cancelled"};
-        const statusClasses = {active: "active", draft: "upcoming", completed: "completed", cancelled: "cancelled"};
-        for (const session of visible) {
-          // The whole card is the link, so clicking anywhere opens the session.
-          const row = element("a", undefined, list);
-          row.href = `/sessions/${session.id}`;
-          row.className = "sessions-page-card";
-          const info = element("div", undefined, row);
-          const title = element("div", session.name, info);
-          title.className = "sessions-page-title";
-          const meta = element("div", undefined, info);
-          meta.className = "sessions-page-meta";
-          const when = new Date(session.starts_at);
-          const valid = !Number.isNaN(when.getTime());
-          element("span", valid ? when.toLocaleDateString(undefined, {weekday: "short", day: "numeric", month: "short", year: "numeric"}) : session.starts_at.slice(0, 10), meta).className = "sessions-page-meta-item";
-          element("span", valid ? when.toLocaleTimeString(undefined, {hour: "numeric", minute: "2-digit"}) : session.starts_at.slice(11, 16), meta).className = "sessions-page-meta-item";
-          element("span", formats[session.round_format] || session.round_format, meta).className = `format-pill ${session.round_format}`;
-          const players = element("div", undefined, row);
-          players.className = "sessions-page-stat";
-          element("strong", String((session.participants || []).length), players);
-          element("span", "players", players);
-          const rounds = element("div", undefined, row);
-          rounds.className = "sessions-page-stat";
-          element("strong", String(session.number_of_rounds), rounds);
-          element("span", "rounds", rounds);
-          element("span", statusLabels[session.status] || session.status, row).className = `session-status ${statusClasses[session.status] || ""}`;
-        }
+        for (const session of visible) sessionCard(session, list);
         document.getElementById("sessionsEmptyState").hidden = visible.length > 0;
         document.getElementById("sessionsResultCount").textContent = `${visible.length} sessions`;
       }
@@ -491,10 +506,10 @@
       document.getElementById("activeSessions").textContent = active.length;
       document.getElementById("nextRound").textContent = "Open a session";
       const list = document.getElementById("sessionList");
-      for (const session of active) {
-        const link = element("a", `${session.name} · ${session.starts_at} · ${session.status}`, list);
-        link.href = `/sessions/${session.id}`; link.className = "card";
-      }
+      list.classList.add("sessions-page-list");
+      // Active first, then upcoming soonest first.
+      active.sort((a, b) => (a.status === b.status ? a.starts_at.localeCompare(b.starts_at) : a.status === "active" ? -1 : 1));
+      for (const session of active) sessionCard(session, list);
       if (!active.length) element("p", "No active sessions yet.", list);
       document.getElementById("recentActivity").textContent = "Open a session to view its saved rounds.";
     }
@@ -687,6 +702,18 @@
       // player, so a swap can never put someone in two places.
       let picked = null;  // {list, index} of the player clicked first
       let refocus = null;  // keep keyboard focus on the same spot after redrawing
+      // Skill numbers are only sent to roles allowed to see them.
+      const skillKnown = players.some(player => typeof player.skill === "number");
+      let showSkill = false;
+      try { showSkill = skillKnown && localStorage.getItem("setmaker-show-skill") === "1"; } catch (ignored) { /* storage blocked */ }
+      const skillOf = id => byId.get(id)?.skill;
+      function skillBadge(parent, id) {
+        if (!showSkill) return;
+        const value = skillOf(id);
+        const badge = element("span", typeof value === "number" ? String(value) : "–", parent);
+        badge.className = "skill-badge";
+        badge.title = "Skill rating";
+      }
       function draw(current) {
         selectedRound = current;
         final = current
@@ -782,6 +809,7 @@
           genderDot.className = `gender-dot ${genderDotClass(player?.gender)}`;
           genderDot.title = player?.gender === "F" ? "Female" : player?.gender === "M" ? "Male" : "Unknown";
           element("span", player?.name || list[index], line).className = "player-line-name";
+          skillBadge(line, list[index]);
           swappable(line, {list, index}, savedList?.[index]);
         }
 
@@ -792,6 +820,16 @@
           const header = element("div", undefined, card);
           header.className = "match-card-header";
           element("span", `Court ${courtById.get(assignment.court_id)?.number || assignment.court_id}`, header);
+          if (showSkill) {
+            // Team totals, recalculated after every swap.
+            const total = ids => ids.reduce((sum, id) => sum + (skillOf(id) || 0), 0);
+            const a = total(assignment.team_a_player_ids);
+            const b = total(assignment.team_b_player_ids);
+            const gap = Math.abs(a - b);
+            const chip = element("span", `${a} vs ${b}`, header);
+            chip.className = "court-skill-chip" + (gap >= 3 ? " far" : gap === 2 ? " close" : "");
+            chip.title = `Team skill totals (difference ${gap})`;
+          }
           const teamA = element("div", undefined, card);
           teamA.className = "team";
           element("div", "TEAM A", teamA).className = "team-label";
@@ -819,6 +857,7 @@
           const dot = element("span", undefined, line);
           dot.className = `gender-dot ${genderDotClass(player?.gender)}`;
           element("span", name, line).className = "player-line-name";
+          skillBadge(line, id);
           element("div", "Sitting out this round", details).className = "sitout-meta";
           swappable(row, {list: final.sit_out_player_ids, index}, saved?.sit_out_player_ids[index]);
         });
@@ -907,26 +946,25 @@
               }
           };
       }
+      actions.classList.add("session-actions");
+      const unsaved = () => selectedRound?.status === "generated" &&
+        JSON.stringify(final) !== JSON.stringify(selectedRound.final);
       if (!round || round.status === "completed") {
-        if (["draft", "active"].includes(session.status)) button("Generate Next Round", actions, async () => {
-          await api(`/api/sessions/${session.id}/rounds/generate`, "POST"); location.reload();
-        });
+        if (["draft", "active"].includes(session.status)) {
+          button("Generate Next Round", actions, async () => {
+            await api(`/api/sessions/${session.id}/rounds/generate`, "POST"); location.reload();
+          }).classList.add("btn-primary");
+        }
       }
       if (round?.status === "generated") {
         button("Undo Unsaved Changes", actions, () => draw(selectedRound));
         button("Save Changes", actions, async () => {
           const assignedIds = [
-              ...final.assignments.flatMap(match => [
-                  ...match.team_a_player_ids,
-                  ...match.team_b_player_ids
-              ]),
-              ...final.sit_out_player_ids
+            ...final.assignments.flatMap(match => [...match.team_a_player_ids, ...match.team_b_player_ids]),
+            ...final.sit_out_player_ids
           ];
-
           if (assignedIds.length !== new Set(assignedIds).size) {
-              throw new Error(
-                  "A player has been assigned more than once. Please check the teams and sitting-out list."
-              );
+            throw new Error("A player has been assigned more than once. Please check the teams and sitting-out list.");
           }
           if (selectedRound?.status !== "generated") throw new Error("Completed rounds are locked.");
           await api(`/api/rounds/${selectedRound.id}/final`, "PUT", {...final, expected_revision: selectedRound.override_revision});
@@ -934,30 +972,104 @@
         });
         button("Complete Round", actions, async () => {
           if (selectedRound.id !== round.id) throw new Error("Select the current round first.");
-          if (JSON.stringify(final) !== JSON.stringify(selectedRound.final)) throw new Error("Save or undo your changes before completing the round.");
+          if (unsaved()) throw new Error("Save or undo your changes before completing the round.");
           await api(`/api/rounds/${round.id}/complete`, "POST"); location.reload();
-        });
+        }).classList.add("btn-primary");
       }
+      // Add / Remove Player: a type-ahead box that opens under the buttons.
+      let panel = null;
       if (["draft", "active"].includes(session.status)) {
-        const late = element("select", undefined, actions); late.id = "late-player";
         const joined = new Set(session.participants.map(item => item.player_id));
-        for (const player of players.filter(player => player.active && !joined.has(player.id))) {
-          const option = element("option", player.name, late); option.value = player.id;
+        const modes = {
+          add: {
+            label: "Add Player",
+            placeholder: "Type a name to add them to this session…",
+            hint: "They join from the next round generated.",
+            source: () => players.filter(player => player.active && !joined.has(player.id)),
+            run: async player => {
+              await api(`/api/sessions/${session.id}/players`, "POST", {player_id: player.id});
+              location.reload();
+            }
+          },
+          remove: {
+            label: "Remove Player",
+            placeholder: "Type the name of a player who is leaving…",
+            hint: "They finish the current round and sit out from the next round.",
+            source: () => session.participants.filter(item => !item.unavailable_from_round)
+              .map(item => byId.get(item.player_id)).filter(Boolean),
+            run: async player => {
+              if (!window.confirm(`Remove ${player.name} from the next round onwards?`)) return;
+              await api(`/api/sessions/${session.id}/players/${player.id}`, "PATCH", {reason: "Unavailable for remainder of session"});
+              location.reload();
+            }
+          }
+        };
+        let mode = null;
+        const modeButtons = {};
+        for (const key of Object.keys(modes)) {
+          modeButtons[key] = button(modes[key].label, actions, () => openPanel(key));
+          modeButtons[key].setAttribute("aria-expanded", "false");
+          modeButtons[key].setAttribute("aria-controls", "sessionActionPanel");
         }
-        button("Add Late Player", actions, async () => {
-          if (!late.value) throw new Error("Select a player who has not joined yet.");
-          await api(`/api/sessions/${session.id}/players`, "POST", {player_id: late.value}); location.reload();
+        panel = element("div", undefined);
+        panel.className = "session-action-panel";
+        panel.id = "sessionActionPanel";
+        panel.hidden = true;
+        const picker = element("div", undefined, panel);
+        picker.className = "player-picker";
+        const input = element("input", undefined, picker);
+        input.type = "text";
+        input.className = "input";
+        input.autocomplete = "off";
+        input.setAttribute("role", "combobox");
+        input.setAttribute("aria-autocomplete", "list");
+        input.setAttribute("aria-expanded", "false");
+        input.setAttribute("aria-controls", "sessionPlayerSuggestions");
+        const list = element("ul", undefined, picker);
+        list.className = "player-suggestions";
+        list.id = "sessionPlayerSuggestions";
+        list.setAttribute("role", "listbox");
+        list.hidden = true;
+        const hint = element("p", undefined, panel);
+        hint.className = "attending-hint";
+        playerAutocomplete(input, list, () => (mode ? modes[mode].source() : []), async player => {
+          try { await modes[mode].run(player); } catch (error) { showError(error); }
         });
-        const leave = element("select", undefined, actions); leave.id = "unavailable-player";
-        for (const participant of session.participants.filter(item => !item.unavailable_from_round)) {
-          const option = element("option", byId.get(participant.player_id)?.name || participant.player_id, leave);
-          option.value = participant.player_id;
+        function openPanel(key) {
+          if (mode === key) { mode = null; } else {
+            if (unsaved()) throw new Error("Save or undo your changes first; adding or removing a player reloads the page.");
+            mode = key;
+          }
+          panel.hidden = !mode;
+          for (const [name, node] of Object.entries(modeButtons)) {
+            node.classList.toggle("active", name === mode);
+            node.setAttribute("aria-expanded", name === mode ? "true" : "false");
+          }
+          if (mode) {
+            input.placeholder = modes[mode].placeholder;
+            input.setAttribute("aria-label", modes[mode].label);
+            hint.textContent = modes[mode].hint;
+            input.value = "";
+            input.focus();
+          }
         }
-        button("Unavailable From Next Round", actions, async () => {
-          if (!leave.value) throw new Error("Select a participant.");
-          await api(`/api/sessions/${session.id}/players/${leave.value}`, "PATCH", {reason: "Unavailable for remainder of session"}); location.reload();
-        });
       }
+      if (skillKnown) {
+        const skillButton = button("", actions, () => {
+          showSkill = !showSkill;
+          try { localStorage.setItem("setmaker-show-skill", showSkill ? "1" : "0"); } catch (ignored) { /* storage blocked */ }
+          paintSkillButton();
+          render();
+        });
+        skillButton.classList.add("skill-toggle");
+        function paintSkillButton() {
+          skillButton.textContent = showSkill ? "Hide Skill" : "Show Skill";
+          skillButton.setAttribute("aria-pressed", showSkill ? "true" : "false");
+          skillButton.classList.toggle("active", showSkill);
+        }
+        paintSkillButton();
+      }
+      if (panel) actions.append(panel);
       if (new URLSearchParams(location.search).has("generation_failed")) notice.textContent = "Session saved. Generation failed; retry Generate Next Round to see the error.";
     }
   } catch (error) { showError(error); }

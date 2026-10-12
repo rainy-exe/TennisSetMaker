@@ -5978,3 +5978,139 @@ html.smooth-scroll {
   background: var(--green-soft);
   border-color: var(--green);
 }
+
+
+/* =========================
+   ACTIVE SESSION: QR under Sitting Out, actions bar, skill toggle
+========================= */
+
+.sitout-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.sitout-wrap .sitout-card {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 260px;
+}
+
+.session-qr-card {
+  margin-top: 14px;
+  padding: 14px;
+  text-align: center;
+}
+
+.session-qr-card .session-qr-image {
+  margin: 0 auto;
+}
+
+.session-qr-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* End Session: orange like the sitting-out avatars */
+.btn-end {
+  background: #ef6c00;
+  border-color: #ef6c00;
+  color: white;
+  font-weight: 700;
+}
+
+.btn-end:hover {
+  background: #d65f00;
+  border-color: #d65f00;
+}
+
+.btn-end:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bottom-actions.session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.session-actions .btn.active {
+  background: var(--green-soft);
+  border-color: #b9dcbe;
+  color: #206a2a;
+}
+
+.session-actions .skill-toggle {
+  margin-left: auto;
+}
+
+.session-actions .btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.session-action-panel {
+  flex: 1 0 100%;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.session-action-panel[hidden] {
+  display: none;
+}
+
+.session-action-panel .player-picker {
+  max-width: 420px;
+}
+
+/* Skill shown next to players and as a team-total chip on each court */
+.skill-badge {
+  margin-left: 6px;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #e6e9eb;
+  color: #3f454b;
+  font-size: 10px;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+
+.court-skill-chip {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--green-soft);
+  color: #206a2a;
+}
+
+.court-skill-chip.close {
+  background: var(--gray-soft);
+  color: #4f555b;
+}
+
+.court-skill-chip.far {
+  background: var(--orange-soft);
+  color: #c26a10;
+}
+
+@media (max-width: 650px) {
+  .session-actions .skill-toggle {
+    margin-left: 0;
+  }
+}
+
+/* Players table: gender dot to the right of M/F, like the rating dots */
+.gender-dot.gender-dot-inline {
+  width: 8px;
+  height: 8px;
+  margin: 0 0 0 6px;
+}

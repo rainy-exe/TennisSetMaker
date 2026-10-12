@@ -106,7 +106,12 @@
               {% for i in range(player.rating_dots) %}<span class="filled"></span>{% endfor %}
             </span>
           </td>
-          <td>{{ player.gender|upper }}</td>
+          {% set gender = (player.gender or '')|upper %}
+          <td>
+            {{ gender }}
+            <span class="gender-dot gender-dot-inline {{ {'M': 'male', 'MALE': 'male', 'F': 'female', 'FEMALE': 'female'}.get(gender, 'unknown') }}"
+              title="{{ {'M': 'Male', 'MALE': 'Male', 'F': 'Female', 'FEMALE': 'Female'}.get(gender, 'Unknown') }}"></span>
+          </td>
           <td>
             <div class="row-actions">
             <a class="btn btn-sm" href="{{ url_for('main.edit_player', player_id=player.id) }}">Edit</a>

@@ -507,7 +507,7 @@ def test_page_scripts_find_the_page_form_not_the_sidebar_logout_form():
     from pathlib import Path
 
     script = Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "integration.js"
-    assert 'document.querySelector("form")' not in script.read_text()
+    assert 'document.querySelector("form")' not in script.read_text(encoding="utf-8")
 
 
 def test_create_session_page_has_player_picker_and_one_line_extras(mail_app):
@@ -521,3 +521,13 @@ def test_create_session_page_has_player_picker_and_one_line_extras(mail_app):
     for name in ('name="session_duration_minutes"', 'name="tea_break_after_round"', 'name="allowRelaxation"'):
         assert name in extras
     assert 'role="tooltip"' in extras
+
+
+def test_active_session_page_puts_the_qr_under_sitting_out():
+    from pathlib import Path
+
+    page = (Path(__file__).resolve().parents[1] / "app" / "templates" / "active-session.html").read_text(encoding="utf-8")
+    aside = page.split('<aside class="sitout-wrap">', 1)[1].split("</aside>", 1)[0]
+    assert "session-qr-card" in aside
+    assert "session-qr-widget" not in page
+    assert 'class="btn btn-end" id="endSessionBtn"' in page

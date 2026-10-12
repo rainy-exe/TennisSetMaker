@@ -42,7 +42,7 @@
 
                 </div>
 
-                <button type="button" class="btn" id="endSessionBtn">
+                <button type="button" class="btn btn-end" id="endSessionBtn">
                     End Session
                 </button>
 
@@ -206,6 +206,16 @@
 
                     </div>
 
+                    <!-- Session results QR (sits under Sitting Out) -->
+                    <div class="card session-qr-card">
+                        <img
+                            src="{{ url_for('main.club_qr_code') }}"
+                            alt="Permanent club session QR code"
+                            class="session-qr-image"
+                        >
+                        <p>Scan for Session Results</p>
+                    </div>
+
                 </aside>
 
             </div>
@@ -271,16 +281,6 @@
         </main>
 
     </div>
-    <div class="session-qr-widget">
-        <img
-            src="{{ url_for('main.club_qr_code') }}"
-            alt="Permanent club session QR code"
-            class="session-qr-image"
-        >
-
-        <p>Scan for Session Results</p>
-    </div>
-
 {% include '_integration_scripts.html' %}
 </body>
 
