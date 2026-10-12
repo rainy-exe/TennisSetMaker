@@ -6,6 +6,9 @@
   <div class="settings-subnav">
     <button class="subnav-link active" data-tab="team"><span class="subnav-dot"></span> Team Members</button>
     <button class="subnav-link" data-tab="club"><span class="subnav-dot"></span> Club Details</button>
+    {% if my_account %}
+    <button class="subnav-link" data-tab="account"><span class="subnav-dot"></span> My Account</button>
+    {% endif %}
   </div>
 
   <!-- Team Members Tab -->
@@ -44,16 +47,15 @@
       </table>
       <div class="team-table-footer">{{ team_members|length }} team members</div>
     </div>
-    {% if page_data.can_manage %}
-    <a class="btn btn-primary" href="{{ url_for('main.invite_member') }}"><span>+</span> Invite Team Member</a>
-    {% endif %}
   </div>
 
   <!-- Club Details Tab -->
   <div class="tab-panel" id="tab-club">
     <div class="page-topline">
-      <h1 class="page-title">Club Details</h1>
-      <p class="page-subtitle">Information about your club shown across the app.</p>
+      <div>
+        <h1 class="page-title">Club Details</h1>
+        <p class="page-subtitle">Information about your club shown across the app.</p>
+      </div>
     </div>
 
     <div class="card" style="padding: 24px; max-width: 480px;">
@@ -84,6 +86,112 @@
     </form>
     </div>
   </div>
+
+  {% if my_account %}
+  <!-- My Account Tab -->
+  <div class="tab-panel" id="tab-account">
+    <div class="page-topline">
+      <div>
+        <h1 class="page-title">My Account</h1>
+        <p class="page-subtitle">Your name, login email and password.</p>
+      </div>
+    </div>
+
+    <input type="hidden" id="accountCsrf" value="{{ csrf_token() }}">
+
+    <!-- Name -->
+    <div class="card account-section">
+      <h2>Your Name</h2>
+      <p class="page-subtitle">Shown to your team in Settings.</p>
+      <form id="accountNameForm" novalidate>
+        <div class="field">
+          <label for="accountFullName">Full Name</label>
+          <input class="input" type="text" id="accountFullName" name="full_name"
+            value="{{ my_account.full_name }}" maxlength="120" autocomplete="name" required>
+        </div>
+        <p class="form-error" role="alert" hidden></p>
+        <p class="form-success" role="status" hidden></p>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Save Name</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Email -->
+    <div class="card account-section">
+      <h2>Login Email</h2>
+      <div class="account-email-row">
+        <strong>{{ my_account.email }}</strong>
+        {% if my_account.email_verified %}
+        <span class="badge green">Confirmed</span>
+        {% else %}
+        <span class="badge orange">Not confirmed</span>
+        {% if my_account.email_configured %}
+        <button class="btn" type="button" id="resendVerification">Send confirmation email</button>
+        {% endif %}
+        {% endif %}
+      </div>
+      <p class="form-error" id="verificationError" role="alert" hidden></p>
+      <p class="form-success" id="verificationSuccess" role="status" hidden></p>
+
+      {% if my_account.email_configured %}
+      <p class="page-subtitle">
+        To change it, we email your current address to approve the change,
+        then send a confirmation link to the new one.
+      </p>
+      <form id="accountEmailForm" novalidate>
+        <div class="field">
+          <label for="accountNewEmail">New Email</label>
+          <input class="input" type="email" id="accountNewEmail" name="new_email"
+            maxlength="255" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="accountEmailPassword">Current Password</label>
+          <input class="input" type="password" id="accountEmailPassword" name="current_password"
+            maxlength="128" autocomplete="current-password" required>
+        </div>
+        <p class="form-error" role="alert" hidden></p>
+        <p class="form-success" role="status" hidden></p>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Change Email</button>
+        </div>
+      </form>
+      {% else %}
+      <p class="page-subtitle">
+        Changing your login email needs email to be set up on this server.
+      </p>
+      {% endif %}
+    </div>
+
+    <!-- Password -->
+    <div class="card account-section">
+      <h2>Password</h2>
+      <p class="page-subtitle">Changing it logs you out on your other devices.</p>
+      <form id="accountPasswordForm" novalidate>
+        <div class="field">
+          <label for="accountCurrentPassword">Current Password</label>
+          <input class="input" type="password" id="accountCurrentPassword" name="current_password"
+            maxlength="128" autocomplete="current-password" required>
+        </div>
+        <div class="field">
+          <label for="accountNewPassword">New Password</label>
+          <input class="input" type="password" id="accountNewPassword" name="new_password"
+            minlength="8" maxlength="128" autocomplete="new-password" placeholder="At least 8 characters" required>
+        </div>
+        <div class="field">
+          <label for="accountConfirmPassword">Confirm New Password</label>
+          <input class="input" type="password" id="accountConfirmPassword" name="confirm_password"
+            maxlength="128" autocomplete="new-password" required>
+        </div>
+        <p class="form-error" role="alert" hidden></p>
+        <p class="form-success" role="status" hidden></p>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Change Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
 </main>
 {% endblock %}
 
@@ -102,5 +210,103 @@
     if (params.get("tab") === "club") {
       document.querySelector('[data-tab="club"]')?.click();
     }
+    if (params.get("tab") === "account") {
+      document.querySelector('[data-tab="account"]')?.click();
+    }
   </script>
+  {% if my_account %}
+  <script>
+    (function () {
+      const csrfToken = document.getElementById("accountCsrf").value;
+
+      async function send(method, url, payload) {
+        const response = await fetch(url, {
+          method: method,
+          headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
+          credentials: "same-origin",
+          body: JSON.stringify(payload || {})
+        });
+        let result = {};
+        try { result = await response.json(); } catch (ignored) { /* empty body */ }
+        if (!response.ok) {
+          throw new Error(result.message || result.error || "Something went wrong. Please try again.");
+        }
+        return result;
+      }
+
+      function show(errorEl, successEl, error, success) {
+        if (errorEl) { errorEl.textContent = error || ""; errorEl.hidden = !error; }
+        if (successEl) { successEl.textContent = success || ""; successEl.hidden = !success; }
+      }
+
+      // Wires a form: collect() returns the payload or throws a validation
+      // message; done(result) runs after a successful request.
+      function wire(formId, method, url, collect, done) {
+        const form = document.getElementById(formId);
+        if (!form) { return; }
+        const errorEl = form.querySelector(".form-error");
+        const successEl = form.querySelector(".form-success");
+        const button = form.querySelector('[type="submit"]');
+        form.addEventListener("submit", async function (event) {
+          event.preventDefault();
+          show(errorEl, successEl, "", "");
+          let payload;
+          try { payload = collect(form); } catch (error) { show(errorEl, successEl, error.message, ""); return; }
+          button.disabled = true;
+          try {
+            const result = await send(method, url, payload);
+            show(errorEl, successEl, "", result.message || "Saved.");
+            if (done) { done(result, form); }
+          } catch (error) {
+            show(errorEl, successEl, error.message, "");
+          } finally {
+            button.disabled = false;
+          }
+        });
+      }
+
+      wire("accountNameForm", "PATCH", "{{ url_for('account.update_account') }}", function (form) {
+        const fullName = form.querySelector("#accountFullName").value.trim();
+        if (!fullName) { throw new Error("Enter your name."); }
+        return { full_name: fullName };
+      });
+
+      wire("accountEmailForm", "POST", "{{ url_for('account.request_email_change') }}", function (form) {
+        const newEmail = form.querySelector("#accountNewEmail").value.trim();
+        const password = form.querySelector("#accountEmailPassword").value;
+        if (!newEmail) { throw new Error("Enter the new email address."); }
+        if (!password) { throw new Error("Enter your current password."); }
+        return { new_email: newEmail, current_password: password };
+      }, function (result, form) { form.reset(); });
+
+      wire("accountPasswordForm", "POST", "{{ url_for('account.change_password') }}", function (form) {
+        const current = form.querySelector("#accountCurrentPassword").value;
+        const next = form.querySelector("#accountNewPassword").value;
+        const confirm = form.querySelector("#accountConfirmPassword").value;
+        if (!current) { throw new Error("Enter your current password."); }
+        if (next.length < 8 || next.length > 128) { throw new Error("New password must be 8 to 128 characters."); }
+        if (next !== confirm) { throw new Error("New passwords do not match."); }
+        return { current_password: current, new_password: next };
+      }, function (result, form) { form.reset(); });
+
+      const resend = document.getElementById("resendVerification");
+      if (resend) {
+        resend.addEventListener("click", async function () {
+          const errorEl = document.getElementById("verificationError");
+          const successEl = document.getElementById("verificationSuccess");
+          show(errorEl, successEl, "", "");
+          resend.disabled = true;
+          try {
+            const result = await send("POST", "{{ url_for('account.resend_verification') }}");
+            show(errorEl, successEl, "", result.message);
+          } catch (error) {
+            show(errorEl, successEl, error.message, "");
+          } finally {
+            resend.disabled = false;
+          }
+        });
+      }
+    })();
+  </script>
+  {% endif %}
 {% endblock %}

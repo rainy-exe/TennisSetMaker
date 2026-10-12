@@ -25,6 +25,24 @@
         </select>
       </div>
 
+      <div class="field">
+        <div class="label-with-tip">
+          <label for="variety-mode">Pairing Mode</label>
+          <span class="info-tip" tabindex="0" role="button" aria-label="About pairing modes"
+            aria-describedby="varietyModeTip">i</span>
+          <span class="info-tip-text info-tip-wide" role="tooltip" id="varietyModeTip">
+            <strong>Balanced Skill</strong> (default): keeps skill gaps of 2 or less first, then avoids repeats where it can.<br>
+            <strong>Round Robin</strong>: keeps gaps within 2, then mixes everyone up so players meet as many different people as possible.<br>
+            <strong>Avoid Repeats</strong>: avoids repeat partners and opponents first, accepting skill gaps up to 4.
+          </span>
+        </div>
+        <select class="select" id="variety-mode" name="variety_mode">
+          <option value="2" selected>Balanced Skill</option>
+          <option value="3">Round Robin</option>
+          <option value="1">Avoid Repeats</option>
+        </select>
+      </div>
+
       <div class="form-divider"></div>
 
       <div class="relax-row">

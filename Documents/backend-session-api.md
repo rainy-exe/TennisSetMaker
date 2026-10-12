@@ -73,17 +73,55 @@ const { round } = await api(`/api/sessions/${session.id}/rounds/generate`, {
 ```
 
 - `GET /check-session` returns `logged_in` and `user`:
-  `id`, `full_name`, `email`, `role`, `club_id`. Access comes from the session, not
-  a client-supplied role or club ID.
+  `id`, `full_name`, `email`, `role`, `club_id`, `email_verified`. Access comes
+  from the session, not a client-supplied role or club ID.
+- `POST /login` also accepts `remember: true` ("Remember me": the login lasts
+  30 days instead of ending when the browser closes). After 10 failed attempts
+  for one email from one visitor it returns 429 `rate_limited` for 15 minutes.
 - `POST /register`: `full_name`, `email`, `password`, `club_name`; creates a new
   club and Owner, then requires a separate login. Full name is 1–120 characters.
+  New passwords (register, invitation, reset, change) must be 8–128 characters;
+  log-in still accepts older shorter passwords. When email is configured a
+  confirmation link is sent and the reply has `verification_email_sent: true`.
   Include `recaptcha_token` when reCAPTCHA is configured.
   Existing-club members join by invitation. `/api/signup` only checks reCAPTCHA.
-- `POST /logout` needs CSRF but returns a **302 redirect**, not JSON.
+- `POST /logout` needs CSRF but returns a **302 redirect** (to
+  `/login-page?logged_out=1`), not JSON. The sidebar user menu has a Log Out
+  button that posts it, and a My Account link.
   Handle it separately from this helper.
 - Missing account templates return 503 `frontend_unavailable`.
-  Password reset and protected QR sharing are not ready. Invitation email
-  requires deployment SMTP configuration (see the invitation section).
+  Protected QR sharing is not ready. All email (invitations, password reset,
+  confirmations) needs the SMTP settings in `Documents/email-setup.md`.
+
+### Password reset and account emails
+
+- `GET /forgot-password` page; `POST /forgot-password` `{email}` -> 200 with the
+  same message whether or not the account exists. Without mail settings it
+  returns 503 `password_reset_unavailable` and sends nothing. Limits: one
+  account email per user per minute, 5 resets per email and 30 requests per
+  visitor per hour (429 `rate_limited`).
+- The emailed `/reset-password?token=...` page posts `{token, password}` to
+  `POST /reset-password`. Links expire after 1 hour and work once. A reset logs
+  out every device and emails a "password changed" notice.
+- `GET /verify-email?token=...` confirms the address (links last 3 days).
+- `GET /confirm-email-change?token=...` (link sent to the **current** address,
+  lasts 24 hours) shows an "Approve change" button, which form-posts `token`
+  and `csrf_token` to `POST /confirm-email-change`. Approving switches the login
+  email, marks it unconfirmed and sends a confirmation link to the new address.
+  Opening the link alone changes nothing, so mail scanners can't approve it.
+
+### My account (any logged-in role)
+
+- `GET /api/account` -> `{user, email_configured}`.
+- `PATCH /api/account` `{full_name}`.
+- `POST /api/account/password` `{current_password, new_password}`: other
+  devices are logged out, this one stays logged in. Wrong current password ->
+  400 `wrong_password`.
+- `POST /api/account/email` `{new_email, current_password}` -> 202; emails an
+  approval link to the current address (see above). 409 `email_exists`,
+  503 `email_unavailable` without mail settings, 502 `email_delivery_failed`.
+- `POST /api/account/verification-email` -> 202 (200 if already confirmed).
+- Settings has a **My Account** tab using these (`/settings?tab=account`).
 
 ## 2. Permissions
 
@@ -136,6 +174,7 @@ Template example:
   "start_time": "13:00",
   "round_format": "open",
   "strict_format": false,
+  "variety_mode": 2,
   "tea_break_after_round": 3,
   "court_ids": ["<court-id-1>", "<court-id-2>"]
 }
@@ -145,7 +184,14 @@ Formats: `open`, `mixed`, `same_gender`. Strict mixed needs one M and one F per
 team; strict same-gender needs same-gender partners, allowing MM versus FF spares.
 Open does not guarantee same-gender teams. Limits: rounds 1–50, total minutes
 1–1440, round minutes 1–240; tea break is null or before the last round.
-Durations/tea break are metadata, not timers. Templates are not algorithm-weight presets.
+Durations/tea break are metadata, not timers.
+
+Pairing mode (`variety_mode`, templates and sessions): `1` avoid repeats (repeat
+avoidance first, skill gaps up to 4), `2` balanced skill (default; gaps within 2
+first), `3` round robin (gaps within 2, then meet as many people as possible).
+A session copies its template's mode unless the request sets one; the mode is
+passed to Prototype4's `assign_courts_for_round`. Migration `f4b2c8d1e6a7` adds
+the column (existing rows become `2`, which is what they already used).
 
 ## 4. Session flow
 
@@ -216,18 +262,27 @@ discard, cancel or automatic timer endpoint is provided.
 
 ## 5. Members and invitations
 
-- `GET /api/users` -> `{users}`;
-  `PATCH /api/users/<id>` with `{role: "admin"|"staff"}`;
-  DELETE soft-deactivates and removes existing session access.
+- `GET /api/users` -> `{users}`, each with `status` `active` or `removed`
+  (removed members listed last, showing the email they used);
+  `PATCH /api/users/<id>` with `{role: "admin"|"staff"}` (409 `member_removed`
+  for a removed member);
+  DELETE removes the member and logs them out. The row stays for round history,
+  but its email is replaced with a placeholder, so the address can register a
+  new club or accept another invitation. Repeating DELETE returns 204.
+- `GET /api/players/<id>/sit-outs` -> the Players page breakdown: `summary`,
+  `club_rate`, `timeline`, `sessions`, `club`, and `played_with` (up to 10
+  `{name, partner, opponent, total}`, most rounds together first) over the
+  player's last 50 rounds.
 - `GET /api/invitations` -> `{invitations}`;
   POST with `{email, role}` -> 201 `{invitation, message}`;
   DELETE `/api/invitations/<id>` revokes a pending invitation.
 - `POST /accept-invitation` with `{token, full_name, password}` plus CSRF/cookie
   -> 201, logs in. Invitations last seven days.
 - Tokens are sent only by email, not returned in API responses. The emailed
-  `/join?token=...` page submits acceptance. Kate's SMTP sender needs `SMTP_HOST`,
-  `SMTP_PORT` (defaults to 465), `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`,
-  and `PUBLIC_BASE_URL`. A 201 means SMTP submission, not guaranteed delivery.
+  `/join?token=...` page submits acceptance. The shared sender (`app/mailer.py`)
+  needs `SMTP_HOST`, `SMTP_PORT` (defaults to 465), `SMTP_USERNAME`,
+  `SMTP_PASSWORD`, `SMTP_FROM` and `PUBLIC_BASE_URL`; see
+  `Documents/email-setup.md`. A 201 means SMTP submission, not guaranteed delivery.
   Missing/failing SMTP returns 502 `email_delivery_failed` and expires the unsent
   invitation so another attempt is allowed. Do not log or publicly expose tokens.
 

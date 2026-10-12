@@ -3,17 +3,55 @@ from io import BytesIO
 from urllib.parse import urlsplit
 
 import qrcode
-from flask import Blueprint, redirect, render_template, request, send_file, url_for
+from flask import (
+    Blueprint,
+    current_app,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    url_for,
+)
 from jinja2 import TemplateNotFound
 from sqlalchemy import select
 
 from app import api as endpoints
+from app import mailer
 from app.errors import ApiError
 from app.extensions import db
 from app.models import Club, Court, Player, Round, TennisSession, User
 from app.permissions import Role, can_manage_skill, current_actor, require_roles
+from app.sitout_stats import club_summaries
 
 main = Blueprint("main", __name__)
+
+
+def sidebar_user():
+    """Name, club and initial for the sidebar's user card, or None when
+    nobody is logged in. Called from templates/_sidebar.html."""
+    provider = current_app.config.get("CURRENT_ACTOR_PROVIDER")
+    actor = provider() if provider else None
+    if actor is None:
+        return None
+    user = db.session.get(User, actor.actor_id)
+    club = db.session.get(Club, actor.club_id)
+    if user is not None:
+        name = user.full_name or user.email.split("@")[0]
+    else:
+        name = actor.role.value.capitalize()
+    return {
+        "name": name,
+        "first_name": name.split()[0] if name.split() else name,
+        "club": club.name if club else "",
+        "initial": name[:1].upper(),
+        "can_manage": actor.role in endpoints.MANAGERS,
+    }
+
+
+@main.app_context_processor
+def sidebar_context():
+    # A function, so the database is only queried by pages that show the sidebar.
+    return {"sidebar_user": sidebar_user}
 
 
 @main.before_request
@@ -74,12 +112,16 @@ def players():
     roster = [
         display_player(item) for item in endpoints.list_players().get_json()["players"]
     ]
+    sit_outs, club_rate = club_summaries(current_actor().club_id)
+    for item in roster:
+        item["sit_outs"] = sit_outs.get(item["id"])
     selected_id = request.args.get("selected")
     selected = next((p for p in roster if p["id"] == selected_id), None)
     return page(
         "players.html",
         "players",
         players=roster,
+        club_sit_out_rate=club_rate,
         selected_player=selected or (roster[0] if roster else None),
         duplicate_player=None,
     )
@@ -364,11 +406,24 @@ def settings():
         for user in users
     ]
 
+    me = db.session.get(User, actor.actor_id)
+    my_account = (
+        {
+            "full_name": me.full_name or "",
+            "email": me.email,
+            "email_verified": me.email_verified_at is not None,
+            "email_configured": mailer.mail_configured(),
+        }
+        if me
+        else None
+    )
+
     return page(
         "settings.html",
         "settings",
         club={"id": club.id, "name": club.name} if club else None,
         team_members=team_members,
+        my_account=my_account,
     )
 
 

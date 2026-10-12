@@ -5,8 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>SetMaker | Login</title>
+    <title>Setify | Login</title>
 
+    <!-- Start the background photo download straight away, before the CSS asks for it -->
+    <link rel="preload" as="image" type="image/webp" fetchpriority="high"
+        href="{{ url_for('static', filename='images/tennis-hero.webp') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
@@ -24,14 +27,14 @@
 
                 <div class="login-image-content">
 
-                    <!-- SetMaker Brand -->
+                    <!-- Setify Brand -->
                     <div class="landing-brand">
 
                         <div class="logo-mark">
                             S
                         </div>
 
-                        <span>SetMaker</span>
+                        <span>Setify</span>
 
                     </div>
 
@@ -61,7 +64,7 @@
 
                     <!-- Back to Main Page -->
                     <a href="{{ url_for('main.home') }}" class="back-home">
-                        ← Back to SetMaker
+                        ← Back to Setify
                     </a>
 
 
@@ -122,6 +125,7 @@
 
                                 <input
                                     type="checkbox"
+                                    id="rememberMe"
                                     name="rememberMe"
                                 >
 
@@ -135,6 +139,7 @@
 
                         </div>
 
+                        <p id="login-notice" class="form-success" role="status" hidden></p>
                         <p id="login-error" class="form-error" role="alert" hidden></p>
 
                         <!-- Login Button -->
@@ -157,12 +162,33 @@
 
     
 <script>
+(function () {
+    // Messages shown after being sent here from another page.
+    const params = new URLSearchParams(window.location.search);
+    let message = "";
+    if (params.has("logged_out")) {
+        message = "You've been logged out.";
+    } else if (params.has("reset")) {
+        message = "Your password has been reset. Log in with your new password.";
+    } else if (params.get("registered") === "verify") {
+        message = "Account created. Log in to get started. We've also emailed you a link to confirm your address.";
+    } else if (params.has("registered")) {
+        message = "Account created. Log in to get started.";
+    }
+    if (message) {
+        const notice = document.getElementById("login-notice");
+        notice.textContent = message;
+        notice.hidden = false;
+    }
+})();
+
 document.getElementById("login-form").addEventListener("submit", async function (event) {
     event.preventDefault();
 
     const form = event.currentTarget;
     const email = form.querySelector("#email").value.trim();
     const password = form.querySelector("#password").value;
+    const remember = form.querySelector("#rememberMe").checked;
 
     const errorElement = document.getElementById("login-error");
     const submitButton = form.querySelector('button[type="submit"]');
@@ -193,7 +219,8 @@ document.getElementById("login-form").addEventListener("submit", async function 
             credentials: "same-origin",
             body: JSON.stringify({
                 email: email,
-                password: password
+                password: password,
+                remember: remember
             })
         });
 

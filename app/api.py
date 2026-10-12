@@ -194,6 +194,16 @@ def serialize_court(court):
     }
 
 
+STAFF_DEFAULT_SKILL = 1
+VARIETY_MODES = {1, 2, 3}  # 1 avoid repeats, 2 balanced skill, 3 round robin
+
+
+def variety_mode_from(value):
+    if isinstance(value, bool) or not isinstance(value, int) or value not in VARIETY_MODES:
+        raise ApiError("variety_mode must be 1 (avoid repeats), 2 (balanced skill) or 3 (round robin).")
+    return value
+
+
 def serialize_template(template):
     return {
         "id": template.id,
@@ -204,6 +214,7 @@ def serialize_template(template):
         "start_time": template.start_time.isoformat(timespec="minutes"),
         "round_format": template.round_format,
         "strict_format": template.strict_format,
+        "variety_mode": template.variety_mode,
         "tea_break_after_round": template.tea_break_after_round,
         "active": template.active,
         "court_ids": [
@@ -276,6 +287,7 @@ def serialize_session(session, include_rounds=True):
         "round_duration_minutes": session.round_duration_minutes,
         "round_format": session.round_format,
         "strict_format": session.strict_format,
+        "variety_mode": session.variety_mode,
         "tea_break_after_round": session.tea_break_after_round,
         "status": session.status,
         "court_ids": [
@@ -346,7 +358,9 @@ def create_player():
             raise ApiError(
                 "You don't have permission to set player skill.", 403, "forbidden"
             )
-        skill = None
+        # Staff can't set ratings. Start the player at the lowest rating so
+        # they can play straight away; an owner/admin can change it later.
+        skill = STAFF_DEFAULT_SKILL
     elif skill is not None:
         skill = positive_int(skill, "skill", 10)
     player = Player(
@@ -516,6 +530,15 @@ def get_player(player_id):
     return jsonify({"player": serialize_player(player_for_club(player_id))})
 
 
+@api.get("/players/<player_id>/sit-outs")
+@require_authenticated
+def player_sit_outs(player_id):
+    from app.sitout_stats import player_report
+
+    player = player_for_club(player_id)
+    return jsonify(player_report(player.club_id, player.id))
+
+
 @api.patch("/players/<player_id>")
 @require_authenticated
 def update_player(player_id):
@@ -650,6 +673,8 @@ def apply_template_fields(target, data, partial=False):
         if value not in {"open", "mixed", "same_gender"}:
             raise ApiError("round_format must be open, mixed or same_gender.")
         target.round_format = value
+    if "variety_mode" in data:
+        target.variety_mode = variety_mode_from(data["variety_mode"])
     if "start_time" in data:
         try:
             target.start_time = time.fromisoformat(data["start_time"])
@@ -717,6 +742,7 @@ def create_template():
         round_duration_minutes=30,
         start_time=time(13, 0),
         round_format="open",
+        variety_mode=2,
     )
     apply_template_fields(template, data, partial=True)
     validate_break(template)
@@ -825,6 +851,9 @@ def create_session():
         20,
     ).lower()
     strict_format = data.get("strict_format", source.strict_format if source else False)
+    variety_mode = variety_mode_from(
+        data.get("variety_mode", source.variety_mode if source else 2)
+    )
     tea_break = data.get(
         "tea_break_after_round", source.tea_break_after_round if source else None
     )
@@ -851,6 +880,7 @@ def create_session():
         round_duration_minutes=duration,
         round_format=round_format,
         strict_format=strict_format,
+        variety_mode=variety_mode,
         tea_break_after_round=tea_break,
         created_by=actor.actor_id,
     )
@@ -907,6 +937,8 @@ def update_session(session_id):
         session.round_format = round_format
     if "strict_format" in data:
         session.strict_format = parse_bool(data["strict_format"], "strict_format")
+    if "variety_mode" in data:
+        session.variety_mode = variety_mode_from(data["variety_mode"])
     if "tea_break_after_round" in data:
         value = data["tea_break_after_round"]
         session.tea_break_after_round = (

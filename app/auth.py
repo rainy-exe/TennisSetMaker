@@ -18,6 +18,23 @@ from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from app import mailer
+from app.account_security import (
+    account_email_on_cooldown,
+    client_ip,
+    email_change_from_token,
+    limiter,
+    login_user,
+    mark_account_email_sent,
+    new_password_from,
+    notify_password_changed,
+    send_password_reset,
+    send_verification,
+    session_is_current,
+    too_many_requests,
+    user_from_reset_token,
+    user_from_verify_token,
+)
 from app.errors import ApiError
 from app.extensions import db
 from app.forms import RegisterForm
@@ -25,6 +42,12 @@ from app.models import Club, Invitation, User, utc_now
 from app.permissions import CurrentActor, Role, can_invite_role
 
 auth_bp = Blueprint("auth", __name__)
+
+LOGIN_FAILURE_LIMIT = 10
+LOGIN_FAILURE_WINDOW = 15 * 60
+FORGOT_PER_IP_LIMIT = 30
+FORGOT_PER_EMAIL_LIMIT = 5
+FORGOT_WINDOW = 60 * 60
 
 
 # ---------------------------------------------------------
@@ -39,6 +62,7 @@ def user_payload(user):
         "email": user.email,
         "role": user.role,
         "club_id": user.club_id,
+        "email_verified": user.email_verified_at is not None,
     }
 
 
@@ -100,8 +124,13 @@ def session_actor_provider():
 
     user = db.session.get(User, user_id)
 
-    if user is None or not user.active or not user.club.active:
-        session.pop("user_id", None)
+    if (
+        user is None
+        or not user.active
+        or not user.club.active
+        or not session_is_current(user)
+    ):
+        forget_login()
         return None
 
     return CurrentActor(
@@ -109,6 +138,11 @@ def session_actor_provider():
         club_id=user.club_id,
         role=Role(user.role),
     )
+
+
+def forget_login():
+    session.pop("user_id", None)
+    session.pop("sv", None)
 
 
 def verify_recaptcha(token):
@@ -174,7 +208,7 @@ def register():
     full_name = full_name.strip()
 
     email = validate_email(data.get("email"))
-    password = password_from(data)
+    password = new_password_from(data)
     club_name = data.get("club_name")
     if (
         not isinstance(club_name, str)
@@ -230,10 +264,24 @@ def register():
 
     session.clear()
 
+    # Best effort: the account works without a confirmed email, and the
+    # owner can resend the link from Settings > My Account.
+    verification_sent = False
+    if mailer.mail_configured():
+        try:
+            send_verification(owner)
+            mark_account_email_sent(owner)
+            db.session.commit()
+            verification_sent = True
+        except mailer.MAIL_ERRORS:
+            db.session.rollback()
+            current_app.logger.exception("Verification email delivery failed")
+
     return jsonify(
         {
             "message": "Club and Owner account created successfully.",
             "user": user_payload(owner),
+            "verification_email_sent": verification_sent,
             "csrf_token": generate_csrf(),
         }
     ), 201
@@ -254,6 +302,14 @@ def login():
     if not email or not password:
         return jsonify({"message": "Email and password are required."}), 400
 
+    # Count failed attempts per visitor + email address, so a password can't
+    # be guessed quickly but other people's logins are never locked out.
+    attempts_key = ("login", client_ip(), email)
+    if limiter().blocked(attempts_key, LOGIN_FAILURE_LIMIT, LOGIN_FAILURE_WINDOW):
+        raise too_many_requests(
+            "Too many failed log-in attempts. Wait 15 minutes or reset your password."
+        )
+
     user = User.query.filter_by(email=email).first()
 
     if (
@@ -262,10 +318,11 @@ def login():
         or not user.club.active
         or not check_password_hash(user.password_hash, password)
     ):
+        limiter().record(attempts_key)
         return jsonify({"message": "Invalid credentials."}), 401
 
-    session.clear()
-    session["user_id"] = user.id
+    limiter().reset(attempts_key)
+    login_user(user, remember=data.get("remember") is True)
 
     return jsonify(
         {
@@ -290,7 +347,7 @@ def logout():
         "info",
     )
 
-    return redirect(url_for("auth.login_page"))
+    return redirect(url_for("auth.login_page", logged_out=1))
 
 
 # ---------------------------------------------------------
@@ -311,8 +368,13 @@ def check_session():
 
     user = db.session.get(User, user_id)
 
-    if user is None or not user.active or not user.club.active:
-        session.pop("user_id", None)
+    if (
+        user is None
+        or not user.active
+        or not user.club.active
+        or not session_is_current(user)
+    ):
+        forget_login()
 
         return jsonify(
             {
@@ -347,7 +409,7 @@ def accept_invitation():
     data = auth_body()
 
     token = data.get("token", "")
-    password = password_from(data)
+    password = new_password_from(data)
     full_name = data.get("full_name")
 
     if not isinstance(full_name, str) or not 1 <= len(full_name.strip()) <= 120:
@@ -406,6 +468,8 @@ def accept_invitation():
         password_hash=generate_password_hash(password),
         role=invitation.role,
         active=True,
+        # The invitation link was emailed to this address.
+        email_verified_at=utc_now(),
     )
 
     # Atomically claim a one-use invitation. A concurrent acceptance must not
@@ -440,8 +504,7 @@ def accept_invitation():
         raise
 
     # Automatically log in the newly-created account.
-    session.clear()
-    session["user_id"] = user.id
+    login_user(user)
 
     return jsonify(
         {
@@ -455,9 +518,35 @@ def accept_invitation():
 def join_page():
     token = request.args.get("token", "")
 
+    # Show who the invitation is from. The token is the secret that was
+    # emailed to this person, so it's fine to show them its details.
+    invite = None
+    invite_problem = None
+    invitation = (
+        Invitation.query.filter_by(token=token).first()
+        if isinstance(token, str) and 0 < len(token) <= 255
+        else None
+    )
+    if invitation is None:
+        invite_problem = "This invitation link isn't valid. Ask the person who invited you to send a new one."
+    elif invitation.accepted_at is not None:
+        invite_problem = "This invitation has already been accepted. Log in instead."
+    elif invitation.expires_at < utc_now() or not invitation.club.active:
+        invite_problem = "This invitation has expired. Ask the person who invited you to send a new one."
+    else:
+        inviter = invitation.inviter
+        invite = {
+            "club": invitation.club.name,
+            "role": invitation.role.capitalize(),
+            "invited_by": (inviter.full_name or inviter.email.split("@")[0]) if inviter else "—",
+            "email": invitation.email,
+        }
+
     return render_account_page(
         "accept-invite.html",
         token=token,
+        invite=invite,
+        invite_problem=invite_problem,
     )
 
 # ---------------------------------------------------------
@@ -503,21 +592,227 @@ def api_signup():
 
 
 # ---------------------------------------------------------
-# Forgot password
+# Forgot / reset password
+# ---------------------------------------------------------
+
+FORGOT_PASSWORD_REPLY = (
+    "If an account exists for that email, we've sent a link to reset the "
+    "password. It expires in 1 hour. Check your spam folder if it doesn't arrive."
+)
+
+
+@auth_bp.get("/forgot-password")
+def forgot_password():
+    return render_account_page(
+        "forgot-password.html", mail_configured=mailer.mail_configured()
+    )
+
+
+@auth_bp.post("/forgot-password")
+def request_password_reset():
+    data = auth_body()
+
+    if not mailer.mail_configured():
+        raise ApiError(
+            "Password reset email isn't set up on this server yet. "
+            "No reset email has been sent.",
+            503,
+            "password_reset_unavailable",
+        )
+
+    email = validate_email(data.get("email"))
+
+    if not limiter().hit(("forgot-ip", client_ip()), FORGOT_PER_IP_LIMIT, FORGOT_WINDOW):
+        raise too_many_requests()
+
+    # From here on the reply is the same whether or not the account exists,
+    # so this form can't be used to find out who has an account.
+    user = User.query.filter_by(email=email).first()
+    if (
+        user is not None
+        and user.active
+        and user.club.active
+        and not account_email_on_cooldown(user)
+        and limiter().hit(("forgot-email", email), FORGOT_PER_EMAIL_LIMIT, FORGOT_WINDOW)
+    ):
+        try:
+            send_password_reset(user, background=True)
+            mark_account_email_sent(user)
+            db.session.commit()
+        except mailer.MAIL_ERRORS:
+            db.session.rollback()
+            current_app.logger.exception("Password reset email delivery failed")
+
+    return jsonify({"message": FORGOT_PASSWORD_REPLY})
+
+
+@auth_bp.get("/reset-password")
+def reset_password():
+    token = request.args.get("token", "")
+    user = user_from_reset_token(token)
+    return render_account_page(
+        "reset-password.html",
+        token=token if user else "",
+        token_valid=user is not None,
+        account_email=user.email if user else None,
+    )
+
+
+@auth_bp.post("/reset-password")
+def complete_password_reset():
+    data = auth_body()
+    user = user_from_reset_token(data.get("token"))
+
+    if user is None:
+        raise ApiError(
+            "This reset link is invalid, has expired or was already used. "
+            "Request a new one.",
+            400,
+            "invalid_token",
+        )
+
+    password = new_password_from(data)
+
+    user.password_hash = generate_password_hash(password)
+    # Log out every device, including any an intruder was using.
+    user.session_version = (user.session_version or 0) + 1
+    # Opening the link proves they own the inbox.
+    if user.email_verified_at is None:
+        user.email_verified_at = utc_now()
+    db.session.commit()
+
+    session.clear()
+    limiter().reset(("login", client_ip(), user.email))
+    notify_password_changed(user)
+
+    return jsonify({"message": "Your password has been reset. You can now log in."})
+
+
+# ---------------------------------------------------------
+# Email links: verification and email change
 # ---------------------------------------------------------
 
 
-@auth_bp.route(
-    "/forgot-password",
-    methods=["GET", "POST"],
-)
-def forgot_password():
-    # No mail/reset service exists yet. Do not enumerate accounts or claim
-    # an email was sent when nothing was sent.
-    raise ApiError(
-        "Password reset is not configured. No reset email has been sent.",
-        503,
-        "password_reset_unavailable",
+def email_status_page(title, message, ok, status=200):
+    return (
+        render_account_page(
+            "email-status.html", title=title, message=message, ok=ok
+        ),
+        status,
+    )
+
+
+@auth_bp.get("/verify-email")
+def verify_email():
+    user = user_from_verify_token(request.args.get("token", ""))
+
+    if user is None:
+        return email_status_page(
+            "Link not valid",
+            "This confirmation link is invalid or has expired. Log in and use "
+            "Settings > My Account to send a new one.",
+            ok=False,
+            status=400,
+        )
+
+    if user.email_verified_at is None:
+        user.email_verified_at = utc_now()
+        db.session.commit()
+
+    return email_status_page(
+        "Email confirmed", f"Thanks, {user.email} is confirmed.", ok=True
+    )
+
+
+def email_change_problem(token):
+    """(user, new_email, None) if the approval link can be used, otherwise
+    (None, None, error page)."""
+    user, new_email = email_change_from_token(token)
+
+    if user is None:
+        return None, None, email_status_page(
+            "Link not valid",
+            "This link is invalid, has expired or was already used. "
+            "Your login email has not changed.",
+            ok=False,
+            status=400,
+        )
+
+    if User.query.filter_by(email=new_email).first() is not None:
+        return None, None, email_status_page(
+            "Email already in use",
+            f"{new_email} is already used by another account, so your login "
+            "email has not changed.",
+            ok=False,
+            status=409,
+        )
+
+    return user, new_email, None
+
+
+@auth_bp.get("/confirm-email-change")
+def confirm_email_change():
+    # Opening the link only shows the question. The change needs a button
+    # press, so mail scanners that open links can't approve it.
+    token = request.args.get("token", "")
+    user, new_email, problem = email_change_problem(token)
+    if problem:
+        return problem
+
+    return render_account_page(
+        "email-status.html",
+        title="Approve email change",
+        message=f"Change the login email for this account from {user.email} "
+        f"to {new_email}? We'll then send a confirmation link to {new_email}.",
+        ok=True,
+        approve_token=token,
+    )
+
+
+@auth_bp.post("/confirm-email-change")
+def apply_email_change():
+    user, new_email, problem = email_change_problem(request.form.get("token", ""))
+    if problem:
+        return problem
+
+    user.email = new_email
+    # The new address hasn't been proved yet.
+    user.email_verified_at = None
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return email_status_page(
+            "Email already in use",
+            f"{new_email} is already used by another account, so your login "
+            "email has not changed.",
+            ok=False,
+            status=409,
+        )
+
+    sent = False
+    if mailer.mail_configured():
+        try:
+            send_verification(user)
+            mark_account_email_sent(user)
+            db.session.commit()
+            sent = True
+        except mailer.MAIL_ERRORS:
+            db.session.rollback()
+            current_app.logger.exception("Verification email delivery failed")
+
+    follow_up = (
+        f"We've sent a confirmation link to {new_email}. Open it to confirm "
+        "the new address."
+        if sent
+        else "Confirm the new address from Settings > My Account."
+    )
+    return email_status_page(
+        "Email changed",
+        f"Your login email is now {new_email}. Use it next time you log in. "
+        + follow_up,
+        ok=True,
     )
 
 

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>SetMaker | Create Session</title>
+    <title>Setify | Create Session</title>
 
     <link
     rel="stylesheet"
@@ -18,69 +18,7 @@
 
     <div class="app-shell">
 
-        <aside class="sidebar">
-
-            <!-- SetMaker Logo -->
-            <div class="brand">
-
-                <div class="logo-mark">
-                    S
-                </div>
-
-                <span>SetMaker</span>
-
-            </div>
-
-
-            <!-- Navigation -->
-            <nav class="nav">
-
-                <a href="{{ url_for('main.dashboard') }}" class="nav-link">
-                    Dashboard
-                </a>
-
-                <a href="{{ url_for('main.create_session') }}" class="nav-link active">
-                    Sessions
-                </a>
-
-                <a href="{{ url_for('main.players') }}" class="nav-link">
-                    Players
-                </a>
-
-                <a href="{{ url_for('main.courts') }}" class="nav-link">
-                    Courts
-                </a>
-
-                <a href="{{ url_for('main.templates') }}" class="nav-link">
-                    Templates
-                </a>
-
-                <a href="#" class="nav-link">
-                    History
-                </a>
-
-                <a href="#" class="nav-link">
-                    Settings
-                </a>
-
-            </nav>
-
-
-            <!-- Admin Card -->
-            <div class="admin-card">
-
-                <div class="avatar">
-                </div>
-
-                <div class="admin-copy">
-                    <strong>Club Admin</strong>
-                    <span id="adminEmail"></span>
-                </div>
-
-            </div>
-
-
-        </aside>
+        {% include '_sidebar.html' %}
 
         <main class="main create-main">
 
@@ -245,7 +183,7 @@
                                 Match Format
                             </label>
 
-                            <div class="radio-group">
+                            <div class="radio-group radio-row">
 
                                 <label class="choice">
                                     <input type="radio" name="matchFormat" value="mixedDoubles">
@@ -268,6 +206,48 @@
                             </div>
 
                         </div>
+                        <!-- Pairing Mode -->
+                        <div class="field">
+
+                            <span class="field-label">
+                                Pairing Mode
+                            </span>
+
+                            <div class="radio-group radio-row">
+
+                                <span class="choice-with-tip">
+                                    <label class="choice">
+                                        <input type="radio" name="varietyMode" value="2">
+                                        Balanced Skill
+                                    </label>
+                                    <span class="info-tip" tabindex="0" role="button"
+                                        aria-label="About Balanced Skill" aria-describedby="varietyTip2">i</span>
+                                    <span class="info-tip-text" role="tooltip" id="varietyTip2">Keeps teams and partners close in skill (gaps of 2 or less) first, then avoids repeat partners and opponents where it can. The default.</span>
+                                </span>
+
+                                <span class="choice-with-tip">
+                                    <label class="choice">
+                                        <input type="radio" name="varietyMode" value="3">
+                                        Round Robin
+                                    </label>
+                                    <span class="info-tip" tabindex="0" role="button"
+                                        aria-label="About Round Robin" aria-describedby="varietyTip3">i</span>
+                                    <span class="info-tip-text" role="tooltip" id="varietyTip3">Keeps skill gaps within 2, then mixes everyone up so players meet as many different people as possible during the session.</span>
+                                </span>
+
+                                <span class="choice-with-tip">
+                                    <label class="choice">
+                                        <input type="radio" name="varietyMode" value="1">
+                                        Avoid Repeats
+                                    </label>
+                                    <span class="info-tip" tabindex="0" role="button"
+                                        aria-label="About Avoid Repeats" aria-describedby="varietyTip1">i</span>
+                                    <span class="info-tip-text" role="tooltip" id="varietyTip1">Avoids repeat partners and opponents first, and will accept bigger skill gaps (up to 4) to do it.</span>
+                                </span>
+
+                            </div>
+
+                        </div>
                         <!-- Court Allocation -->
                         <div class="field">
 
@@ -275,7 +255,7 @@
                                 Court Allocation (Priority Reordering)
                             </label>
 
-                            <div class="court-options" id="courtOptions">
+                            <div class="court-options court-options-row" id="courtOptions">
 
                                 <div class="court-option selected">
 
@@ -353,31 +333,86 @@
                 <!-- Divider -->
                 <div class="form-divider"></div>
 
-                <!-- Allow Format Relaxation -->
-                <div class="relax-row">
+                <!-- Duration, tea break and format relaxation on one row -->
+                <div class="session-extras">
 
-                    <div>
-
-                        <div class="relax-title">
-                            Allow Format Relaxation
-                        </div>
-
-                        <div class="relax-copy">
-                            If odd player numbers occur, the system can automatically
-                            adapt the match format to keep everyone playing.
-                        </div>
-
+                    <div class="field">
+                        <label for="session_duration_minutes">
+                            Session Duration (minutes)
+                        </label>
+                        <input type="number" id="session_duration_minutes" name="session_duration_minutes"
+                            class="input" min="1" value="180">
                     </div>
 
-                    <label class="switch">
+                    <div class="field">
+                        <label for="tea_break_after_round">
+                            Tea Break After Round (optional)
+                        </label>
+                        <input type="number" id="tea_break_after_round" name="tea_break_after_round"
+                            class="input" min="1" placeholder="No tea break">
+                    </div>
 
-                        <input type="checkbox" id="allowRelaxation" name="allowRelaxation">
-
-                        <span class="slider"></span>
-
-                    </label>
+                    <div class="field relax-field">
+                        <span class="field-label">
+                            <span id="allowRelaxationLabel">Allow Format Relaxation</span>
+                            <span class="info-tip" tabindex="0" role="button"
+                                aria-label="What is format relaxation?" aria-describedby="relaxationTip">i</span>
+                            <span class="info-tip-text" role="tooltip" id="relaxationTip">
+                                If odd player numbers occur, the system can automatically
+                                adapt the match format to keep everyone playing.
+                            </span>
+                        </span>
+                        <label class="switch">
+                            <input type="checkbox" id="allowRelaxation" name="allowRelaxation"
+                                aria-labelledby="allowRelaxationLabel">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
 
                 </div>
+
+                <!-- Attending Players -->
+                <section class="attending-players">
+
+                    <div class="attending-header">
+                        <h2 class="form-section-title">Attending Players</h2>
+                        <span class="attending-count" id="attendingCount">0 selected</span>
+                    </div>
+
+                    <div class="attending-chips" id="attendingChips" aria-live="polite"></div>
+
+                    <div class="player-picker-row">
+                        <div class="player-picker">
+                            <input type="text" id="playerSearch" class="input" autocomplete="off"
+                                placeholder="Type a name to add a player…"
+                                role="combobox" aria-autocomplete="list" aria-expanded="false"
+                                aria-controls="playerSuggestions">
+                            <ul class="player-suggestions" id="playerSuggestions" role="listbox" hidden></ul>
+                        </div>
+                        <button type="button" class="btn all-players-toggle" id="allPlayersToggle"
+                            aria-expanded="false" aria-controls="allPlayersPanel" title="Show all players">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <line x1="9" y1="6" x2="20" y2="6"></line>
+                                <line x1="9" y1="12" x2="20" y2="12"></line>
+                                <line x1="9" y1="18" x2="20" y2="18"></line>
+                                <circle cx="4.5" cy="6" r="1"></circle>
+                                <circle cx="4.5" cy="12" r="1"></circle>
+                                <circle cx="4.5" cy="18" r="1"></circle>
+                            </svg>
+                            <span>All players</span>
+                        </button>
+                    </div>
+
+                    <div class="all-players-panel" id="allPlayersPanel" hidden></div>
+
+                    <p class="attending-hint">
+                        Use ↑ ↓ and Enter, or click a name. Backspace in an empty box removes the last player.
+                        In the full list, click a name to add or remove them.
+                    </p>
+
+                </section>
+
                 <!-- Form Actions -->
                 <div class="form-actions">
 

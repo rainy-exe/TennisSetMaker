@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>SetMaker | Active Session</title>
+    <title>Setify | Active Session</title>
 
     <link
     rel="stylesheet"
@@ -17,67 +17,7 @@
 
     <div class="app-shell">
 
-        <aside class="sidebar">
-            <!-- SetMaker Logo -->
-            <div class="brand">
-
-                <div class="logo-mark">
-                    S
-                </div>
-
-                <span>SetMaker</span>
-
-            </div>
-
-
-            <!-- Navigation -->
-            <nav class="nav">
-
-                <a href="{{ url_for('main.dashboard') }}" class="nav-link">
-                    Dashboard
-                </a>
-
-                <a href="{{ url_for('main.create_session') }}" class="nav-link active">
-                    Sessions
-                </a>
-
-                <a href="{{ url_for('main.players') }}" class="nav-link">
-                    Players
-                </a>
-
-                <a href="{{ url_for('main.courts') }}" class="nav-link">
-                    Courts
-                </a>
-
-                <a href="{{ url_for('main.templates') }}" class="nav-link">
-                    Templates
-                </a>
-
-                <a href="{{ url_for('main.history') }}" class="nav-link">
-                    History
-                </a>
-
-                <a href="{{ url_for('main.settings') }}" class="nav-link">
-                    Settings
-                </a>
-
-            </nav>
-
-
-            <!-- Admin Card -->
-            <div class="admin-card">
-
-                <div class="avatar">
-                </div>
-
-                <div class="admin-copy">
-                    <strong>Club Admin</strong>
-                    <span id="adminEmail"></span>
-                </div>
-
-            </div>
-
-        </aside>
+        {% include '_sidebar.html' %}
 
         <main class="main active-main">
 
@@ -102,7 +42,7 @@
 
                 </div>
 
-                <button type="button" class="btn" id="endSessionBtn">
+                <button type="button" class="btn btn-end" id="endSessionBtn">
                     End Session
                 </button>
 
@@ -266,6 +206,16 @@
 
                     </div>
 
+                    <!-- Session results QR (sits under Sitting Out) -->
+                    <div class="card session-qr-card">
+                        <img
+                            src="{{ url_for('main.club_qr_code') }}"
+                            alt="Permanent club session QR code"
+                            class="session-qr-image"
+                        >
+                        <p>Scan for Session Results</p>
+                    </div>
+
                 </aside>
 
             </div>
@@ -331,16 +281,6 @@
         </main>
 
     </div>
-    <div class="session-qr-widget">
-        <img
-            src="{{ url_for('main.club_qr_code') }}"
-            alt="Permanent club session QR code"
-            class="session-qr-image"
-        >
-
-        <p>Scan for Session Results</p>
-    </div>
-
 {% include '_integration_scripts.html' %}
 </body>
 

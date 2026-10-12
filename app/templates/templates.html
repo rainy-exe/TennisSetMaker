@@ -9,10 +9,16 @@
   <div class="template-grid">
     {% for template in templates %}
     <div class="card template-card">
-      <div class="template-name">{{ template.name }}</div>
-      <div class="template-row">{{ template.round_format }} · {{ template.number_of_rounds }} rounds · {{ template.round_duration_minutes }} minutes</div>
+      <div class="template-card-head">
+        <div class="template-name">{{ template.name }}</div>
+        {% if page_data.can_manage %}<a class="btn btn-sm" href="{{ url_for('main.edit_template', template_id=template.id) }}">Edit</a>{% endif %}
+      </div>
+      <div class="template-row">
+        <span class="format-pill {{ template.round_format }}">{{ {'open': 'Open Play', 'mixed': 'Mixed Doubles', 'same_gender': 'Same-Gender Doubles'}.get(template.round_format, template.round_format) }}</span>
+        <span class="template-mode">{{ {1: 'Avoid Repeats', 2: 'Balanced Skill', 3: 'Round Robin'}.get(template.variety_mode, 'Balanced Skill') }}</span>
+        <span>{{ template.number_of_rounds }} rounds · {{ template.round_duration_minutes }} min</span>
+      </div>
       <div class="template-actions"><a class="btn btn-primary" href="{{ url_for('main.create_session', template_id=template.id) }}">Use Template</a></div>
-      {% if page_data.can_manage %}<a class="btn btn-sm" href="{{ url_for('main.edit_template', template_id=template.id) }}">Edit</a>{% endif %}
     </div>
     {% else %}<p>No templates yet.</p>{% endfor %}
   </div>

@@ -69,16 +69,17 @@
   </form>
   {% endif %}
 
-  {% set pref_colors = {'Clay': 'orange', 'Hard': 'blue', 'Grass': 'green', 'Synthetic': 'gray'} %}
 
   <div class="players-layout">
     <div class="card players-table-card">
     <table class="players-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Rating</th>
-          <th>Gender</th>
+          <th aria-sort="ascending"><button type="button" class="th-sort" data-sort="name">Name <span class="sort-arrow" aria-hidden="true">▲</span></button></th>
+          <th aria-sort="none"><button type="button" class="th-sort" data-sort="rating">Rating <span class="sort-arrow" aria-hidden="true"></span></button></th>
+          <th aria-sort="none"><button type="button" class="th-sort" data-sort="gender">Gender <span class="sort-arrow" aria-hidden="true"></span></button></th>
+          <th aria-sort="none"><button type="button" class="th-sort" data-sort="sitouts"
+              title="Sit-outs in the last 50 rounds each player attended">Sit-outs <span class="sort-arrow" aria-hidden="true"></span></button></th>
           <th></th>
         </tr>
       </thead>
@@ -88,25 +89,42 @@
         class="{{ 'selected' if selected_player and player.id == selected_player.id else '' }}"
         data-player-id="{{ player.id }}"
         data-name="{{ player.name|lower }}"
+        data-rating="{{ player.rating if player.rating is not none else '' }}"
+        data-gender="{{ player.gender|upper }}"
+        data-sitouts="{{ player.sit_outs.balance if player.sit_outs else '' }}"
         >
           <td class="player-name-cell">
             <span class="player-name-text">{{ player.name }}</span>
             {% if player.court_preference %}
-            <span class="badge {{ pref_colors.get(player.court_preference, 'gray') }}">{{ player.court_preference }}</span>
+            <span class="badge surface-{{ player.court_preference|lower }}">{{ player.court_preference }}</span>
             {% endif %}
             {% if player.notes %}
             <span class="badge yellow">Notes</span>
             {% endif %}
           </td>
           <td>
-            {{ player.rating }}
-            <span class="rating-dots">
-              {% for i in range(7) %}
-                <span class="{{ 'filled' if i < player.rating_dots else '' }}"></span>
-              {% endfor %}
+            {{ player.rating if player.rating is not none else '—' }}
+            <span class="rating-dots" aria-hidden="true">
+              {% for i in range(player.rating_dots) %}<span class="filled"></span>{% endfor %}
             </span>
           </td>
-          <td>{{ player.gender|upper }}</td>
+          {% set gender = (player.gender or '')|upper %}
+          <td>
+            <span class="gender-letter">{{ gender }}</span><span class="gender-dot gender-dot-inline {{ {'M': 'male', 'MALE': 'male', 'F': 'female', 'FEMALE': 'female'}.get(gender, 'unknown') }}"
+              title="{{ {'M': 'Male', 'MALE': 'Male', 'F': 'Female', 'FEMALE': 'Female'}.get(gender, 'Unknown') }}"></span>
+          </td>
+          {% set so = player.sit_outs %}
+          <td class="sitout-cell">
+            {% if so and so.rounds %}
+            <span class="sitout-count">{{ so.sat_out }} / {{ so.rounds }}</span>
+            <span class="balance-chip {{ so.status }}"
+              title="Sat out {{ so.sat_out }} of {{ so.rounds }} rounds; about {{ so.expected }} expected for those days">
+              {{ {'even': 'Even', 'above': 'Over', 'below': 'Under'}[so.status] }}
+            </span>
+            {% else %}
+            <span class="sitout-none">—</span>
+            {% endif %}
+          </td>
           <td>
             <div class="row-actions">
             <a class="btn btn-sm" href="{{ url_for('main.edit_player', player_id=player.id) }}">Edit</a>
@@ -130,36 +148,92 @@
     </table>
     </div>
 
+    <!-- Full-screen player breakdown: replaces the table while open -->
+    <section class="card player-insights" id="player-insights" hidden aria-live="polite">
+      <div class="insights-head">
+        <div>
+          <div class="insights-eyebrow">Sit-out breakdown · last <span data-window>50</span> rounds attended</div>
+          <h2 class="insights-name" id="insights-name"></h2>
+        </div>
+        <button type="button" class="btn" id="insights-close">← Back to all players</button>
+      </div>
+      <p class="insights-headline" id="insights-headline"></p>
+      <div class="insights-kpis" id="insights-kpis"></div>
+
+      <div class="insights-block">
+        <h3>Round by round</h3>
+        <p class="insights-caption">Oldest on the left, most recent on the right. Hover a square for the date.</p>
+        <div class="round-strip" id="insights-strip"></div>
+        <div class="chart-legend">
+          <span><i class="key played"></i> Played</span>
+          <span><i class="key sat"></i> Sat out</span>
+          <span><i class="key staff"></i> Sat out (staff changed the round)</span>
+        </div>
+      </div>
+
+      <div class="insights-grid">
+        <div class="insights-block">
+          <h3>Sit-outs per session</h3>
+          <p class="insights-caption">Bars are sit-outs; the dark line is what was expected for how busy that session was.</p>
+          <div id="insights-sessions"></div>
+        </div>
+        <div class="insights-block">
+          <h3>Compared with the club</h3>
+          <p class="insights-caption">Each dot is a player's sit-out rate. The dashed line is the club average.</p>
+          <div id="insights-club"></div>
+        </div>
+      </div>
+
+      <div class="insights-block">
+        <h3>Most played with</h3>
+        <p class="insights-caption">Rounds on the same court over the last 50 rounds, as a partner and as an opponent.</p>
+        <div class="chart-legend played-with-legend">
+          <span><i class="key partner"></i> Partner</span>
+          <span><i class="key opponent"></i> Opponent</span>
+        </div>
+        <div id="insights-partners"></div>
+        <button type="button" class="btn btn-sm partners-more" id="insights-partners-more" hidden
+          aria-expanded="false" aria-controls="insights-partners"></button>
+      </div>
+    </section>
+
     {% if selected_player %}
     <div class="card player-detail-card" id="player-detail-card">
       <div class="player-detail-header">
         <div class="player-detail-avatar" id="detail-avatar">{{ selected_player.initials }}</div>
-        <div>
+        <div class="player-detail-heading">
           <div class="player-detail-name" id="detail-name">{{ selected_player.name }}</div>
           <div class="player-detail-since" id="detail-since">Member since {{ selected_player.member_since }}</div>
         </div>
+        <button type="button" class="expand-btn" id="detail-expand" aria-expanded="false"
+          aria-controls="player-insights" title="Full-screen breakdown">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline class="icon-open" points="15 3 21 3 21 9"></polyline>
+            <polyline class="icon-open" points="9 21 3 21 3 15"></polyline>
+            <line class="icon-open" x1="21" y1="3" x2="14" y2="10"></line>
+            <line class="icon-open" x1="3" y1="21" x2="10" y2="14"></line>
+            <polyline class="icon-close" points="4 14 10 14 10 20"></polyline>
+            <polyline class="icon-close" points="20 10 14 10 14 4"></polyline>
+            <line class="icon-close" x1="14" y1="10" x2="21" y2="3"></line>
+            <line class="icon-close" x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>
+          <span class="sr-only">Full-screen breakdown</span>
+        </button>
       </div>
 
-      <div class="detail-section-title">Frequent Round Partners</div>
-      <div id="detail-partners">
-        {% for partner in selected_player.frequent_partners %}
-        <div class="partner-row">
-          <span class="partner-check">✓</span>
-          {{ partner.name }} ({{ partner.match_score }} match score)
-        </div>
-        {% endfor %}
-      </div>
+      <div class="detail-section-title">Sit-outs <span class="detail-section-note">last 50 rounds attended</span></div>
+      <div id="detail-sitouts" class="detail-sitouts"><p class="detail-empty">Loading…</p></div>
 
       <div class="detail-divider"></div>
 
-      <div class="detail-section-title">Recent Performance History</div>
-      <div id="detail-history">
-        {% for entry in selected_player.recent_history %}
-        <div class="history-row">
-          <span class="history-dot">•</span> {{ entry }}
-        </div>
-        {% endfor %}
-      </div>
+      <div class="detail-section-title">Most Played With <span class="detail-section-note"><span class="pw-partner">partner</span> · <span class="pw-opponent">opponent</span></span></div>
+      <div id="detail-partners"></div>
+
+      <div class="detail-divider"></div>
+
+      <div class="detail-section-title">Recent Sessions</div>
+      <div id="detail-history"></div>
 
       <div class="detail-divider"></div>
 
@@ -238,37 +312,313 @@
     return name.split(' ').map(function (w) { return w[0]; }).join('').slice(0, 2).toUpperCase();
   }
 
-  function renderPartners(partners) {
-    var container = document.getElementById('detail-partners');
-    container.innerHTML = '';
-    if (!partners || partners.length === 0) {
-      return;
+  // ---------------------------------------------------------------
+  // Sit-out details: quick card on the right + full-screen breakdown.
+  // Data comes from /api/players/<id>/sit-outs (saved round results).
+  // ---------------------------------------------------------------
+  var reports = {};
+  var currentId = null;
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function el(tag, className, text, parent) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = text;
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+  function svg(tag, attrs, parent) {
+    var node = document.createElementNS(SVG_NS, tag);
+    Object.keys(attrs || {}).forEach(function (key) { node.setAttribute(key, attrs[key]); });
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+  function tip(node, text) { svg('title', {}, node).textContent = text; }
+  function pct(rate) { return rate === null || rate === undefined ? '—' : (rate * 100).toFixed(1) + '%'; }
+  function shortDate(iso) {
+    var d = new Date(iso + 'T00:00:00');
+    return isNaN(d) ? iso : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  }
+  function longDate(iso) {
+    var d = new Date(iso + 'T00:00:00');
+    return isNaN(d) ? iso : d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  var STATUS = { even: 'Even', above: 'Over', below: 'Under', none: 'No rounds yet' };
+  function balanceText(summary) {
+    var b = summary.balance;
+    if (summary.status === 'even') return 'Even';
+    if (summary.status === 'above') return '+' + b + ' over';
+    if (summary.status === 'below') return Math.abs(b) + ' under';
+    return '—';
+  }
+  function balanceNote(summary) {
+    var b = summary.balance;
+    if (summary.status === 'even') return (b > 0 ? '+' : '') + b + ' vs expected · within ±1 is even';
+    if (summary.status === 'above') return 'more sit-outs than expected';
+    if (summary.status === 'below') return 'fewer sit-outs than expected';
+    return '';
+  }
+  function headline(name, report) {
+    var s = report.summary;
+    var first = name.split(' ')[0];
+    if (!s.rounds) return first + " hasn't played a completed round yet.";
+    var text = first + ' has sat out ' + s.sat_out + ' time' + (s.sat_out === 1 ? '' : 's') +
+      ' in their last ' + s.rounds + ' round' + (s.rounds === 1 ? '' : 's') + '. ' +
+      'Given how busy those sessions were, about ' + s.expected + ' sit-outs were expected';
+    if (s.status === 'even') text += ' — right in line with everyone else.';
+    else if (s.status === 'below') text += ', so they have sat out less than their share.';
+    else text += ', so they have sat out a little more than expected. The system takes this into account, so they are less likely to sit out next.';
+    if (s.staff_sat_out) text += ' ' + s.staff_sat_out + ' of those sit-outs came from a staff change to the round.';
+    return text;
+  }
+
+  function loadReport(id) {
+    if (reports[id]) return Promise.resolve(reports[id]);
+    return fetch('/api/players/' + encodeURIComponent(id) + '/sit-outs', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+      .then(function (response) {
+        if (!response.ok) throw new Error('Could not load sit-out history.');
+        return response.json();
+      })
+      .then(function (report) { reports[id] = report; return report; });
+  }
+
+  // Quick-glance card on the right.
+  function renderQuick(player, report) {
+    var box = document.getElementById('detail-sitouts');
+    box.replaceChildren();
+    var s = report.summary;
+    if (!s.rounds) { el('p', 'detail-empty', 'No completed rounds yet.', box); }
+    else {
+      var top = el('div', 'quick-sitouts', null, box);
+      var big = el('div', 'quick-big', null, top);
+      el('strong', null, String(s.sat_out), big);
+      el('span', null, ' of ' + s.rounds + ' rounds', big);
+      el('span', 'balance-chip ' + s.status, STATUS[s.status], top);
+      // Actual vs expected on one small bar.
+      var max = Math.max(s.sat_out, s.expected, 1);
+      var meter = el('div', 'quick-meter', null, box);
+      var fill = el('div', 'quick-meter-fill', null, meter);
+      fill.style.width = (s.sat_out / max * 100) + '%';
+      var mark = el('div', 'quick-meter-mark', null, meter);
+      mark.style.left = (s.expected / max * 100) + '%';
+      mark.title = 'Expected: ' + s.expected;
+      el('p', 'quick-note', 'Expected ' + s.expected + ' · Rate ' + pct(s.rate) + ' (club ' + pct(report.club_rate) + ')', box);
     }
-    partners.forEach(function (partner) {
-      var row = document.createElement('div');
-      row.className = 'partner-row';
-      row.innerHTML = '<span class="partner-check">✓</span> ' + partner.name + ' (' + partner.match_score + ' match score)';
-      container.appendChild(row);
+    var partners = document.getElementById('detail-partners');
+    partners.replaceChildren();
+    if (!report.played_with.length) el('p', 'detail-empty', 'No rounds together yet.', partners);
+    report.played_with.slice(0, 3).forEach(function (other) {
+      var row = el('div', 'partner-row', null, partners);
+      row.title = playedWithTitle(other);
+      el('span', 'partner-name', other.name, row);
+      var count = el('span', 'partner-count', null, row);
+      el('span', 'pw-partner', String(other.partner), count);
+      count.appendChild(document.createTextNode(' · '));
+      el('span', 'pw-opponent', String(other.opponent), count);
+    });
+    var history = document.getElementById('detail-history');
+    history.replaceChildren();
+    if (!report.sessions.length) el('p', 'detail-empty', 'No sessions yet.', history);
+    report.sessions.slice(0, 3).forEach(function (session) {
+      var row = el('div', 'history-row', null, history);
+      el('span', 'history-date', shortDate(session.date), row);
+      el('span', 'history-name', session.name, row);
+      el('span', 'history-sat', 'sat ' + session.sat_out + ' / ' + session.rounds, row);
     });
   }
 
-  function renderHistory(history) {
-    var container = document.getElementById('detail-history');
-    container.innerHTML = '';
-    if (!history || history.length === 0) {
-      return;
+  // Full-screen breakdown.
+  function renderInsights(player, report) {
+    var s = report.summary;
+    document.getElementById('insights-name').textContent = player.name;
+    document.querySelectorAll('[data-window]').forEach(function (node) { node.textContent = report.window; });
+    document.getElementById('insights-headline').textContent = headline(player.name, report);
+
+    var kpis = document.getElementById('insights-kpis');
+    kpis.replaceChildren();
+    [
+      ['Rounds attended', String(s.rounds), null],
+      ['Sat out', String(s.sat_out), s.staff_sat_out ? s.staff_sat_out + ' from staff changes' : null],
+      ['Expected sit-outs', String(s.expected), 'for how busy their sessions were'],
+      ['Sit-out balance', s.rounds ? balanceText(s) : '—', s.rounds ? balanceNote(s) : null],
+      ['Sit-out rate', pct(s.rate), 'club average ' + pct(report.club_rate)]
+    ].forEach(function (item, index) {
+      var tile = el('div', 'kpi-tile' + (index === 3 ? ' kpi-' + s.status : ''), null, kpis);
+      el('div', 'kpi-label', item[0], tile);
+      el('div', 'kpi-value', item[1], tile);
+      if (item[2]) el('div', 'kpi-sub', item[2], tile);
+    });
+
+    // Round-by-round strip.
+    var strip = document.getElementById('insights-strip');
+    strip.replaceChildren();
+    if (!report.timeline.length) el('p', 'detail-empty', 'No completed rounds yet.', strip);
+    report.timeline.forEach(function (round) {
+      var cell = el('span', 'round-cell ' + (round.sat_out ? (round.staff ? 'staff' : 'sat') : 'played'), null, strip);
+      cell.title = longDate(round.date) + ' · ' + round.session + ' · Round ' + round.round + ': ' +
+        (round.sat_out ? 'sat out' + (round.staff ? ' (staff change)' : '') : 'played');
+    });
+
+    drawSessions(report.sessions.slice().reverse());
+    drawClub(report);
+    drawPartners(report.played_with);
+  }
+
+  function drawSessions(sessions) {
+    var box = document.getElementById('insights-sessions');
+    box.replaceChildren();
+    if (!sessions.length) { el('p', 'detail-empty', 'No sessions yet.', box); return; }
+    // Draw at the real width so text and bars stay a sensible size.
+    var W = Math.max(280, Math.round(box.clientWidth || 460)), H = 210, left = 28, bottom = 36, top = 12, right = 8;
+    var plotW = W - left - right, plotH = H - top - bottom;
+    var max = Math.max(1, Math.ceil(Math.max.apply(null, sessions.map(function (x) { return Math.max(x.sat_out, x.expected); }))));
+    var chart = svg('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'chart', role: 'img',
+      'aria-label': 'Sit-outs per session compared with expected' }, box);
+    for (var t = 0; t <= max; t++) {
+      var gy = top + plotH - t / max * plotH;
+      svg('line', { x1: left, x2: W - right, y1: gy, y2: gy, class: 'grid' }, chart);
+      svg('text', { x: left - 6, y: gy + 3, class: 'axis-label', 'text-anchor': 'end' }, chart).textContent = t;
     }
-    history.forEach(function (entry) {
-      var row = document.createElement('div');
-      row.className = 'history-row';
-      row.innerHTML = '<span class="history-dot">•</span> ' + entry;
-      container.appendChild(row);
+    var slot = plotW / sessions.length;
+    var barW = Math.min(34, slot * 0.55);
+    sessions.forEach(function (session, i) {
+      var cx = left + slot * i + slot / 2;
+      var h = session.sat_out / max * plotH;
+      var group = svg('g', { class: 'bar-group' }, chart);
+      // hit target bigger than the bar
+      svg('rect', { x: cx - slot / 2, y: top, width: slot, height: plotH, class: 'hit' }, group);
+      if (h > 0) svg('rect', { x: cx - barW / 2, y: top + plotH - h, width: barW, height: h, rx: 4, class: 'bar-sat' }, group);
+      var ey = top + plotH - session.expected / max * plotH;
+      svg('line', { x1: cx - barW / 2 - 4, x2: cx + barW / 2 + 4, y1: ey, y2: ey, class: 'expected-mark' }, group);
+      svg('text', { x: cx, y: H - bottom + 14, class: 'axis-label', 'text-anchor': 'middle' }, chart).textContent = shortDate(session.date);
+      tip(group, session.name + ' (' + longDate(session.date) + '): sat out ' + session.sat_out + ' of ' +
+        session.rounds + ' rounds, ' + session.expected + ' expected');
+    });
+    svg('line', { x1: left, x2: W - right, y1: top + plotH, y2: top + plotH, class: 'baseline' }, chart);
+    var legend = el('div', 'chart-legend', null, box);
+    el('i', 'key sat', null, el('span', null, null, legend)).parentNode.appendChild(document.createTextNode(' Sat out'));
+    el('i', 'key expected', null, el('span', null, null, legend)).parentNode.appendChild(document.createTextNode(' Expected'));
+  }
+
+  function drawClub(report) {
+    var box = document.getElementById('insights-club');
+    box.replaceChildren();
+    var points = report.club.filter(function (p) { return p.rate !== null; });
+    if (points.length < 2) { el('p', 'detail-empty', 'Not enough club history yet.', box); return; }
+    var W = Math.max(280, Math.round(box.clientWidth || 460)), H = 190, left = 16, right = 16, axisY = 150;
+    var maxRate = Math.max(0.05, Math.max.apply(null, points.map(function (p) { return p.rate; })));
+    maxRate = Math.ceil(maxRate * 20) / 20; // round up to 5%
+    var x = function (rate) { return left + rate / maxRate * (W - left - right); };
+    var chart = svg('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'chart', role: 'img',
+      'aria-label': 'Sit-out rate of every player, with this player highlighted' }, box);
+    for (var t = 0; t <= maxRate + 1e-9; t += maxRate / 4) {
+      svg('line', { x1: x(t), x2: x(t), y1: 20, y2: axisY, class: 'grid' }, chart);
+      svg('text', { x: x(t), y: axisY + 16, class: 'axis-label', 'text-anchor': 'middle' }, chart).textContent = Math.round(t * 100) + '%';
+    }
+    svg('line', { x1: left, x2: W - right, y1: axisY, y2: axisY, class: 'baseline' }, chart);
+    // Others: grey dots, spread vertically so they don't hide each other.
+    var others = points.filter(function (p) { return !p.is_player; });
+    others.forEach(function (p, i) {
+      var dot = svg('circle', { cx: x(p.rate), cy: 40 + (i * 37 % 100), r: 5, class: 'dot-other' }, chart);
+      tip(dot, 'Another player: ' + pct(p.rate));
+    });
+    if (report.club_rate !== null) {
+      var ax = x(report.club_rate);
+      svg('line', { x1: ax, x2: ax, y1: 20, y2: axisY, class: 'avg-line' }, chart);
+      svg('text', { x: ax + 5, y: 14, class: 'axis-label strong' }, chart).textContent = 'Club average ' + pct(report.club_rate);
+    }
+    var me = points.filter(function (p) { return p.is_player; })[0];
+    if (me) {
+      var mx = x(me.rate);
+      var dot = svg('circle', { cx: mx, cy: 90, r: 9, class: 'dot-player' }, chart);
+      tip(dot, 'This player: ' + pct(me.rate));
+      var label = svg('text', { x: mx, y: 116, class: 'axis-label player-label', 'text-anchor': 'middle' }, chart);
+      label.textContent = pct(me.rate);
+    }
+    var legend = el('div', 'chart-legend', null, box);
+    el('i', 'key me', null, el('span', null, null, legend)).parentNode.appendChild(document.createTextNode(' This player'));
+    el('i', 'key other', null, el('span', null, null, legend)).parentNode.appendChild(document.createTextNode(' Other players (5+ rounds)'));
+  }
+
+  var showAllPartners = false;
+  function drawPartners(partners) {
+    var box = document.getElementById('insights-partners');
+    var more = document.getElementById('insights-partners-more');
+    box.replaceChildren();
+    more.hidden = partners.length <= 5;
+    more.textContent = showAllPartners ? 'Show top 5 ▲' : 'Show top ' + Math.min(partners.length, 10) + ' ▼';
+    more.setAttribute('aria-expanded', showAllPartners ? 'true' : 'false');
+    if (!partners.length) { el('p', 'detail-empty', 'No rounds together yet.', box); return; }
+    var max = partners[0].total;
+    partners.slice(0, showAllPartners ? 10 : 5).forEach(function (other) {
+      var row = el('div', 'partner-bar-row', null, box);
+      row.title = playedWithTitle(other);
+      el('span', 'partner-bar-name', other.name, row);
+      var track = el('span', 'partner-bar-track', null, row);
+      [['partner', other.partner], ['opponent', other.opponent]].forEach(function (part) {
+        if (!part[1]) return;
+        var seg = el('span', 'partner-bar-seg ' + part[0], String(part[1]), track);
+        seg.style.width = (part[1] / max * 100) + '%';
+      });
+      el('span', 'partner-bar-value', other.total + ' round' + (other.total === 1 ? '' : 's'), row);
+    });
+  }
+
+  function playedWithTitle(other) {
+    return other.name + ': ' + other.partner + ' as partner, ' + other.opponent + ' as opponent';
+  }
+
+  var insights = document.getElementById('player-insights');
+  var partnersMore = document.getElementById('insights-partners-more');
+  if (partnersMore) {
+    partnersMore.addEventListener('click', function () {
+      showAllPartners = !showAllPartners;
+      if (reports[currentId]) drawPartners(reports[currentId].played_with);
+    });
+  }
+  // Redraw the charts at the new width when the window is resized.
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    if (!insights || insights.hidden || !reports[currentId]) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      var report = reports[currentId];
+      drawSessions(report.sessions.slice().reverse());
+      drawClub(report);
+    }, 150);
+  });
+  var expandBtn = document.getElementById('detail-expand');
+  var mainEl = document.querySelector('.players-main');
+  function setFocus(on) {
+    mainEl.classList.toggle('player-focus', on);
+    insights.hidden = !on;
+    expandBtn.setAttribute('aria-expanded', on ? 'true' : 'false');
+    expandBtn.title = on ? 'Back to all players' : 'Full-screen breakdown';
+    if (on && currentId) showReport(currentId);
+    if (on) window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function showReport(id) {
+    var player = playersData.find(function (p) { return p.id === id; });
+    loadReport(id).then(function (report) {
+      if (currentId !== id) return;
+      renderQuick(player, report);
+      if (!insights.hidden) renderInsights(player, report);
+    }).catch(function (error) {
+      document.getElementById('detail-sitouts').replaceChildren(el('p', 'detail-empty', error.message));
+    });
+  }
+  if (expandBtn) {
+    expandBtn.addEventListener('click', function () { setFocus(insights.hidden); });
+    document.getElementById('insights-close').addEventListener('click', function () { setFocus(false); });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !insights.hidden) setFocus(false);
     });
   }
 
   function selectPlayer(id) {
     var player = playersData.find(function (p) { return p.id === id; });
     if (!player) return;
+    currentId = id;
 
     document.getElementById('detail-avatar').textContent = initials(player.name);
     document.getElementById('detail-name').textContent = player.name;
@@ -282,8 +632,7 @@
       notesEl.style.color = 'var(--muted)';
     }
 
-    renderPartners(player.frequent_partners);
-    renderHistory(player.recent_history);
+    showReport(id);
 
     document.querySelectorAll('.players-table tbody tr').forEach(function (row) {
       row.classList.toggle('selected', row.dataset.playerId === id);
@@ -299,6 +648,8 @@
       selectPlayer(row.dataset.playerId);
     });
   });
+  var initiallySelected = document.querySelector('.players-table tbody tr.selected');
+  if (initiallySelected) selectPlayer(initiallySelected.dataset.playerId);
 
   var searchInput = document.getElementById('player-search');
   var rows = document.querySelectorAll('.players-table tbody tr');
@@ -319,14 +670,62 @@
 
       if (name.startsWith(query)) {
         row.style.display = '';
-        var match = originalName.slice(0, query.length);
-        var rest = originalName.slice(query.length);
-        nameSpan.innerHTML = '<mark class="search-hl">' + match + '</mark>' + rest;
+        var mark = document.createElement('mark');
+        mark.className = 'search-hl';
+        mark.textContent = originalName.slice(0, query.length);
+        nameSpan.replaceChildren(mark, originalName.slice(query.length));
       } else {
         row.style.display = 'none';
       }
     });
   });
+
+  // Click a column heading to sort; click again to reverse. Starts by name A-Z.
+  (function () {
+    var tbody = document.querySelector('.players-table tbody');
+    var buttons = document.querySelectorAll('.players-table .th-sort');
+    var current = { key: 'name', dir: 1 };
+
+    function value(row, key) {
+      if (key === 'rating' || key === 'sitouts') {
+        return row.dataset[key] === '' ? null : Number(row.dataset[key]);
+      }
+      return row.dataset[key] || '';
+    }
+
+    function compare(a, b) {
+      var va = value(a, current.key), vb = value(b, current.key);
+      if (va === null || vb === null) {
+        if (va === vb) return a.dataset.name.localeCompare(b.dataset.name);
+        return va === null ? 1 : -1;  // players without a rating stay last
+      }
+      var result = typeof va === 'number' ? va - vb : va.localeCompare(vb);
+      if (result === 0) return a.dataset.name.localeCompare(b.dataset.name);
+      return result * current.dir;
+    }
+
+    function apply() {
+      Array.prototype.slice.call(tbody.rows).sort(compare).forEach(function (row) {
+        tbody.appendChild(row);
+      });
+      buttons.forEach(function (button) {
+        var active = button.dataset.sort === current.key;
+        button.querySelector('.sort-arrow').textContent = active ? (current.dir === 1 ? '▲' : '▼') : '';
+        button.parentElement.setAttribute('aria-sort', active ? (current.dir === 1 ? 'ascending' : 'descending') : 'none');
+      });
+    }
+
+    buttons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        if (current.key === button.dataset.sort) {
+          current.dir = -current.dir;
+        } else {
+          current = { key: button.dataset.sort, dir: 1 };
+        }
+        apply();
+      });
+    });
+  })();
 
   var dropzone = document.getElementById('csv-dropzone');
   var csvInput = document.getElementById('csv-file-input');

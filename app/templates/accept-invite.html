@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>SetMaker | Accept Invitation</title>
+    <title>Setify | Accept Invitation</title>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <meta name="referrer" content="no-referrer">
@@ -33,7 +33,7 @@
                             S
                         </div>
 
-                        <span>SetMaker</span>
+                        <span>Setify</span>
 
                     </div>
 
@@ -97,13 +97,17 @@
 
 
                     <p class="login-subtitle invite-subtitle">
-                        Accept your invitation to join this club on SetMaker.
+                        Accept your invitation to join this club on Setify.
                     </p>
 
 
                     <!-- =========================
                          INVITATION DETAILS
                     ========================== -->
+
+                    {% if invite_problem %}
+                    <p class="form-error invite-problem" role="alert">{{ invite_problem }}</p>
+                    {% endif %}
 
                     <div class="invite-details-card">
 
@@ -114,7 +118,7 @@
                             </span>
 
                             <strong id="inviteClubName">
-                                —
+                                {{ invite.club if invite else '—' }}
                             </strong>
 
                         </div>
@@ -127,7 +131,7 @@
                             </span>
 
                             <strong class="invite-role" id="inviteRole">
-                                —
+                                {{ invite.role if invite else '—' }}
                             </strong>
 
                         </div>
@@ -136,11 +140,11 @@
                         <div class="invite-detail-row">
 
                             <span>
-                                Invited Email
+                                Invited by
                             </span>
 
-                            <strong id="inviteEmail">
-                                —
+                            <strong id="inviteInvitedBy">
+                                {{ invite.invited_by if invite else '—' }}
                             </strong>
 
                         </div>
@@ -174,7 +178,8 @@
                             </label>
 
                             <input type="password" id="invitePassword" name="password" class="input"
-                                placeholder="Create a password" autocomplete="new-password" maxlength="128" required>
+                                placeholder="At least 8 characters" autocomplete="new-password"
+                                minlength="8" maxlength="128" required>
 
                         </div>
 
@@ -200,7 +205,7 @@
 
 
                     <p class="invite-login-link">
-                        Already have a SetMaker account?
+                        Already have a Setify account?
 
                         <a href="{{ url_for('auth.login_page') }}">
                             Log In

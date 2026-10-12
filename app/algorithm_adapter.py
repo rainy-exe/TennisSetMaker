@@ -126,7 +126,9 @@ class PrototypeAlgorithmEngine:
             self._helpers = loaded["helpers"]
             self._algorithm = loaded["algorithm"]
 
-    def generate(self, players, court_ids, round_number, mixed_mode, strict_format):
+    def generate(
+        self, players, court_ids, round_number, mixed_mode, strict_format, variety_mode=2
+    ):
         self._load()
         mode = int(mixed_mode)
         if mode not in ROUND_FORMAT_MODES.values():
@@ -173,11 +175,12 @@ class PrototypeAlgorithmEngine:
         playing, sitting = self._algorithm.select_round_players(
             temporary, num_to_play, **selection_options
         )
+        # Pairing mode: 1 avoid repeats, 2 balanced skill, 3 round robin.
         generated = self._algorithm.assign_courts_for_round(
             playing,
             len(court_ids),
             mode,
-            2,
+            int(variety_mode) if int(variety_mode) in (1, 2, 3) else 2,
         )
 
         assignments = []

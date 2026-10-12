@@ -32,7 +32,11 @@
     }
     return result;
   }
-  const showError = error => { notice.textContent = error.message; };
+  const showError = error => {
+    notice.textContent = error.message;
+    // The notice sits at the top of the page; bring it into view.
+    notice.scrollIntoView({behavior: "smooth", block: "nearest"});
+  };
   function roundFormat(value) {
     if (["Mixed Doubles", "mixedDoubles"].includes(value)) return "mixed";
     if (["Same-Gender Doubles", "sameGenderDoubles"].includes(value)) return "same_gender";
@@ -64,6 +68,7 @@
     node.className = "btn";
     node.onclick = async () => {
       node.disabled = true;
+      notice.textContent = "";
       try { await action(); } catch (error) { showError(error); }
       finally { node.disabled = false; }
     };
@@ -72,7 +77,10 @@
   function field(form, name, label, value, type = "text") {
     let input = form.elements?.namedItem(name) || form.querySelector(`[name="${name}"]`);
     if (!input) {
-      const row = element("div", undefined, form);
+      // New fields go above the divider / buttons, never below them.
+      const anchor = form.querySelector(":scope > .form-divider") || form.querySelector(":scope > .form-actions");
+      const row = element("div", undefined);
+      if (anchor) form.insertBefore(row, anchor); else form.append(row);
       row.className = "field";
       const caption = element("label", label, row);
       input = element("input", undefined, row);
@@ -98,6 +106,186 @@
       label.append(document.createTextNode(item.name || `Court ${item.number} (${item.court_type})`));
     }
   }
+  // Type-ahead player search: arrows/Enter or the mouse pick a suggestion.
+  // source() returns the players that can currently be picked.
+  function playerAutocomplete(input, list, source, onPick) {
+    let matches = [];
+    let active = -1;
+    const byName = (a, b) => a.name.localeCompare(b.name);
+    function findMatches(query) {
+      const q = query.trim().toLowerCase();
+      if (!q) return [];
+      const available = source();
+      const starts = available.filter(player => player.name.toLowerCase().startsWith(q)).sort(byName);
+      // Then anyone whose surname/initial starts with it ("s" finds "John S").
+      const words = available.filter(player => !player.name.toLowerCase().startsWith(q) &&
+        player.name.toLowerCase().split(/\s+/).some(word => word.startsWith(q))).sort(byName);
+      return starts.concat(words);
+    }
+    function close() {
+      list.hidden = true;
+      input.setAttribute("aria-expanded", "false");
+      input.removeAttribute("aria-activedescendant");
+      active = -1;
+    }
+    function highlight(index) {
+      active = index;
+      list.querySelectorAll("li").forEach((item, i) => {
+        item.classList.toggle("active", i === index);
+        item.setAttribute("aria-selected", i === index ? "true" : "false");
+        if (i === index) {
+          input.setAttribute("aria-activedescendant", item.id);
+          item.scrollIntoView({block: "nearest"});
+        }
+      });
+    }
+    function show() {
+      matches = findMatches(input.value);
+      list.replaceChildren();
+      if (!input.value.trim()) { close(); return; }
+      if (!matches.length) element("li", "No matching players", list).className = "empty";
+      matches.forEach((player, i) => {
+        const item = element("li", undefined, list);
+        item.id = `${list.id}-option-${i}`;
+        item.setAttribute("role", "option");
+        const dot = element("span", undefined, item);
+        dot.className = `gender-dot ${genderDotClass(player.gender)}`;
+        element("span", player.name, item);
+        item.addEventListener("mousedown", event => { event.preventDefault(); pick(player); });
+        item.addEventListener("mousemove", () => { if (active !== i) highlight(i); });
+      });
+      list.hidden = false;
+      input.setAttribute("aria-expanded", "true");
+      highlight(matches.length ? 0 : -1);
+    }
+    function pick(player) {
+      input.value = "";
+      close();
+      onPick(player);
+    }
+    input.addEventListener("input", show);
+    input.addEventListener("focus", () => { if (input.value.trim()) show(); });
+    input.addEventListener("blur", close);
+    input.addEventListener("keydown", event => {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        if (list.hidden) { show(); return; }
+        if (!matches.length) return;
+        const step = event.key === "ArrowDown" ? 1 : -1;
+        highlight((active + step + matches.length) % matches.length);
+      } else if (event.key === "Enter") {
+        event.preventDefault();  // never submit a surrounding form from here
+        if (!list.hidden && matches[active]) pick(matches[active]);
+      } else if (event.key === "Escape") {
+        close();
+      }
+    });
+    return {close};
+  }
+  // Attending players (Create Session): chosen players show as chips
+  // holding hidden player_ids inputs.
+  function playerPicker(players) {
+    const input = document.getElementById("playerSearch");
+    const list = document.getElementById("playerSuggestions");
+    const chips = document.getElementById("attendingChips");
+    const count = document.getElementById("attendingCount");
+    const toggle = document.getElementById("allPlayersToggle");
+    const panel = document.getElementById("allPlayersPanel");
+    const chosen = new Map();
+    const byName = (a, b) => a.name.localeCompare(b.name);
+    playerAutocomplete(input, list, () => players.filter(player => !chosen.has(player.id)), add);
+    function render() {
+      chips.replaceChildren();
+      for (const player of [...chosen.values()]) {
+        const chip = element("span", undefined, chips);
+        chip.className = "player-chip";
+        const dot = element("span", undefined, chip);
+        dot.className = `gender-dot ${genderDotClass(player.gender)}`;
+        element("span", player.name, chip);
+        const hidden = element("input", undefined, chip);
+        hidden.type = "hidden"; hidden.name = "player_ids"; hidden.value = player.id;
+        const remove = element("button", "×", chip);
+        remove.type = "button";
+        remove.className = "chip-remove";
+        remove.setAttribute("aria-label", `Remove ${player.name}`);
+        remove.onclick = () => { chosen.delete(player.id); render(); input.focus(); };
+      }
+      count.textContent = `${chosen.size} selected`;
+      if (!panel.hidden) renderAll();
+    }
+    // Full reference list: men (blue) A-Z, then women (red) A-Z, then anyone else.
+    function renderAll() {
+      panel.replaceChildren();
+      const groups = [["male", "Male"], ["female", "Female"], ["unknown", "Other"]];
+      for (const [key, label] of groups) {
+        const members = players.filter(player => genderDotClass(player.gender) === key).sort(byName);
+        if (!members.length) continue;
+        const heading = element("div", `${label} · ${members.length}`, panel);
+        heading.className = "all-players-heading";
+        const grid = element("div", undefined, panel);
+        grid.className = "all-players-grid";
+        for (const player of members) {
+          const item = element("button", undefined, grid);
+          item.type = "button";
+          item.className = "all-players-item" + (chosen.has(player.id) ? " chosen" : "");
+          item.setAttribute("aria-pressed", chosen.has(player.id) ? "true" : "false");
+          const dot = element("span", undefined, item);
+          dot.className = `gender-dot ${genderDotClass(player.gender)}`;
+          element("span", player.name, item);
+          item.onclick = () => {
+            if (chosen.has(player.id)) chosen.delete(player.id); else chosen.set(player.id, player);
+            render();
+          };
+        }
+      }
+      if (!panel.childElementCount) element("p", "No rated players yet.", panel).className = "attending-hint";
+    }
+    toggle.addEventListener("click", () => {
+      panel.hidden = !panel.hidden;
+      toggle.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
+      toggle.classList.toggle("active", !panel.hidden);
+      if (!panel.hidden) renderAll();
+    });
+    function add(player) {
+      chosen.set(player.id, player);
+      render();
+      input.focus();
+    }
+    input.addEventListener("keydown", event => {
+      if (event.key === "Backspace" && !input.value && chosen.size) {
+        chosen.delete([...chosen.keys()].pop());
+        render();
+      }
+    });
+    render();
+  }
+  // One session as a clickable card (Sessions page and Dashboard).
+  function sessionCard(session, parent) {
+    const formats = {open: "Open Play", mixed: "Mixed Doubles", same_gender: "Same-Gender Doubles"};
+    const statusLabels = {active: "Active", draft: "Upcoming", completed: "Completed", cancelled: "Cancelled"};
+    const statusClasses = {active: "active", draft: "upcoming", completed: "completed", cancelled: "cancelled"};
+    // The whole card is the link, so clicking anywhere opens the session.
+    const row = element("a", undefined, parent);
+    row.href = `/sessions/${session.id}`;
+    row.className = "sessions-page-card";
+    const info = element("div", undefined, row);
+    element("div", session.name, info).className = "sessions-page-title";
+    const meta = element("div", undefined, info);
+    meta.className = "sessions-page-meta";
+    const when = new Date(session.starts_at);
+    const valid = !Number.isNaN(when.getTime());
+    element("span", valid ? when.toLocaleDateString(undefined, {weekday: "short", day: "numeric", month: "short", year: "numeric"}) : session.starts_at.slice(0, 10), meta).className = "sessions-page-meta-item";
+    element("span", valid ? when.toLocaleTimeString(undefined, {hour: "numeric", minute: "2-digit"}) : session.starts_at.slice(11, 16), meta).className = "sessions-page-meta-item";
+    element("span", formats[session.round_format] || session.round_format, meta).className = `format-pill ${session.round_format}`;
+    for (const [value, label] of [[(session.participants || []).length, "players"], [session.number_of_rounds, "rounds"]]) {
+      const stat = element("div", undefined, row);
+      stat.className = "sessions-page-stat";
+      element("strong", String(value), stat);
+      element("span", label, stat);
+    }
+    element("span", statusLabels[session.status] || session.status, row).className = `session-status ${statusClasses[session.status] || ""}`;
+    return row;
+  }
   function attachForm(form, save) {
     form.onsubmit = async event => {
       event.preventDefault();
@@ -114,12 +302,21 @@
       document.querySelectorAll(".delete-form").forEach(form => form.remove());
     }
     if (data.page === "player-form") {
-      const form = document.querySelector("form");
+      const form = main.querySelector("form");
       if (!data.can_manage_skill) {
-        form.elements.rating.disabled = true;
-        form.elements.rating.required = false;
+        const rating = form.elements.rating;
+        rating.disabled = true;
+        rating.required = false;
+        if (!data.player) {
+          // New players added by staff start at rating 1 (set by the server).
+          rating.value = "1";
+          const hint = element("p", "Players you add start at rating 1. An owner or admin can change it.");
+          hint.className = "field-hint";
+          rating.after(hint);
+        }
       }
       const confirm = element("label", undefined, form);
+      confirm.className = "duplicate-confirm";
       const check = element("input", undefined, confirm);
       check.type = "checkbox";
       check.name = "confirm_duplicate";
@@ -147,7 +344,7 @@
       });
     }
     if (data.page === "court-form") {
-      const form = document.querySelector("form");
+      const form = main.querySelector("form");
       if (data.court) {
         form.elements["court-name"].value = data.court.number;
         const surface = data.court.court_type.charAt(0).toUpperCase() + data.court.court_type.slice(1).toLowerCase();
@@ -171,12 +368,13 @@
       });
     }
     if (data.page === "template-form" || data.page === "session-form") {
-      const form = document.querySelector("form");
+      const form = main.querySelector("form");
       const courts = (await api("/api/courts")).courts.filter(court => court.active);
       const template = data.template;
       if (data.page === "template-form") {
         form.elements["template-name"].value = template?.name || "";
         form.elements.format.value = {mixed: "Mixed Doubles", same_gender: "Same-Gender Doubles", open: "Open Play (Any Gender)"}[template?.round_format || "open"];
+        form.elements.variety_mode.value = String(template?.variety_mode || 2);
         field(form, "rounds", "Number of Rounds", template?.number_of_rounds || 6, "number");
         field(form, "round-length", "Round Length (minutes)", template?.round_duration_minutes || 30, "number");
         field(form, "start_time", "Start Time", template?.start_time || "13:00", "time");
@@ -190,6 +388,7 @@
             round_duration_minutes: Number(values.get("round-length")), start_time: values.get("start_time"),
             session_duration_minutes: Number(values.get("session_duration_minutes")),
             round_format: roundFormat(values.get("format")),
+            variety_mode: Number(values.get("variety_mode") || 2),
             tea_break_after_round: values.get("tea_break_after_round") ? Number(values.get("tea_break_after_round")) : null,
             court_ids: useDefaults ? courts.map(court => court.id) : values.getAll("court_ids")};
           await api(template ? `/api/session-templates/${template.id}` : "/api/session-templates", template ? "PATCH" : "POST", payload);
@@ -211,11 +410,9 @@
         field(form, "tea_break_after_round", "Tea Break After Round (optional)", template?.tea_break_after_round, "number");
         form.elements.matchFormat.value = {mixed: "mixedDoubles", same_gender: "sameGenderDoubles", open: "openPlay"}[template?.round_format || "open"];
         form.elements.allowRelaxation.checked = !template?.strict_format;
+        form.elements.varietyMode.value = String(template?.variety_mode || 2);
         choices(document.getElementById("courtOptions"), courts, "court_ids", template?.court_ids || courts.map(court => court.id));
-        const playerChoices = element("section", undefined, form);
-        element("h2", "Attending Players", playerChoices);
-        const list = element("div", undefined, playerChoices);
-        choices(list, players, "player_ids");
+        playerPicker(players);
         form.elements.venue.closest(".field").hidden = true;
         document.querySelector(".segmented").closest(".field").hidden = true;
         attachForm(form, async values => {
@@ -223,6 +420,7 @@
             number_of_rounds: Number(values.get("number_of_rounds")), round_duration_minutes: Number(values.get("roundDuration")),
             session_duration_minutes: Number(values.get("session_duration_minutes")),
             round_format: roundFormat(values.get("matchFormat")),
+            variety_mode: Number(values.get("varietyMode") || 2),
             strict_format: !values.has("allowRelaxation"), court_ids: values.getAll("court_ids"), player_ids: values.getAll("player_ids"),
             tea_break_after_round: values.get("tea_break_after_round") ? Number(values.get("tea_break_after_round")) : null};
           if (template) payload.template_id = template.id;
@@ -262,13 +460,7 @@
           (!date.value || s.starts_at.slice(0, 10) === date.value) &&
           (!mode.value || s.round_format === mode.value));
         list.replaceChildren();
-        for (const session of visible) {
-          const row = element("article", undefined, list);
-          const link = element("a", session.name, row);
-          link.href = `/sessions/${session.id}`;
-          row.className = "card";
-          element("p", `${session.starts_at} · ${session.status} · ${formats[session.round_format]}`, row);
-        }
+        for (const session of visible) sessionCard(session, list);
         document.getElementById("sessionsEmptyState").hidden = visible.length > 0;
         document.getElementById("sessionsResultCount").textContent = `${visible.length} sessions`;
       }
@@ -289,11 +481,10 @@
       const roleFilter = document.getElementById("roleFilter");
       const statusFilter = document.getElementById("statusFilter");
       const list = document.getElementById("accountTableBody");
-      document.getElementById("adminEmail").textContent = login.user.email;
       const add = document.getElementById("addAccountButton");
       add.textContent = "Invite Member";
       add.onclick = () => location.assign("/settings/invite-member");
-      const rows = members.users.map(u => ({...u, status: u.active ? "active" : "disabled"}));
+      const rows = members.users.map(u => ({...u, status: u.status || (u.active ? "active" : "removed")}));
       rows.push(...invitations.invitations.filter(i => !i.accepted_at && new Date(`${i.expires_at}Z`) > new Date()).map(i => ({...i, status: "pending", invitation: true})));
       function drawAccounts() {
         const visible = rows.filter(u => `${u.full_name || ""} ${u.email}`.toLowerCase().includes(search.value.trim().toLowerCase()) &&
@@ -302,18 +493,31 @@
         for (const member of visible) {
           const row = element("tr", undefined, list);
           for (const value of [member.full_name || "—", member.email, member.role, member.status, "—"]) element("td", value, row);
-          const actions = element("td", undefined, row);
-          if (member.role === "owner" || (ownRole !== "owner" && member.role !== "staff") || member.status === "disabled") continue;
+          if (member.status === "removed") row.classList.add("account-removed");
+          const cell = element("td", undefined, row);
+          if (member.role === "owner" || (ownRole !== "owner" && member.role !== "staff") || member.status === "removed") continue;
+          const actions = element("div", undefined, cell);
+          actions.className = "account-actions";
           if (!member.invitation) {
             const role = element("select", undefined, actions);
-            for (const value of ownRole === "owner" ? ["admin", "staff"] : ["staff"]) element("option", value, role).value = value;
+            role.className = "select select-sm";
+            role.setAttribute("aria-label", `Role for ${member.full_name || member.email}`);
+            for (const value of ownRole === "owner" ? ["admin", "staff"] : ["staff"]) {
+              element("option", value.charAt(0).toUpperCase() + value.slice(1), role).value = value;
+            }
             role.value = member.role;
-            button("Save Role", actions, async () => { await api(`/api/users/${member.id}`, "PATCH", {role: role.value}); location.reload(); });
+            const save = button("Save Role", actions, async () => { await api(`/api/users/${member.id}`, "PATCH", {role: role.value}); location.reload(); });
+            save.classList.add("btn-sm");
+            // Only worth saving once the role has actually changed.
+            save.disabled = true;
+            role.onchange = () => { save.disabled = role.value === member.role; };
           }
-          button(member.invitation ? "Revoke" : "Remove", actions, async () => {
-            if (!window.confirm(`${member.invitation ? "Revoke invitation for" : "Remove"} ${member.email}?`)) return;
+          const remove = button(member.invitation ? "Revoke" : "Remove", actions, async () => {
+            if (!window.confirm(member.invitation ? `Revoke invitation for ${member.email}?`
+              : `Remove ${member.email}? They lose access straight away. The email is freed, so they can be invited again or register their own club.`)) return;
             await api(`/api/${member.invitation ? "invitations" : "users"}/${member.id}`, "DELETE"); location.reload();
           });
+          remove.classList.add("btn-sm", "btn-warn");
         }
         document.getElementById("accountsEmptyState").hidden = visible.length > 0;
         document.getElementById("accountCount").textContent = `${visible.length} accounts and pending invitations`;
@@ -331,10 +535,10 @@
       document.getElementById("activeSessions").textContent = active.length;
       document.getElementById("nextRound").textContent = "Open a session";
       const list = document.getElementById("sessionList");
-      for (const session of active) {
-        const link = element("a", `${session.name} · ${session.starts_at} · ${session.status}`, list);
-        link.href = `/sessions/${session.id}`; link.className = "card";
-      }
+      list.classList.add("sessions-page-list");
+      // Active first, then upcoming soonest first.
+      active.sort((a, b) => (a.status === b.status ? a.starts_at.localeCompare(b.starts_at) : a.status === "active" ? -1 : 1));
+      for (const session of active) sessionCard(session, list);
       if (!active.length) element("p", "No active sessions yet.", list);
       document.getElementById("recentActivity").textContent = "Open a session to view its saved rounds.";
     }
@@ -522,144 +726,184 @@
       selector.replaceChildren();
       let selectedRound = round;
       let final;
+      // Swapping players: drag one player onto another, or click one then
+      // another. Every slot (team spot or sitting-out spot) holds exactly one
+      // player, so a swap can never put someone in two places.
+      let picked = null;  // {list, index} of the player clicked first
+      let refocus = null;  // keep keyboard focus on the same spot after redrawing
+      // Skill numbers are only sent to roles allowed to see them.
+      const skillKnown = players.some(player => typeof player.skill === "number");
+      let showSkill = false;
+      try { showSkill = skillKnown && localStorage.getItem("setmaker-show-skill") === "1"; } catch (ignored) { /* storage blocked */ }
+      const skillOf = id => byId.get(id)?.skill;
+      function skillBadge(parent, id) {
+        if (!showSkill) return;
+        const value = skillOf(id);
+        const badge = element("span", typeof value === "number" ? String(value) : "–", parent);
+        badge.className = "skill-badge";
+        badge.title = "Skill rating";
+      }
       function draw(current) {
-    selectedRound = current;
+        selectedRound = current;
+        final = current
+          ? structuredClone(current.final)
+          : {assignments: [], sit_out_player_ids: []};
+        picked = null;
+        render();
+      }
+      function render() {
+        const current = selectedRound;
+        const saved = current?.final;
+        const matches = document.getElementById("matchGrid");
+        const sitting = document.getElementById("sitoutList");
+        matches.replaceChildren();
+        sitting.replaceChildren();
+        document.getElementById("currentRound").textContent = current?.number || "Not generated";
+        document.getElementById("matchCount").textContent = final.assignments.length;
+        document.getElementById("sitoutCount").textContent = final.sit_out_player_ids.length;
+        const editable = current?.status === "generated";
+        const changed = saved && JSON.stringify(final) !== JSON.stringify(saved);
 
-    final = current
-        ? structuredClone(current.final)
-        : { assignments: [], sit_out_player_ids: [] };
-
-    const matches = document.getElementById("matchGrid");
-    const sitting = document.getElementById("sitoutList");
-
-    matches.replaceChildren();
-    sitting.replaceChildren();
-
-    document.getElementById("currentRound").textContent =
-        current?.number || "Not generated";
-
-    document.getElementById("matchCount").textContent =
-        final.assignments.length;
-
-    document.getElementById("sitoutCount").textContent =
-        final.sit_out_player_ids.length;
-
-    const eligible = current?.eligibility
-        .filter(item => item.status === "eligible")
-        .map(item => item.player_id) || [];
-
-    const editable = current?.status === "generated";
-
-    // Compact player selector, preserving manual override.
-    function playerSelect(parent, playerId, change) {
-        const line = element("div", undefined, parent);
-        line.className = "player-line";
-
-        const player = byId.get(playerId);
-
-        const genderDot = element("span", undefined, line);
-        genderDot.className = `gender-dot ${genderDotClass(player?.gender)}`;
-        genderDot.title =
-            player?.gender === "F" ? "Female" :
-            player?.gender === "M" ? "Male" : "Unknown";
-
-        const select = element("select", undefined, line);
-        select.className = "player-inline-select";
-
-        for (const id of eligible) {
-            const option = element(
-                "option",
-                byId.get(id)?.name || id,
-                select
-            );
-            option.value = id;
+        function swap(a, b) {
+          if (a.list === b.list && a.index === b.index) return;
+          const held = a.list[a.index];
+          a.list[a.index] = b.list[b.index];
+          b.list[b.index] = held;
+          picked = null;
+          refocus = b;
+          render();
+        }
+        function isPicked(slot) {
+          return picked && picked.list === slot.list && picked.index === slot.index;
+        }
+        // Makes one player element clickable/draggable for swapping.
+        function swappable(el, slot, savedId) {
+          const id = slot.list[slot.index];
+          el.dataset.playerId = id;
+          if (savedId !== undefined && savedId !== id) el.classList.add("moved");
+          if (!editable) return;
+          el.classList.add("swappable");
+          el.tabIndex = 0;
+          el.setAttribute("role", "button");
+          const name = byId.get(id)?.name || id;
+          el.setAttribute("aria-pressed", isPicked(slot) ? "true" : "false");
+          el.setAttribute("aria-label", picked && !isPicked(slot)
+            ? `Swap with ${name}` : `${name}. Select to swap`);
+          if (isPicked(slot)) el.classList.add("picked");
+          if (refocus && refocus.list === slot.list && refocus.index === slot.index) {
+            refocus = null;
+            requestAnimationFrame(() => el.focus({preventScroll: true}));
+          }
+          const choose = () => {
+            refocus = slot;
+            if (!picked) { picked = slot; render(); }
+            else if (isPicked(slot)) { picked = null; render(); }
+            else swap(picked, slot);
+          };
+          el.addEventListener("click", choose);
+          el.addEventListener("keydown", event => {
+            if (event.key === "Enter" || event.key === " ") { event.preventDefault(); choose(); }
+          });
+          el.draggable = true;
+          el.addEventListener("dragstart", event => {
+            dragging = slot;
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", id);
+            requestAnimationFrame(() => el.classList.add("dragging"));
+          });
+          el.addEventListener("dragend", () => {
+            dragging = null;
+            el.classList.remove("dragging");
+            document.querySelectorAll(".drop-target").forEach(node => node.classList.remove("drop-target"));
+          });
+          el.addEventListener("dragover", event => {
+            if (!dragging) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            el.classList.add("drop-target");
+          });
+          el.addEventListener("dragleave", () => el.classList.remove("drop-target"));
+          el.addEventListener("drop", event => {
+            event.preventDefault();
+            const from = dragging;
+            dragging = null;
+            if (from) swap(from, slot);
+          });
+        }
+        function playerLine(parent, list, index, savedList) {
+          const line = element("div", undefined, parent);
+          line.className = "player-line";
+          const player = byId.get(list[index]);
+          const genderDot = element("span", undefined, line);
+          genderDot.className = `gender-dot ${genderDotClass(player?.gender)}`;
+          genderDot.title = player?.gender === "F" ? "Female" : player?.gender === "M" ? "Male" : "Unknown";
+          element("span", player?.name || list[index], line).className = "player-line-name";
+          skillBadge(line, list[index]);
+          swappable(line, {list, index}, savedList?.[index]);
         }
 
-        select.value = playerId;
-        select.disabled = !editable;
-
-        select.onchange = () => change(select.value);
-    }
-
-    // Generate styled court cards.
-    for (const assignment of final.assignments) {
-        const card = element("div", undefined, matches);
-        card.className = "card match-card";
-
-        const header = element("div", undefined, card);
-        header.className = "match-card-header";
-
-        element(
-            "span",
-            `Court ${courtById.get(assignment.court_id)?.number || assignment.court_id}`,
-            header
-        );
-
-        // Team A
-        const teamA = element("div", undefined, card);
-        teamA.className = "team";
-
-        const labelA = element("div", "TEAM A", teamA);
-        labelA.className = "team-label";
-
-        assignment.team_a_player_ids.forEach((id, index) => {
-            playerSelect(teamA, id, value => {
-                assignment.team_a_player_ids[index] = value;
-            });
+        final.assignments.forEach((assignment, courtIndex) => {
+          const savedMatch = saved?.assignments[courtIndex];
+          const card = element("div", undefined, matches);
+          card.className = "card match-card";
+          const header = element("div", undefined, card);
+          header.className = "match-card-header";
+          element("span", `Court ${courtById.get(assignment.court_id)?.number || assignment.court_id}`, header);
+          if (showSkill) {
+            // Team totals, recalculated after every swap.
+            const total = ids => ids.reduce((sum, id) => sum + (skillOf(id) || 0), 0);
+            const a = total(assignment.team_a_player_ids);
+            const b = total(assignment.team_b_player_ids);
+            const gap = Math.abs(a - b);
+            const chip = element("span", `${a} vs ${b}`, header);
+            chip.className = "court-skill-chip" + (gap >= 3 ? " far" : gap === 2 ? " close" : "");
+            chip.title = `Team skill totals (difference ${gap})`;
+          }
+          const teamA = element("div", undefined, card);
+          teamA.className = "team";
+          element("div", "TEAM A", teamA).className = "team-label";
+          assignment.team_a_player_ids.forEach((id, index) =>
+            playerLine(teamA, assignment.team_a_player_ids, index, savedMatch?.team_a_player_ids));
+          element("div", "VS", card).className = "vs";
+          const teamB = element("div", undefined, card);
+          teamB.className = "team";
+          element("div", "TEAM B", teamB).className = "team-label";
+          assignment.team_b_player_ids.forEach((id, index) =>
+            playerLine(teamB, assignment.team_b_player_ids, index, savedMatch?.team_b_player_ids));
         });
 
-        // VS divider
-        const vs = element("div", "VS", card);
-        vs.className = "vs";
-
-        // Team B
-        const teamB = element("div", undefined, card);
-        teamB.className = "team";
-
-        const labelB = element("div", "TEAM B", teamB);
-        labelB.className = "team-label";
-
-        assignment.team_b_player_ids.forEach((id, index) => {
-            playerSelect(teamB, id, value => {
-                assignment.team_b_player_ids[index] = value;
-            });
-        });
-    }
-
-    // Styled sitting-out players
-    final.sit_out_player_ids.forEach((id, index) => {
-        const row = element("div", undefined, sitting);
-        row.className = "sitout-player";
-
-        const name = byId.get(id)?.name || id;
-
-        const avatar = element(
-            "div",
-            name.split(" ").map(part => part[0]).slice(0, 2).join("").toUpperCase(),
-            row
-        );
-        avatar.className = "player-avatar";
-
-        const details = element("div", undefined, row);
-        details.className = "sitout-details";
-
-        playerSelect(details, id, value => {
-            final.sit_out_player_ids[index] = value;
+        final.sit_out_player_ids.forEach((id, index) => {
+          const row = element("div", undefined, sitting);
+          row.className = "sitout-player";
+          const player = byId.get(id);
+          const name = player?.name || id;
+          const avatar = element("div", name.split(" ").map(part => part[0]).slice(0, 2).join("").toUpperCase(), row);
+          avatar.className = "player-avatar";
+          const details = element("div", undefined, row);
+          details.className = "sitout-details";
+          const line = element("div", undefined, details);
+          line.className = "player-line";
+          const dot = element("span", undefined, line);
+          dot.className = `gender-dot ${genderDotClass(player?.gender)}`;
+          element("span", name, line).className = "player-line-name";
+          skillBadge(line, id);
+          element("div", "Sitting out this round", details).className = "sitout-meta";
+          swappable(row, {list: final.sit_out_player_ids, index}, saved?.sit_out_player_ids[index]);
         });
 
-        const description = element(
-            "div",
-            "Sitting out this round",
-            details
-        );
-        description.className = "sitout-meta";
-    });
-
-    document.getElementById("matchExplanation").textContent =
-        current?.status === "completed"
+        document.getElementById("matchExplanation").textContent =
+          current?.status === "completed"
             ? "Completed round — locked."
-            : "Change players if needed, then click Save Changes. Duplicate assignments are rejected by the backend.";
-}
+            : picked
+              ? `Now click the player to swap with ${byId.get(picked.list[picked.index])?.name || "them"}, or click them again to cancel.`
+              : changed
+                ? "Unsaved changes (highlighted). Click Save Changes to keep them, or Undo Unsaved Changes."
+                : "Drag a player onto another player, or click one then another, to swap them. Then click Save Changes.";
+      }
+      let dragging = null;
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && picked) { picked = null; render(); }
+      });
       for (const saved of session.rounds) {
         const roundButton = button(
             `Round ${saved.number}`,
@@ -731,26 +975,25 @@
               }
           };
       }
+      actions.classList.add("session-actions");
+      const unsaved = () => selectedRound?.status === "generated" &&
+        JSON.stringify(final) !== JSON.stringify(selectedRound.final);
       if (!round || round.status === "completed") {
-        if (["draft", "active"].includes(session.status)) button("Generate Next Round", actions, async () => {
-          await api(`/api/sessions/${session.id}/rounds/generate`, "POST"); location.reload();
-        });
+        if (["draft", "active"].includes(session.status)) {
+          button("Generate Next Round", actions, async () => {
+            await api(`/api/sessions/${session.id}/rounds/generate`, "POST"); location.reload();
+          }).classList.add("btn-primary");
+        }
       }
       if (round?.status === "generated") {
         button("Undo Unsaved Changes", actions, () => draw(selectedRound));
         button("Save Changes", actions, async () => {
           const assignedIds = [
-              ...final.assignments.flatMap(match => [
-                  ...match.team_a_player_ids,
-                  ...match.team_b_player_ids
-              ]),
-              ...final.sit_out_player_ids
+            ...final.assignments.flatMap(match => [...match.team_a_player_ids, ...match.team_b_player_ids]),
+            ...final.sit_out_player_ids
           ];
-
           if (assignedIds.length !== new Set(assignedIds).size) {
-              throw new Error(
-                  "A player has been assigned more than once. Please check the teams and sitting-out list."
-              );
+            throw new Error("A player has been assigned more than once. Please check the teams and sitting-out list.");
           }
           if (selectedRound?.status !== "generated") throw new Error("Completed rounds are locked.");
           await api(`/api/rounds/${selectedRound.id}/final`, "PUT", {...final, expected_revision: selectedRound.override_revision});
@@ -758,30 +1001,104 @@
         });
         button("Complete Round", actions, async () => {
           if (selectedRound.id !== round.id) throw new Error("Select the current round first.");
-          if (JSON.stringify(final) !== JSON.stringify(selectedRound.final)) throw new Error("Save or undo your changes before completing the round.");
+          if (unsaved()) throw new Error("Save or undo your changes before completing the round.");
           await api(`/api/rounds/${round.id}/complete`, "POST"); location.reload();
-        });
+        }).classList.add("btn-primary");
       }
+      // Add / Remove Player: a type-ahead box that opens under the buttons.
+      let panel = null;
       if (["draft", "active"].includes(session.status)) {
-        const late = element("select", undefined, actions); late.id = "late-player";
         const joined = new Set(session.participants.map(item => item.player_id));
-        for (const player of players.filter(player => player.active && !joined.has(player.id))) {
-          const option = element("option", player.name, late); option.value = player.id;
+        const modes = {
+          add: {
+            label: "Add Player",
+            placeholder: "Type a name to add them to this session…",
+            hint: "They join from the next round generated.",
+            source: () => players.filter(player => player.active && !joined.has(player.id)),
+            run: async player => {
+              await api(`/api/sessions/${session.id}/players`, "POST", {player_id: player.id});
+              location.reload();
+            }
+          },
+          remove: {
+            label: "Remove Player",
+            placeholder: "Type the name of a player who is leaving…",
+            hint: "They finish the current round and sit out from the next round.",
+            source: () => session.participants.filter(item => !item.unavailable_from_round)
+              .map(item => byId.get(item.player_id)).filter(Boolean),
+            run: async player => {
+              if (!window.confirm(`Remove ${player.name} from the next round onwards?`)) return;
+              await api(`/api/sessions/${session.id}/players/${player.id}`, "PATCH", {reason: "Unavailable for remainder of session"});
+              location.reload();
+            }
+          }
+        };
+        let mode = null;
+        const modeButtons = {};
+        for (const key of Object.keys(modes)) {
+          modeButtons[key] = button(modes[key].label, actions, () => openPanel(key));
+          modeButtons[key].setAttribute("aria-expanded", "false");
+          modeButtons[key].setAttribute("aria-controls", "sessionActionPanel");
         }
-        button("Add Late Player", actions, async () => {
-          if (!late.value) throw new Error("Select a player who has not joined yet.");
-          await api(`/api/sessions/${session.id}/players`, "POST", {player_id: late.value}); location.reload();
+        panel = element("div", undefined);
+        panel.className = "session-action-panel";
+        panel.id = "sessionActionPanel";
+        panel.hidden = true;
+        const picker = element("div", undefined, panel);
+        picker.className = "player-picker";
+        const input = element("input", undefined, picker);
+        input.type = "text";
+        input.className = "input";
+        input.autocomplete = "off";
+        input.setAttribute("role", "combobox");
+        input.setAttribute("aria-autocomplete", "list");
+        input.setAttribute("aria-expanded", "false");
+        input.setAttribute("aria-controls", "sessionPlayerSuggestions");
+        const list = element("ul", undefined, picker);
+        list.className = "player-suggestions";
+        list.id = "sessionPlayerSuggestions";
+        list.setAttribute("role", "listbox");
+        list.hidden = true;
+        const hint = element("p", undefined, panel);
+        hint.className = "attending-hint";
+        playerAutocomplete(input, list, () => (mode ? modes[mode].source() : []), async player => {
+          try { await modes[mode].run(player); } catch (error) { showError(error); }
         });
-        const leave = element("select", undefined, actions); leave.id = "unavailable-player";
-        for (const participant of session.participants.filter(item => !item.unavailable_from_round)) {
-          const option = element("option", byId.get(participant.player_id)?.name || participant.player_id, leave);
-          option.value = participant.player_id;
+        function openPanel(key) {
+          if (mode === key) { mode = null; } else {
+            if (unsaved()) throw new Error("Save or undo your changes first; adding or removing a player reloads the page.");
+            mode = key;
+          }
+          panel.hidden = !mode;
+          for (const [name, node] of Object.entries(modeButtons)) {
+            node.classList.toggle("active", name === mode);
+            node.setAttribute("aria-expanded", name === mode ? "true" : "false");
+          }
+          if (mode) {
+            input.placeholder = modes[mode].placeholder;
+            input.setAttribute("aria-label", modes[mode].label);
+            hint.textContent = modes[mode].hint;
+            input.value = "";
+            input.focus();
+          }
         }
-        button("Unavailable From Next Round", actions, async () => {
-          if (!leave.value) throw new Error("Select a participant.");
-          await api(`/api/sessions/${session.id}/players/${leave.value}`, "PATCH", {reason: "Unavailable for remainder of session"}); location.reload();
-        });
       }
+      if (skillKnown) {
+        const skillButton = button("", actions, () => {
+          showSkill = !showSkill;
+          try { localStorage.setItem("setmaker-show-skill", showSkill ? "1" : "0"); } catch (ignored) { /* storage blocked */ }
+          paintSkillButton();
+          render();
+        });
+        skillButton.classList.add("skill-toggle");
+        function paintSkillButton() {
+          skillButton.textContent = showSkill ? "Hide Skill" : "Show Skill";
+          skillButton.setAttribute("aria-pressed", showSkill ? "true" : "false");
+          skillButton.classList.toggle("active", showSkill);
+        }
+        paintSkillButton();
+      }
+      if (panel) actions.append(panel);
       if (new URLSearchParams(location.search).has("generation_failed")) notice.textContent = "Session saved. Generation failed; retry Generate Next Round to see the error.";
     }
   } catch (error) { showError(error); }

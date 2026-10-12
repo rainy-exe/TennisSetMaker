@@ -109,12 +109,13 @@ not consistent with the existing API, migrations or stored records.
 Open/mixed/same-gender formats and fixed variety mode 2 are the current contract.
 The adapter passes gender mode 0/1/2 to both Prototype4 selection and assignment.
 Strict same-gender requires same-gender partners but permits MM versus FF spares.
-Cross-session partner/opponent
-history still uses 120 days; the PR #26 discussion about resetting it needs
-coordination before changing existing behaviour. Court drag-order UI, detailed
+Partner/opponent
+history now resets every session (client decision); sit-out fairness still uses
+each player's last 50 rounds. Court drag-order UI, detailed
 player statistics and export
 are not completed by this pass. Kate's QR result route is retained and tested
-against final assignments, not replaced. No password-reset email is claimed to be sent.
+against final assignments, not replaced. Password reset only reports success when
+email is configured (otherwise 503, nothing claimed to be sent).
 
 ## Migration safety
 
@@ -148,14 +149,19 @@ not as an offline SQL export, so the preflight can inspect the target database.
 
 ## Remaining coordination
 
-- Password reset is not implemented. The endpoint
-  returns an explicit 503 and does not claim an email was sent.
+- Password reset, email confirmation, email change and password change are
+  implemented (`app/mailer.py`, `app/account_security.py`, `app/account.py`).
+  Real delivery needs the provider/DNS setup in `Documents/email-setup.md`;
+  migration `e3a1f5c2b9d4` adds `session_version`, `email_verified_at` and
+  `last_account_email_at` to users. Rate limits are kept in memory per worker
+  process.
 - Kate's QR route uses an unguessable permanent bearer link, not login. Sharing,
   revocation and whether draft rounds should be visible still need team approval
   before deployment. Existing latest-created-session selection is unchanged.
 - Phone access is not verified. A QR pointing at localhost cannot reach another
   computer: configure `PUBLIC_BASE_URL` for deployment or a reachable test LAN.
-- Real invitation delivery still needs deployment SMTP configuration and testing.
+- Real invitation and reset delivery still needs the deployment SMTP settings and
+  a test send from the live domain.
 - Kate's CSV import was pushed in `3315402`; no competing importer was added.
 - The client-facing user guide stays with the frontend team.
 - Do not merge or send reviews without the user's confirmation.

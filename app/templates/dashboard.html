@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>SetMaker | Dashboard</title>
+    <title>Setify | Dashboard</title>
 
     <link
     rel="stylesheet"
@@ -18,70 +18,7 @@
 
     <div class="app-shell">
 
-        <aside class="sidebar">
-
-            <!-- SetMaker logo -->
-            <div class="brand">
-
-                <div class="logo-mark">
-                    S
-                </div>
-
-                <span>SetMaker</span>
-
-            </div>
-
-
-            <!-- Navigation -->
-            <nav class="nav">
-
-                <a href="{{ url_for('main.dashboard') }}" class="nav-link active">
-                    Dashboard
-                </a>
-
-                <a href="{{ url_for('main.create_session') }}" class="nav-link">
-                    Sessions
-                </a>
-
-               <a href="{{ url_for('main.players') }}" class="nav-link">
-                Players
-                </a>
-
-                <a href="{{ url_for('main.courts') }}" class="nav-link">
-                    Courts
-                </a>
-
-                <a href="{{ url_for('main.templates') }}" class="nav-link">
-                    Templates
-                </a>
-
-                <a href="{{ url_for('main.history') }}" class="nav-link">
-                    History
-                </a>
-
-                <a href="{{ url_for('main.settings') }}" class="nav-link">
-                    Settings
-                </a>
-
-            </nav>
-
-
-            <!-- Admin information -->
-            <div class="admin-card">
-
-                <div class="avatar">
-                </div>
-
-                <div class="admin-copy">
-                    <strong>Club Admin</strong>
-
-                    <!-- Backend can fill this later -->
-                    <span id="adminEmail"></span>
-                </div>
-
-            </div>
-
-        </aside>
+        {% include '_sidebar.html' %}
 
         <main class="main dashboard-main">
 
@@ -90,8 +27,9 @@
 
                 <div>
 
+                    {% set me = sidebar_user() %}
                     <h1 class="page-title">
-                        Welcome back, Admin
+                        {% if me %}Welcome back, {{ me.first_name }}{% else %}Welcome back{% endif %}
                     </h1>
 
                     <p class="page-subtitle">

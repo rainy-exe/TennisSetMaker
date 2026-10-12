@@ -21,6 +21,7 @@ branches may need the integrated `environment`/`main` updates before using it.
 - [Frontend API guide: login, CSRF, permissions and session requests](Documents/backend-session-api.md)
 - [Algorithm adapter contract for Rai/Eric](Documents/backend-algorithm-contract.md)
 - [Backend integration notes and remaining dependencies](Documents/backend-integration-followups.md)
+- [Email setup: sending from the domain, password reset, support inbox](Documents/email-setup.md)
 
 Start the persistent backend through **`run.py`**, which uses Kate's Flask
 factory. The root `app.py` is an older CSV/in-memory demo and is not this API.

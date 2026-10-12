@@ -99,6 +99,40 @@ class User(TimestampMixin, db.Model):
         default=True,
     )
 
+    # Bumped on password reset/change; logins made before that stop working.
+    session_version = db.Column(
+        db.Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+
+    # Set once the user clicks a link sent to this address (verification,
+    # password reset, accepted invitation or confirmed email change).
+    email_verified_at = db.Column(
+        db.DateTime,
+        nullable=True,
+    )
+
+    # Last password-reset / verification / email-change email (resend cooldown).
+    last_account_email_at = db.Column(
+        db.DateTime,
+        nullable=True,
+    )
+
+    # Removing a member frees their email: `email` becomes a placeholder so
+    # the address can register again or be re-invited, and the address they
+    # used is kept here for the Accounts list. Rounds they edited stay linked.
+    removed_at = db.Column(
+        db.DateTime,
+        nullable=True,
+    )
+
+    removed_email = db.Column(
+        db.String(255),
+        nullable=True,
+    )
+
     club = db.relationship(
         "Club",
         back_populates="users",
@@ -342,6 +376,9 @@ class SessionTemplate(TimestampMixin, db.Model):
     start_time = db.Column(db.Time, nullable=False)
     round_format = db.Column(db.String(20), nullable=False, default="open")
     strict_format = db.Column(db.Boolean, nullable=False, default=False)
+    # Pairing mode passed to Prototype4: 1 = avoid repeats, 2 = balanced
+    # skill (default), 3 = round robin.
+    variety_mode = db.Column(db.Integer, nullable=False, default=2, server_default="2")
     tea_break_after_round = db.Column(db.Integer, nullable=True)
     active = db.Column(db.Boolean, nullable=False, default=True)
 
@@ -412,6 +449,9 @@ class TennisSession(TimestampMixin, db.Model):
     round_duration_minutes = db.Column(db.Integer, nullable=False)
     round_format = db.Column(db.String(20), nullable=False, default="open")
     strict_format = db.Column(db.Boolean, nullable=False, default=False)
+    # Pairing mode passed to Prototype4: 1 = avoid repeats, 2 = balanced
+    # skill (default), 3 = round robin.
+    variety_mode = db.Column(db.Integer, nullable=False, default=2, server_default="2")
     tea_break_after_round = db.Column(db.Integer, nullable=True)
     status = db.Column(db.String(20), nullable=False, default="draft")
     created_by = db.Column(

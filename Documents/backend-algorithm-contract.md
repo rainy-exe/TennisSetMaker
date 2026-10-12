@@ -105,15 +105,17 @@ Prototype3 has no separate structured no-solution result.
 
 ## Actual history
 
-- Read **completed final** outcomes in the current club, including manual changes.
-  Default window: `HISTORY_WINDOW_DAYS=120`, including past sessions.
+- Read **completed final** outcomes, including manual changes.
+- Partners, opponents, sit-out counts and streaks come from **the current session
+  only**, so each session starts fresh (client rule: repeats only matter on the day).
+  The old `HISTORY_WINDOW_DAYS` setting is gone.
 - Generated snapshot stays unchanged; final is saved separately. An open round
   contributes no history and must be completed before the next generation.
 - Departed partners/opponents remain in others' history.
 - Last sit-out round and streak are session-local. Playing or a missed/unavailable
   round breaks the streak; unavailable is not a sit-out.
-- Prototype4's recent window is **50 attended rounds per player**, even when
-  those rounds are older than 120 days. Playing and actual sit-outs count as
+- Sit-out fairness across sessions uses Prototype4's recent window: **50 attended
+  rounds per player**, however old. Playing and actual sit-outs count as
   attendance; unavailable, not-arrived and unrated rounds do not. Reopened or
   uncompleted rounds contribute nothing until completed again. The backend
   supplies counts, not a ratio formula; Prototype4 owns newcomer padding and scoring.
@@ -130,9 +132,8 @@ Prototype3 has no separate structured no-solution result.
 3. **Future contract changes:** keep stable IDs and update the adapter together
    when changing Player constructors or output shape; routes should not import
    algorithm internals.
-4. **Unchanged decisions:** variety mode stays at 2 and partner/opponent history
-   stays club-wide over 120 days. Changing the default variety mode or resetting
-   that history per session needs agreement first. Court preference scoring remains
+4. **Decisions:** variety mode is chosen per template/session (default 2,
+   Balanced Skill) and partner/opponent history covers the current session only. Court preference scoring remains
    algorithm work. Strict format rejects an invalid result; it does not run a new
    matching search or guarantee the algorithm finds every feasible arrangement.
 

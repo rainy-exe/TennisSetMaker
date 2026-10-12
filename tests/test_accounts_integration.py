@@ -493,7 +493,11 @@ def test_real_session_generation_override_live_changes_and_isolation(real_app):
         assert db.session.query(Round).count() == 2
 
 
-def test_account_frontend_available_and_no_fake_reset_claim(real_app):
+def test_account_frontend_available_and_no_fake_reset_claim(real_app, monkeypatch):
+    # Without mail settings the reset page still loads, but a request must
+    # say plainly that nothing was sent.
+    for key in ("SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "SMTP_FROM"):
+        monkeypatch.delenv(key, raising=False)
     client = real_app.test_client()
     assert client.get("/").status_code == 200
     for path in ("/login-page", "/signup-page"):
@@ -504,7 +508,9 @@ def test_account_frontend_available_and_no_fake_reset_claim(real_app):
         assert client.get(path).status_code == 401
     assert client.get("/accounts").status_code == 401
     assert client.get("/invitation-page").status_code == 404
-    assert client.get("/forgot-password").status_code == 503
+    page = client.get("/forgot-password")
+    assert page.status_code == 200
+    assert "isn't set up on this server" in page.text
     response = write(
         client, "POST", "/forgot-password", {"email": "owner@example.invalid"}
     )

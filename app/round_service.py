@@ -1,8 +1,6 @@
 from collections import defaultdict
-from datetime import timedelta
 
-from flask import current_app
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.algorithm_adapter import (
@@ -72,7 +70,12 @@ def _recent_history_for(club_id, player_ids):
 
 
 def _history_for(session, eligible_players, round_number):
-    cutoff = utc_now() - timedelta(days=current_app.config["HISTORY_WINDOW_DAYS"])
+    """What the algorithm knows about each player before this round.
+
+    Partners, opponents and sit-out streaks come from this session only, so
+    every session starts fresh (the client's rule: avoiding repeats is about
+    today). Sit-out fairness across sessions comes separately from each
+    player's last RECENT_HISTORY_ROUNDS rounds (_recent_history_for)."""
     player_ids = {player.id for player in eligible_players}
     stats = {
         player.id: {
@@ -89,45 +92,33 @@ def _history_for(session, eligible_players, round_number):
 
     prior_rounds = db.session.scalars(
         select(Round)
-        .join(TennisSession)
-        .where(
-            TennisSession.club_id == session.club_id,
-            Round.status == "completed",
-            or_(Round.completed_at >= cutoff, Round.session_id == session.id),
-        )
-        .order_by(Round.completed_at, Round.number)
+        .where(Round.session_id == session.id, Round.status == "completed")
+        .order_by(Round.number)
     ).all()
     for prior in prior_rounds:
-        in_history_window = prior.completed_at >= cutoff
         final = [item for item in prior.outcomes if item.version == "final"]
         playing_by_court = defaultdict(lambda: defaultdict(list))
-        if prior.session_id == session.id:
-            # A missed/unavailable round interrupts an actual sit-out streak.
-            outcome_ids = {item.player_id for item in final}
-            for player_id in player_ids - outcome_ids:
-                stats[player_id]["consecutive_sit_outs"] = 0
+        # A missed/unavailable round interrupts an actual sit-out streak.
+        outcome_ids = {item.player_id for item in final}
+        for player_id in player_ids - outcome_ids:
+            stats[player_id]["consecutive_sit_outs"] = 0
         for outcome in final:
             player_stats = stats.get(outcome.player_id)
             if outcome.outcome == "sit_out":
                 if player_stats is not None:
-                    if in_history_window:
-                        player_stats["sit_out_count"] += 1
-                    if prior.session_id == session.id:
-                        player_stats["session_sit_outs"] += 1
-                        player_stats["last_sit_out_round"] = prior.number
-                        player_stats["consecutive_sit_outs"] += 1
+                    player_stats["sit_out_count"] += 1
+                    player_stats["session_sit_outs"] += 1
+                    player_stats["last_sit_out_round"] = prior.number
+                    player_stats["consecutive_sit_outs"] += 1
             else:
                 if player_stats is not None:
-                    if in_history_window:
-                        player_stats["rounds_played"] += 1
-                    if prior.session_id == session.id:
-                        player_stats["consecutive_sit_outs"] = 0
-                # Include former partners/opponents even if they are no
-                # longer eligible for the upcoming round.
-                if in_history_window:
-                    playing_by_court[outcome.court_id][outcome.team].append(
-                        outcome.player_id
-                    )
+                    player_stats["rounds_played"] += 1
+                    player_stats["consecutive_sit_outs"] = 0
+                # Include earlier partners/opponents even if they have since
+                # left the session.
+                playing_by_court[outcome.court_id][outcome.team].append(
+                    outcome.player_id
+                )
 
         for teams in playing_by_court.values():
             team_a = teams.get(1, [])
@@ -229,6 +220,7 @@ def generate_next_round(session):
         round_number,
         ROUND_FORMAT_MODES[session.round_format],
         session.strict_format,
+        variety_mode=session.variety_mode,
     )
 
     valid_ids = {player.id for player in eligible_players}

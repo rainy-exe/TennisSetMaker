@@ -18,6 +18,7 @@ class FakeAlgorithm:
         round_number,
         mixed_mode,
         strict_format,
+        variety_mode=2,
     ):
         self.calls.append(
             {
@@ -26,6 +27,7 @@ class FakeAlgorithm:
                 "round_number": round_number,
                 "mixed_mode": mixed_mode,
                 "strict_format": strict_format,
+                "variety_mode": variety_mode,
             }
         )
 
@@ -105,7 +107,6 @@ def app(tmp_path):
 
             "ALGORITHM_ENGINE": algorithm,
 
-            "HISTORY_WINDOW_DAYS": 120,
         }
     )
 

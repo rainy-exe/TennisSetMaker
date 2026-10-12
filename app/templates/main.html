@@ -5,8 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>SetMaker</title>
+    <title>Setify</title>
 
+    <!-- Start the background photo download straight away, before the CSS asks for it -->
+    <link rel="preload" as="image" type="image/webp" fetchpriority="high"
+        href="{{ url_for('static', filename='images/tennis-hero.webp') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
@@ -21,7 +24,7 @@
                 S
             </div>
 
-            <span>SetMaker</span>
+            <span>Setify</span>
 
         </div>
 
@@ -244,7 +247,7 @@
                     </h3>
 
                     <p>
-                        SetMaker creates balanced matchups using your session settings.
+                        Setify creates balanced matchups using your session settings.
                     </p>
 
                 </div>
@@ -269,7 +272,7 @@
                     </h3>
 
                     <p>
-                        Run each round while SetMaker helps keep the session fair.
+                        Run each round while Setify helps keep the session fair.
                     </p>
 
                 </div>

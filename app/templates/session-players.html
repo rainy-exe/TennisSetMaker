@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>SetMaker | Session Players</title>
+    <title>Setify | Session Players</title>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
@@ -18,73 +18,7 @@
              SIDEBAR
         ========================== -->
 
-        <aside class="sidebar">
-
-            <div class="brand">
-
-                <div class="logo-mark">
-                    S
-                </div>
-
-                <span>SetMaker</span>
-
-            </div>
-
-
-            <nav class="nav">
-
-                <a href="{{ url_for('main.dashboard') }}" class="nav-link">
-                    Dashboard
-                </a>
-
-                <a href="{{ url_for('main.sessions') }}" class="nav-link active">
-                    Sessions
-                </a>
-
-                <a href="{{ url_for('main.players') }}" class="nav-link">
-                    Players
-                </a>
-
-                <a href="{{ url_for('main.courts') }}" class="nav-link">
-                    Courts
-                </a>
-
-                <a href="{{ url_for('main.templates') }}" class="nav-link">
-                    Templates
-                </a>
-
-                <a href="{{ url_for('main.history') }}" class="nav-link">
-                    History
-                </a>
-
-                <a href="{{ url_for('main.settings') }}" class="nav-link">
-                    Settings
-                </a>
-
-                <a href="{{ url_for('main.accounts') }}" class="nav-link">
-                    Accounts
-                </a>
-
-            </nav>
-
-
-            <div class="admin-card">
-
-                <div class="avatar"></div>
-
-                <div class="admin-copy">
-
-                    <strong>
-                        Club Admin
-                    </strong>
-
-                    <span id="adminEmail"></span>
-
-                </div>
-
-            </div>
-
-        </aside>
+        {% include '_sidebar.html' %}
 
 
         <!-- =========================

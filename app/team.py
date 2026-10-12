@@ -1,14 +1,12 @@
-import os
 import secrets
 import smtplib
-import ssl
 from datetime import timedelta
-from email.message import EmailMessage
 from urllib.parse import urlencode
 
 from flask import Blueprint, current_app, jsonify, url_for
 from sqlalchemy import select
 
+from app import mailer
 from app.api import body, commit_or_conflict
 from app.auth import user_payload, validate_email
 from app.errors import ApiError
@@ -31,6 +29,22 @@ def user_for_club(user_id):
     if user is None or user.club_id != current_actor().club_id:
         raise ApiError("Team member not found.", 404, "not_found")
     return user
+
+
+def removed_placeholder_email(user):
+    # .invalid is reserved, so this can never be a real or registrable address.
+    return f"removed+{user.id}@removed.invalid"
+
+
+def member_payload(user):
+    removed = user.removed_at is not None
+    return {
+        **user_payload(user),
+        "email": user.removed_email if removed else user.email,
+        "active": user.active,
+        "status": "removed" if removed or not user.active else "active",
+        "removed_at": user.removed_at.isoformat() if removed else None,
+    }
 
 
 def invitation_for_club(invitation_id):
@@ -58,8 +72,10 @@ def list_users():
     users = db.session.scalars(
         select(User).where(User.club_id == current_actor().club_id).order_by(User.email)
     ).all()
+    # Current members first, then removed ones.
+    users.sort(key=lambda user: user.removed_at is not None)
     return jsonify(
-        {"users": [{**user_payload(user), "active": user.active} for user in users]}
+        {"users": [member_payload(user) for user in users]}
     )
 
 
@@ -67,6 +83,8 @@ def list_users():
 @require_roles(*MANAGERS)
 def update_user_role(user_id):
     user = user_for_club(user_id)
+    if user.removed_at is not None or not user.active:
+        raise ApiError("This member has been removed.", 409, "member_removed")
     data = body()
     if set(data) != {"role"}:
         raise ApiError("Only role can be changed through this endpoint.")
@@ -78,17 +96,25 @@ def update_user_role(user_id):
         raise ApiError("You cannot change this member's role.", 403, "forbidden")
     user.role = role.value
     db.session.commit()
-    return jsonify({"user": {**user_payload(user), "active": user.active}})
+    return jsonify({"user": member_payload(user)})
 
 
 @team.delete("/users/<user_id>")
 @require_roles(*MANAGERS)
 def deactivate_user(user_id):
     user = user_for_club(user_id)
+    if user.removed_at is not None:
+        return "", 204
     if not can_remove_user(user.role):
         raise ApiError("You cannot remove this member.", 403, "forbidden")
-    # Preserve created_by/overridden_by foreign keys and historical rounds.
+    # The row stays so created_by/overridden_by and past rounds keep working,
+    # but the email is freed: the person can register their own club or be
+    # invited again with the same address.
     user.active = False
+    user.removed_at = utc_now()
+    user.removed_email = user.email
+    user.email = removed_placeholder_email(user)
+    user.session_version = (user.session_version or 0) + 1
     for invitation in user.invitations_sent:
         if invitation.accepted_at is None:
             invitation.expires_at = utc_now() - timedelta(seconds=1)
@@ -108,39 +134,24 @@ def list_invitations():
     return jsonify({"invitations": [invitation_payload(item) for item in invitations]})
 
 def send_invitation_email(invitation):
-    smtp_host = os.environ.get("SMTP_HOST")
-    smtp_port = int(os.environ.get("SMTP_PORT", "465"))
-    smtp_username = os.environ.get("SMTP_USERNAME")
-    smtp_password = os.environ.get("SMTP_PASSWORD")
-    smtp_from = os.environ.get("SMTP_FROM")
-    base_url = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
-    club = db.session.get(Club, invitation.club_id)
-
-    if not all([
-        smtp_host,
-        smtp_username,
-        smtp_password,
-        smtp_from,
-        base_url,
-    ]):
+    if not mailer.mail_configured():
         raise RuntimeError("SMTP configuration is incomplete.")
+
+    club = db.session.get(Club, invitation.club_id)
+    name = mailer.app_name()
 
     # Build invitation link using the existing /join page.
     join_path = url_for("auth.join_page")
-    invitation_url = (
-        f"{base_url}{join_path}?"
-        f"{urlencode({'token': invitation.token})}"
+    invitation_url = mailer.public_url(
+        f"{join_path}?{urlencode({'token': invitation.token})}"
     )
 
-    message = EmailMessage()
-    message["Subject"] = "You're invited to join SetMaker"
-    message["From"] = smtp_from
-    message["To"] = invitation.email
-
-    message.set_content(
+    mailer.send_email(
+        invitation.email,
+        f"You're invited to join {name}",
         f"""Hello,
 
-You have been invited to join a club on SetMaker.
+You have been invited to join a club on {name}.
 
 Club: {club.name}
 Role: {invitation.role.capitalize()}
@@ -153,18 +164,10 @@ This invitation expires in 7 days.
 
 If you weren't expecting this invitation, you can ignore this email.
 
-SetMaker Team
-"""
+{name} Team
+""",
     )
 
-    with smtplib.SMTP_SSL(
-        smtp_host,
-        smtp_port,
-        context=ssl.create_default_context(),
-        timeout=10,
-    ) as smtp:
-        smtp.login(smtp_username, smtp_password)
-        smtp.send_message(message)
 
 @team.post("/invitations")
 @require_roles(*MANAGERS)

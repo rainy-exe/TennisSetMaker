@@ -97,9 +97,9 @@ def test_csv_override_live_changes_end_and_restart_use_actual_history(
     calls = []
     real_generate = PrototypeAlgorithmEngine.generate
 
-    def capture(engine, eligible, court_ids, number, gender_mode, strict):
+    def capture(engine, eligible, court_ids, number, gender_mode, strict, variety_mode=2):
         calls.append((deepcopy(eligible), gender_mode))
-        return real_generate(engine, eligible, court_ids, number, gender_mode, strict)
+        return real_generate(engine, eligible, court_ids, number, gender_mode, strict, variety_mode)
 
     monkeypatch.setattr(PrototypeAlgorithmEngine, "generate", capture)
     session = create_session(client, players, court, round_format)
