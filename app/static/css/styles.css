@@ -5357,6 +5357,25 @@ html.smooth-scroll {
   text-align: center;
 }
 
+/* Tables with text in every column (CSV columns, pairing modes). */
+.support-table.support-table-text th:not(:first-child),
+.support-table.support-table-text td:not(:first-child) {
+  width: auto;
+  text-align: left;
+}
+
+.support-table.support-table-text td {
+  vertical-align: top;
+}
+
+.support-table.support-table-text td:first-child {
+  white-space: nowrap;
+}
+
+.support-table-wrap + p {
+  margin-top: 14px;
+}
+
 .support-faq {
   margin: 0;
 }
@@ -6439,10 +6458,6 @@ html.smooth-scroll {
   border-left: 1px solid var(--border-soft);
 }
 
-.insights-title-spaced {
-  margin-bottom: 12px !important;
-}
-
 .partners-more {
   margin-top: 4px;
 }
@@ -6608,16 +6623,57 @@ html.smooth-scroll {
 }
 
 .partner-bar-track {
-  height: 10px;
+  display: flex;
+  height: 16px;
+  overflow: hidden;
   border-radius: 999px;
   background: var(--gray-soft);
 }
 
-.partner-bar-fill {
-  display: block;
+/* One bar per player: green = rounds as partner, orange = as opponent. */
+.partner-bar-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   height: 100%;
-  border-radius: 999px;
+  min-width: 0;
+  overflow: hidden;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.partner-bar-seg.partner,
+.key.partner {
   background: var(--green);
+}
+
+.partner-bar-seg.opponent,
+.key.opponent {
+  background: var(--orange);
+}
+
+.partner-bar-seg + .partner-bar-seg {
+  border-left: 2px solid #fff;
+}
+
+.partner-bar-seg:last-child {
+  border-radius: 0 999px 999px 0;
+}
+
+.played-with-legend {
+  margin: 0 0 12px;
+}
+
+.pw-partner {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.pw-opponent {
+  color: #c26a10;
+  font-weight: 700;
 }
 
 .partner-bar-value {
@@ -6841,4 +6897,9 @@ html.smooth-scroll {
 .invite-problem {
   margin-bottom: 14px;
   font-size: 12px;
+}
+
+/* Accounts: removed members stay listed, greyed out, with no actions. */
+.account-removed td {
+  color: var(--muted);
 }

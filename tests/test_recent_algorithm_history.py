@@ -129,7 +129,7 @@ def test_recent_window_uses_last_50_attended_final_rounds_not_120_days(
             history.recent_sit_outs == 2
         )  # First five sit-outs fell out of the window.
         assert history.session_sit_outs == 0
-        assert history.sit_out_count == 0  # Legacy day-window history stays separate.
+        assert history.sit_out_count == 0  # Past sessions don't count here; only this one.
         assert history.rounds_played == 0
         assert _recent_history_for("another-club", {player.id})[player.id] == {
             "sit_outs": 0,

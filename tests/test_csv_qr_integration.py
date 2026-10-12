@@ -323,6 +323,6 @@ def test_qr_backfill_keeps_existing_tokens_and_has_one_migration_head(tmp_path):
         assert tokens == dict(
             db.session.execute(text("SELECT id,public_token FROM clubs")).all()
         )
-        assert ScriptDirectory(MIGRATIONS).get_heads() == ["f4b2c8d1e6a7"]
+        assert ScriptDirectory(MIGRATIONS).get_heads() == ["a7d3e9b5c1f8"]
         check = application.test_cli_runner().invoke(args=["db", "check"])
         assert check.exit_code == 0, check.output

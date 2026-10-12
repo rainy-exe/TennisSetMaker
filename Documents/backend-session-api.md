@@ -262,9 +262,17 @@ discard, cancel or automatic timer endpoint is provided.
 
 ## 5. Members and invitations
 
-- `GET /api/users` -> `{users}`;
-  `PATCH /api/users/<id>` with `{role: "admin"|"staff"}`;
-  DELETE soft-deactivates and removes existing session access.
+- `GET /api/users` -> `{users}`, each with `status` `active` or `removed`
+  (removed members listed last, showing the email they used);
+  `PATCH /api/users/<id>` with `{role: "admin"|"staff"}` (409 `member_removed`
+  for a removed member);
+  DELETE removes the member and logs them out. The row stays for round history,
+  but its email is replaced with a placeholder, so the address can register a
+  new club or accept another invitation. Repeating DELETE returns 204.
+- `GET /api/players/<id>/sit-outs` -> the Players page breakdown: `summary`,
+  `club_rate`, `timeline`, `sessions`, `club`, and `played_with` (up to 10
+  `{name, partner, opponent, total}`, most rounds together first) over the
+  player's last 50 rounds.
 - `GET /api/invitations` -> `{invitations}`;
   POST with `{email, role}` -> 201 `{invitation, message}`;
   DELETE `/api/invitations/<id>` revokes a pending invitation.

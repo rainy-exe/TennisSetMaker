@@ -120,6 +120,19 @@ class User(TimestampMixin, db.Model):
         nullable=True,
     )
 
+    # Removing a member frees their email: `email` becomes a placeholder so
+    # the address can register again or be re-invited, and the address they
+    # used is kept here for the Accounts list. Rounds they edited stay linked.
+    removed_at = db.Column(
+        db.DateTime,
+        nullable=True,
+    )
+
+    removed_email = db.Column(
+        db.String(255),
+        nullable=True,
+    )
+
     club = db.relationship(
         "Club",
         back_populates="users",

@@ -107,7 +107,6 @@ def app(tmp_path):
 
             "ALGORITHM_ENGINE": algorithm,
 
-            "HISTORY_WINDOW_DAYS": 120,
         }
     )
 

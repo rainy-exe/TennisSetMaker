@@ -580,7 +580,13 @@ def test_sit_out_report_counts_expected_share_staff_changes_and_partners(mail_ap
     assert report["summary"]["sat_out"] == 0
     assert report["summary"]["expected"] == 0.4  # 1 of 5 sits each round
     assert report["summary"]["status"] == "even"
-    assert report["partners"][0] == {"name": "Synthetic P1", "rounds": 2}
+    # P0 partnered P1 twice and faced P2 twice, P3 once and P4 once.
+    assert report["played_with"] == [
+        {"name": "Synthetic P1", "partner": 2, "opponent": 0, "total": 2},
+        {"name": "Synthetic P2", "partner": 0, "opponent": 2, "total": 2},
+        {"name": "Synthetic P3", "partner": 0, "opponent": 1, "total": 1},
+        {"name": "Synthetic P4", "partner": 0, "opponent": 1, "total": 1},
+    ]
     assert [round_["round"] for round_ in report["timeline"]] == [1, 2]
 
     staff = client.get(f"/api/players/{ids[3]}/sit-outs").get_json()["summary"]
@@ -608,3 +614,92 @@ def test_join_page_shows_club_role_and_who_sent_the_invitation(mail_app, outbox)
 
     bad = mail_app.test_client().get("/join?token=not-a-real-token").text
     assert "isn&#39;t valid" in bad or "isn't valid" in bad
+
+
+def test_support_page_covers_current_features_and_links_resolve(mail_app):
+    import re
+
+    client = mail_app.test_client()
+    register(client)
+    assert login(client).status_code == 200
+    page = client.get("/support").text
+    for text in ("Round Robin", "Avoid Repeats", "Balanced Skill", "Same-Gender Doubles",
+                 "Sit-out records", "My Account", "Remember me", "Show Skill",
+                 "Remove Player", "Undo Unsaved Changes"):
+        assert text in page, text
+    assert "Add Late Player" not in page and "Unavailable From Next Round" not in page
+    ids = set(re.findall(r'id="([\w-]+)"', page))
+    assert set(re.findall(r'href="#([\w-]+)"', page)) <= ids
+    assert 'href="/settings?tab=account"' in page
+
+
+def test_removing_a_member_frees_their_email_for_a_new_invite_or_club(mail_app, outbox):
+    owner = mail_app.test_client()
+    register(owner)
+    assert login(owner).status_code == 200
+    email = "leaving.staff@example.invalid"
+
+    def invite():
+        response = write(owner, "POST", "/api/invitations", {"email": email, "role": "staff"})
+        assert response.status_code == 201, response.get_json()
+        return link_in(outbox[-1])[1]
+
+    member = mail_app.test_client()
+    accepted = write(member, "POST", "/accept-invitation",
+                     {"token": invite(), "full_name": "Leaving Staff", "password": PASSWORD})
+    assert accepted.status_code == 201, accepted.get_json()
+    member_id = accepted.get_json()["user"]["id"]
+
+    assert write(owner, "DELETE", f"/api/users/{member_id}").status_code == 204
+    assert write(owner, "DELETE", f"/api/users/{member_id}").status_code == 204
+    assert logged_in(member) is False
+    assert login(member, email=email).status_code == 401
+
+    listed = {u["id"]: u for u in owner.get("/api/users").get_json()["users"]}
+    assert listed[member_id]["status"] == "removed"
+    assert listed[member_id]["email"] == email
+    assert owner.get("/api/users").get_json()["users"][-1]["id"] == member_id
+    assert write(owner, "PATCH", f"/api/users/{member_id}", {"role": "staff"}).status_code == 409
+
+    # The same address can be invited again...
+    again = mail_app.test_client()
+    rejoined = write(again, "POST", "/accept-invitation",
+                     {"token": invite(), "full_name": "Back Again", "password": PASSWORD})
+    assert rejoined.status_code == 201, rejoined.get_json()
+    assert rejoined.get_json()["user"]["id"] != member_id
+    statuses = sorted(u["status"] for u in owner.get("/api/users").get_json()["users"]
+                      if u["email"] == email)
+    assert statuses == ["active", "removed"]
+
+    # ...and, once removed again, used to register a new club.
+    assert write(owner, "DELETE", f"/api/users/{rejoined.get_json()['user']['id']}").status_code == 204
+    register(mail_app.test_client(), email=email)
+    assert login(mail_app.test_client(), email=email).status_code == 200
+
+
+def test_free_removed_emails_migration_frees_members_removed_earlier(tmp_path):
+    import importlib.util
+    from pathlib import Path
+
+    import sqlalchemy as sa
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    path = Path(__file__).resolve().parents[1] / "migrations" / "versions" / "a7d3e9b5c1f8_free_removed_member_emails.py"
+    spec = importlib.util.spec_from_file_location("free_removed", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    engine = sa.create_engine(f"sqlite:///{tmp_path / 'm.db'}")
+    with engine.begin() as connection:
+        connection.execute(sa.text(
+            "CREATE TABLE users (id VARCHAR(36) PRIMARY KEY, email VARCHAR(255) UNIQUE NOT NULL, "
+            "active BOOLEAN NOT NULL, session_version INTEGER NOT NULL DEFAULT 0)"))
+        connection.execute(sa.text(
+            "INSERT INTO users VALUES ('a', 'kept@example.invalid', 1, 0), ('b', 'gone@example.invalid', 0, 0)"))
+        context = MigrationContext.configure(connection)
+        with Operations.context(context):
+            migration.upgrade()
+        rows = dict(connection.execute(sa.text("SELECT id, email FROM users")).all())
+        assert rows == {"a": "kept@example.invalid", "b": "removed+b@removed.invalid"}
+        assert connection.execute(sa.text("SELECT removed_email FROM users WHERE id = 'b'")).scalar() == "gone@example.invalid"

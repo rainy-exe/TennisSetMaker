@@ -224,3 +224,35 @@ def test_malformed_override_leaves_final_unchanged(client, session_setup, bad):
         client.get(f"/api/rounds/{first['id']}").get_json()["round"]["final"]
         == first["final"]
     )
+
+
+def test_partners_and_opponents_reset_for_each_new_session(app, client, session_setup):
+    first_session, players, courts = session_setup(player_count=8, court_count=2)
+    first = client.post(f"/api/sessions/{first_session['id']}/rounds/generate").get_json()["round"]
+    partner_a, partner_b = first["final"]["assignments"][0]["team_a_player_ids"]
+    assert client.post(f"/api/rounds/{first['id']}/complete").status_code == 200
+
+    response = client.post(
+        "/api/sessions",
+        json={
+            "name": "Next week's social",
+            "starts_at": "2026-10-19T13:00:00",
+            "number_of_rounds": 3,
+            "round_duration_minutes": 30,
+            "court_ids": [court["id"] for court in courts],
+            "player_ids": [player["id"] for player in players],
+        },
+    )
+    assert response.status_code == 201, response.get_json()
+    second_id = response.get_json()["session"]["id"]
+    assert client.post(f"/api/sessions/{second_id}/rounds/generate").status_code == 201
+    pool = {player.id: player for player in app.fake_algorithm.calls[-1]["players"]}
+    assert all(not p.partner_ids and not p.opponent_ids for p in pool.values())
+    assert all(p.sit_out_count == 0 and p.rounds_played == 0 for p in pool.values())
+    # Last week still counts towards sit-out fairness.
+    assert pool[partner_a].recent_rounds == 1
+
+    # Within the first session, the partnership is still remembered.
+    assert client.post(f"/api/sessions/{first_session['id']}/rounds/generate").status_code == 201
+    pool = {player.id: player for player in app.fake_algorithm.calls[-1]["players"]}
+    assert partner_b in pool[partner_a].partner_ids

@@ -32,16 +32,19 @@
                     <ol>
                         <li><a href="#getting-started">1. Getting started</a></li>
                         <li><a href="#roles">2. Roles &amp; permissions</a></li>
-                        <li><a href="#players">3. Managing players</a></li>
-                        <li><a href="#csv-import">4. Importing players from CSV</a></li>
-                        <li><a href="#courts">5. Managing courts</a></li>
-                        <li><a href="#templates">6. Session templates</a></li>
-                        <li><a href="#create-session">7. Creating a session</a></li>
-                        <li><a href="#running-session">8. Running a live session</a></li>
-                        <li><a href="#qr-code">9. Sharing matches with a QR code</a></li>
-                        <li><a href="#history">10. Session history</a></li>
-                        <li><a href="#team">11. Team members &amp; club details</a></li>
-                        <li><a href="#troubleshooting">12. Troubleshooting</a></li>
+                        <li><a href="#account">3. Your account</a></li>
+                        <li><a href="#players">4. Managing players</a></li>
+                        <li><a href="#sit-outs">5. Sit-out records</a></li>
+                        <li><a href="#csv-import">6. Importing players from CSV</a></li>
+                        <li><a href="#courts">7. Managing courts</a></li>
+                        <li><a href="#templates">8. Session templates</a></li>
+                        <li><a href="#create-session">9. Creating a session</a></li>
+                        <li><a href="#how-sets">10. How SetMaker picks the sets</a></li>
+                        <li><a href="#running-session">11. Running a live session</a></li>
+                        <li><a href="#qr-code">12. Sharing matches with a QR code</a></li>
+                        <li><a href="#history">13. Sessions &amp; history</a></li>
+                        <li><a href="#team">14. Team members &amp; club details</a></li>
+                        <li><a href="#troubleshooting">15. Troubleshooting</a></li>
                     </ol>
 
                 </nav>
@@ -58,15 +61,16 @@
 
                         <p>
                             SetMaker builds balanced doubles sets for your club's social and ladder sessions.
-                            It keeps sit-outs fair, reduces repeated partners and opponents, and lets you
-                            adjust matches by hand at any time.
+                            It shares sit-outs fairly, keeps teams close in skill, mixes up partners and opponents,
+                            and lets you change matches by hand at any time.
                         </p>
 
                         <h3>Signing in</h3>
                         <ul>
-                            <li>Log in with the email and password for your club account.</li>
-                            <li>If you were invited by your club, open the link in your invitation email, confirm your details and set a password. Invitation links expire after 7 days.</li>
-                            <li>Forgotten your password? Use <strong>Forgot password?</strong> on the login page.</li>
+                            <li>Log in with the email and password for your club account. Tick <strong>Remember me</strong> to stay logged in on that device for 30 days.</li>
+                            <li>If you were invited by your club, open the link in your invitation email. It shows the club, your role and who invited you. Enter your name, choose a password (at least 8 characters) and you're in. Invitation links expire after 7 days.</li>
+                            <li>Forgotten your password? Click <strong>Forgot password?</strong> on the login page and enter your email. We'll email you a reset link that works once and expires after 1 hour.</li>
+                            <li>To log out, click your name at the bottom of the sidebar and choose <strong>Log Out</strong>.</li>
                         </ul>
 
                         <h3>Recommended first steps</h3>
@@ -105,7 +109,7 @@
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td>Create, run and end sessions, edit matches, add late players</td>
+                                        <td>Create, run and end sessions, swap players, add or remove players during a session</td>
                                         <td>Yes</td><td>Yes</td><td>Yes</td>
                                     </tr>
                                     <tr>
@@ -113,7 +117,11 @@
                                         <td>Yes</td><td>Yes</td><td>Yes</td>
                                     </tr>
                                     <tr>
-                                        <td>Add and edit players</td>
+                                        <td>View sit-out records and the full-screen player breakdown</td>
+                                        <td>Yes</td><td>Yes</td><td>Yes</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Add and edit players (staff-added players start at rating 1)</td>
                                         <td>Yes</td><td>Yes</td><td>Yes</td>
                                     </tr>
                                     <tr>
@@ -149,6 +157,10 @@
                                         <td>Yes</td><td>Yes</td><td>No</td>
                                     </tr>
                                     <tr>
+                                        <td>Change roles, remove members and revoke invitations (Accounts page)</td>
+                                        <td>Yes</td><td>Staff only</td><td>No</td>
+                                    </tr>
+                                    <tr>
                                         <td>Invite admins</td>
                                         <td>Yes</td><td>No</td><td>No</td>
                                     </tr>
@@ -159,23 +171,53 @@
                     </section>
 
 
+                    <!-- Your account -->
+                    <section class="card support-section" id="account">
+
+                        <h2 class="section-title">
+                            3. Your account
+                        </h2>
+
+                        <p>
+                            Click your name at the bottom of the sidebar and choose <strong>My Account</strong>
+                            (or go to <a href="{{ url_for('main.settings', tab='account') }}">Settings &rsaquo; My Account</a>).
+                        </p>
+
+                        <ul>
+                            <li><strong>Your name</strong>: change how you appear to your team.</li>
+                            <li><strong>Password</strong>: enter your current password and a new one. You stay logged in on this device; any other devices are logged out, and we email you to let you know.</li>
+                            <li><strong>Login email</strong>: enter the new address and your current password. We send an approval link to your <em>current</em> email first, so nobody using your computer can move your account to their inbox. After you approve it, the new address gets a confirmation link.</li>
+                            <li><strong>Confirm your email</strong>: if your email shows <em>Not confirmed</em>, click <strong>Send confirmation email</strong> and open the link. Your account works either way.</li>
+                        </ul>
+
+                    </section>
+
+
                     <!-- Players -->
                     <section class="card support-section" id="players">
 
                         <h2 class="section-title">
-                            3. Managing players
+                            4. Managing players
                         </h2>
 
                         <p>
                             The <a href="{{ url_for('main.players') }}">Players</a> page is your club roster.
-                            Type in the search box to filter by name, then click a player to see their details and notes.
+                            Each row shows the player's rating (one green dot per point, up to 10), their gender
+                            (a <strong>blue</strong> dot for male, <strong>red</strong> for female) and their
+                            <a href="#sit-outs">sit-out record</a>.
                         </p>
+
+                        <ul>
+                            <li>Type in the search box to filter by name.</li>
+                            <li>Click <strong>Name</strong>, <strong>Rating</strong>, <strong>Gender</strong> or <strong>Sit-outs</strong> at the top of the table to sort by it. Click again to reverse the order.</li>
+                            <li>Click a player to see their details on the right: sit-outs, who they've played with most, recent sessions and notes.</li>
+                        </ul>
 
                         <h3>Adding a player</h3>
                         <ol class="support-steps">
                             <li>Click <strong>+ Add Player</strong>.</li>
                             <li>Enter their name and gender, and optionally notes and a court surface preference.</li>
-                            <li>Owners and admins choose a <strong>rating from 1 to 10</strong>. Staff can leave this blank for an owner or admin to fill in later.</li>
+                            <li>Owners and admins choose a <strong>rating from 1 to 10</strong>. Players added by staff start at <strong>rating 1</strong>; an owner or admin can change it later.</li>
                             <li>Click <strong>Add Player</strong>.</li>
                         </ol>
 
@@ -198,11 +240,52 @@
                     </section>
 
 
-                    <!-- CSV import -->
+                    <!-- Sit-outs -->
+                    <section class="card support-section" id="sit-outs">
+
+                        <h2 class="section-title">
+                            5. Sit-out records
+                        </h2>
+
+                        <p>
+                            When numbers don't divide evenly, someone has to sit out. If a player asks why they're
+                            sitting out, the Players page shows how their sit-outs compare with everyone else's.
+                            Everything is based on the <strong>last 50 rounds each player attended</strong>.
+                        </p>
+
+                        <h3>The Sit-outs column</h3>
+                        <ul>
+                            <li><strong>4 / 42</strong> means they sat out 4 of their last 42 rounds.</li>
+                            <li>The tag compares that with how many sit-outs were <strong>expected</strong> for the sessions they came to. Busy days mean more sit-outs for everyone, so a player who comes on busy days is expected to sit out more.
+                                <ul>
+                                    <li><strong>Even</strong> (green): within 1 sit-out of expected.</li>
+                                    <li><strong>Over</strong> (orange): more than expected. SetMaker takes this into account, so they're less likely to sit out next.</li>
+                                    <li><strong>Under</strong> (blue): fewer than expected.</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                        <h3>The full-screen breakdown</h3>
+                        <p>
+                            Click a player, then the <strong>expand</strong> icon at the top right of their card. The table is replaced by
+                            a breakdown you can turn around and show the player:
+                        </p>
+                        <ul>
+                            <li>A plain-English summary, e.g. <em>"Avery has sat out 5 times in their last 50 rounds. About 3.8 were expected…"</em></li>
+                            <li>Rounds attended, sat out, expected sit-outs, sit-out balance and sit-out rate against the club average.</li>
+                            <li><strong>Round by round</strong>: one square per round, grey for played and orange for sat out. Striped squares are sit-outs caused by a staff change to the round, not by SetMaker.</li>
+                            <li><strong>Sit-outs per session</strong> against what was expected, and a chart of every player's sit-out rate with this player highlighted.</li>
+                            <li><strong>Most played with</strong>: the players they've shared a court with most, as one bar each. Green is rounds as their partner, orange is rounds as their opponent. Shows the top 5, or up to 10.</li>
+                        </ul>
+                        <p>Click <strong>&larr; Back to all players</strong>, the icon again, or press Esc to return to the table.</p>
+
+                    </section>
+
+
                     <section class="card support-section" id="csv-import">
 
                         <h2 class="section-title">
-                            4. Importing players from CSV
+                            6. Importing players from CSV
                         </h2>
 
                         <p>
@@ -216,7 +299,7 @@
                         <p>The first row must be the column names. They can be in any order, and capital letters don't matter.</p>
 
                         <div class="support-table-wrap">
-                            <table class="support-table">
+                            <table class="support-table support-table-text">
                                 <thead>
                                     <tr>
                                         <th>Column</th>
@@ -274,11 +357,10 @@ Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
                     </section>
 
 
-                    <!-- Courts -->
                     <section class="card support-section" id="courts">
 
                         <h2 class="section-title">
-                            5. Managing courts
+                            7. Managing courts
                         </h2>
 
                         <p>
@@ -288,6 +370,7 @@ Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
                         <ul>
                             <li><strong>Add Court</strong> to record a court's number, surface type, cover and priority.</li>
                             <li><strong>Priority</strong> decides which courts are filled first. Courts with a <strong>lower number</strong> are filled first, so give your best court priority 0 or 1.</li>
+                            <li>Each court shows a coloured surface tag: <strong>Clay</strong>, <strong>Hard</strong>, <strong>Grass</strong> or <strong>Synthetic</strong>.</li>
                             <li>Use the toggle to mark a court <strong>Inactive</strong> (for example, during resurfacing). Inactive courts aren't offered when you create a session or template.</li>
                             <li>Click <strong>Edit</strong> to change a court's details.</li>
                         </ul>
@@ -299,7 +382,7 @@ Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
                     <section class="card support-section" id="templates">
 
                         <h2 class="section-title">
-                            6. Session templates
+                            8. Session templates
                         </h2>
 
                         <p>
@@ -307,9 +390,10 @@ Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
                             Owners and admins create and edit them from the <a href="{{ url_for('main.templates') }}">Templates</a> page.
                         </p>
 
-                        <p>A template stores:</p>
+                        <h3>A template stores:</h3>
                         <ul>
-                            <li>Match format: <strong>Mixed Doubles</strong> or <strong>Open Play</strong> (any gender).</li>
+                            <li><strong>Format</strong>: Mixed Doubles, Same-Gender Doubles or Open Play (any gender).</li>
+                            <li><strong>Pairing Mode</strong>: Balanced Skill, Round Robin or Avoid Repeats. See <a href="#how-sets">How SetMaker picks the sets</a>.</li>
                             <li>Number of rounds, round length, start time and total session length.</li>
                             <li>An optional tea break after a chosen round.</li>
                             <li>Which courts to use. Leave <strong>Set as default priority order</strong> on to follow the Courts page, or turn it off to choose a custom set of courts for this template.</li>
@@ -317,7 +401,8 @@ Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
 
                         <p>
                             To use one, click <strong>Use Template</strong> on its card. Anyone can do this, including staff.
-                            You'll go to Create Session with the template's settings already filled in.
+                            You'll go to Create Session with the template's settings already filled in. Use <strong>Edit</strong>
+                            at the top right of the card to change it.
                         </p>
 
                     </section>
@@ -327,15 +412,15 @@ Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
                     <section class="card support-section" id="create-session">
 
                         <h2 class="section-title">
-                            7. Creating a session
+                            9. Creating a session
                         </h2>
 
                         <ol class="support-steps">
-                            <li>From the <a href="{{ url_for('main.dashboard') }}">Dashboard</a>, click <strong>+ Create Session</strong>, or click <strong>Use Template</strong> on a template.</li>
-                            <li>Enter a session name, date and start time.</li>
-                            <li>Set the number of rounds, round duration, session duration and an optional tea break.</li>
-                            <li>Choose a <strong>match format</strong> and tick the courts you're using.</li>
-                            <li>Under <strong>Attending Players</strong>, tick everyone who is playing today. Only players with a skill rating are listed.</li>
+                            <li>From the Dashboard or Sessions page, click <strong>+ Create Session</strong>, or click <strong>Use Template</strong> on a template.</li>
+                            <li>Enter a session name, date and start time, the number of rounds and the round length.</li>
+                            <li>Choose a <strong>Match Format</strong> and a <strong>Pairing Mode</strong> (hover the <strong>i</strong> next to each mode for a reminder), and tick the courts you're using.</li>
+                            <li>Set the session duration, an optional tea break, and whether to <strong>Allow Format Relaxation</strong>.</li>
+                            <li>Under <strong>Attending Players</strong>, start typing a name and pick from the suggestions (use &uarr; &darr; and Enter, or click). Each player appears as a tag above the box; click &times; to remove one. Click <strong>All players</strong> to see everyone, men first then women, and click names to add or remove them.</li>
                             <li>Click <strong>Create &amp; Generate Session</strong>. SetMaker saves the session, builds Round 1 and opens the live session.</li>
                         </ol>
 
@@ -353,11 +438,73 @@ Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
                     </section>
 
 
-                    <!-- Running session -->
+                    <!-- How sets are chosen -->
+                    <section class="card support-section" id="how-sets">
+
+                        <h2 class="section-title">
+                            10. How SetMaker picks the sets
+                        </h2>
+
+                        <h3>Who sits out</h3>
+                        <ol class="support-steps">
+                            <li><strong>Nobody sits out twice in a session until everyone there has sat out once.</strong></li>
+                            <li><strong>Nobody sits out two rounds in a row</strong> unless there's no other way.</li>
+                            <li>When there's a choice, the player with the <strong>lowest sit-out record</strong> over their last 50 rounds sits out first. New players are treated as average, so they aren't made to catch up.</li>
+                        </ol>
+
+                        <h3>Pairing modes</h3>
+                        <div class="support-table-wrap">
+                            <table class="support-table support-table-text">
+                                <thead>
+                                    <tr>
+                                        <th>Mode</th>
+                                        <th>What comes first</th>
+                                        <th>Skill gaps allowed</th>
+                                        <th>Best for</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Balanced Skill</strong> (default)</td>
+                                        <td>Even, close matches; then avoids repeat partners and opponents where it can</td>
+                                        <td>Team totals and partners within 2, ideally 1</td>
+                                        <td>Most social sessions</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Round Robin</strong></td>
+                                        <td>Mixing everyone up so players meet as many different people as possible</td>
+                                        <td>Within 2</td>
+                                        <td>Social days where variety matters</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Avoid Repeats</strong></td>
+                                        <td>Never repeating a partner or opponent if it can be avoided</td>
+                                        <td>Up to 4</td>
+                                        <td>Large groups who play together often</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <p>
+                            In every mode SetMaker keeps partners close in skill, so a strong player isn't paired with a
+                            much weaker one just to make the totals even.
+                        </p>
+
+                        <div class="support-callout">
+                            <strong>Repeat partners and opponents only count within today's session.</strong>
+                            Every session starts fresh, so playing with someone last week doesn't stop you being paired with them today.
+                            Sit-out fairness is the exception: it looks back over each player's last 50 rounds.
+                        </div>
+
+                    </section>
+
+
+                    <!-- Running a session -->
                     <section class="card support-section" id="running-session">
 
                         <h2 class="section-title">
-                            8. Running a live session
+                            11. Running a live session
                         </h2>
 
                         <p>
@@ -366,30 +513,36 @@ Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
                             an earlier round.
                         </p>
 
+                        <h3>Changing the matches</h3>
+                        <ul>
+                            <li><strong>Drag</strong> a player onto another player to swap them, or <strong>click</strong> one player and then another. This works across courts and with the Sitting Out list. Press Esc to cancel.</li>
+                            <li>Players you've moved are highlighted in yellow until you save.</li>
+                            <li>Click <strong>Save Changes</strong> to make your edits official, or <strong>Undo Unsaved Changes</strong> to go back.</li>
+                            <li>Click <strong>Show Skill</strong> to see each player's rating and each court's team totals (e.g. <em>10 vs 9</em>), which update as you swap. The total is green for a gap of 0–1, grey for 2 and orange for 3 or more. Click <strong>Hide Skill</strong> before turning the screen to players. SetMaker remembers your choice.</li>
+                        </ul>
+
                         <h3>Each round</h3>
                         <ol class="support-steps">
-                            <li>Check the suggested matches. To swap someone, change the player in that slot or in the Sitting Out list.</li>
-                            <li>Click <strong>Save Changes</strong> to make your edits official, or <strong>Undo Unsaved Changes</strong> to go back. Each player can only appear once per round.</li>
+                            <li>Check the matches and make any swaps.</li>
                             <li>When play finishes, click <strong>Complete Round</strong>. Completed rounds are locked.</li>
-                            <li>Click <strong>Generate Next Round</strong>. SetMaker uses earlier rounds to rotate sit-outs fairly and mix up partners.</li>
+                            <li>Click <strong>Generate Next Round</strong>.</li>
                         </ol>
 
-                        <h3>Late arrivals and early departures</h3>
+                        <h3>Players arriving or leaving</h3>
                         <ul>
-                            <li><strong>Add Late Player</strong>: choose a club player who isn't in the session yet. They're included from the next generated round.</li>
-                            <li><strong>Unavailable From Next Round</strong>: choose a player who is leaving. They won't be placed in later rounds, and their earlier rounds are kept.</li>
+                            <li><strong>Add Player</strong>: type the name of a club player who isn't in the session yet and pick them. They join from the next round generated.</li>
+                            <li><strong>Remove Player</strong>: type the name of a player who's leaving and confirm. They finish the current round and sit out from the next one. Their earlier rounds are kept.</li>
+                            <li>Save or undo any swaps first, because adding or removing a player reloads the page.</li>
                         </ul>
 
                         <h3>Ending the session</h3>
                         <ol class="support-steps">
                             <li>Save or undo any edits to the current round.</li>
-                            <li>Click <strong>End Session</strong> at the top of the page and confirm.</li>
-                            <li>The current round is completed, the session is marked complete, and you're taken to <a href="#history">History</a>. All saved matches are kept.</li>
+                            <li>Click the orange <strong>End Session</strong> button at the top of the page and confirm.</li>
+                            <li>The current round is completed, the session is marked complete, and you're taken to History. All saved matches are kept.</li>
                         </ol>
 
-                        <p>
-                            You don't have to play every planned round. End Session works at any point.
-                        </p>
+                        <p>You don't have to play every planned round. End Session works at any point.</p>
 
                     </section>
 
@@ -398,12 +551,13 @@ Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
                     <section class="card support-section" id="qr-code">
 
                         <h2 class="section-title">
-                            9. Sharing matches with a QR code
+                            12. Sharing matches with a QR code
                         </h2>
 
                         <p>
-                            Every live session page shows your club's QR code, labelled <strong>Scan for Session Results</strong>.
-                            Players scan it with their phone camera to see where they're playing, without logging in.
+                            Every live session page shows your club's QR code under the Sitting Out list, labelled
+                            <strong>Scan for Session Results</strong>. Players scan it with their phone camera to see
+                            where they're playing, without logging in.
                         </p>
 
                         <h3>What players see</h3>
@@ -415,8 +569,8 @@ Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
 
                         <h3>Good to know</h3>
                         <ul>
-                            <li><strong>The code never changes.</strong> It always shows your club's most recently created session, so you can print it once and put it up at the club.</li>
-                            <li>Players only see <strong>saved</strong> matches. Click <strong>Save Changes</strong> after swapping players so the public page updates.</li>
+                            <li>The code never changes. It always shows your club's most recently created session, so you can print it once and put it up at the club.</li>
+                            <li>Players only see saved matches. Click <strong>Save Changes</strong> after swapping players so the public page updates.</li>
                             <li>Before Round 1 is generated, players see <em>Waiting for matches to be generated</em>.</li>
                         </ul>
 
@@ -432,18 +586,13 @@ Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
                     <section class="card support-section" id="history">
 
                         <h2 class="section-title">
-                            10. Session history
+                            13. Sessions &amp; history
                         </h2>
 
-                        <p>
-                            The <a href="{{ url_for('main.history') }}">History</a> page lists every completed session,
-                            with its date, number of players, courts, planned rounds and format.
-                        </p>
-
                         <ul>
-                            <li>Search by session name, or filter by date or <strong>Session Type</strong> (Mixed Doubles or Open Play). <strong>Clear Filters</strong> resets them.</li>
-                            <li>Click a session name or <strong>View Results</strong> to see every round that was played.</li>
-                            <li>History shows 10 sessions per page. Use the arrows at the bottom to see more.</li>
+                            <li>The <a href="{{ url_for('main.sessions') }}">Sessions</a> page and the Dashboard list your sessions as cards showing the date, time, a coloured format tag, player and round counts and a status (green <strong>Active</strong>, blue <strong>Upcoming</strong>, grey <strong>Completed</strong>). Click anywhere on a card to open it.</li>
+                            <li>The <a href="{{ url_for('main.history') }}">History</a> page lists every completed session. Search by name, or filter by date or <strong>Session Type</strong>. <strong>Clear Filters</strong> resets them.</li>
+                            <li>Click a session name or <strong>View Results</strong> to see every round that was played. History shows 10 sessions per page.</li>
                         </ul>
 
                     </section>
@@ -453,23 +602,29 @@ Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
                     <section class="card support-section" id="team">
 
                         <h2 class="section-title">
-                            11. Team members &amp; club details
+                            14. Team members &amp; club details
                         </h2>
-
-                        <p>Both are on the <a href="{{ url_for('main.settings') }}">Settings</a> page.</p>
 
                         <h3>Inviting a team member</h3>
                         <ol class="support-steps">
-                            <li>On the <strong>Team Members</strong> tab, click <strong>+ Invite Team Member</strong>.</li>
+                            <li>On <a href="{{ url_for('main.settings') }}">Settings</a> &rsaquo; <strong>Team Members</strong>, click <strong>+ Invite Team Member</strong>.</li>
                             <li>Enter their name and email, and choose their role.</li>
                             <li>Click <strong>Send Invite</strong>. SetMaker emails them an invitation link.</li>
-                            <li>They open the link, set a password and can then log in. The link expires after 7 days.</li>
+                            <li>They open the link, set a password and are logged in. The link expires after 7 days.</li>
                         </ol>
 
                         <p>
-                            If they didn't get the email or the link has expired, send a new invitation to the same address.
-                            The new link replaces the old one.
+                            If they didn't get the email or the link has expired, go to <strong>Accounts</strong>,
+                            click <strong>Revoke</strong> on their pending invitation, then invite them again.
                         </p>
+
+                        <h3>Managing accounts</h3>
+                        <ul>
+                            <li>The <a href="{{ url_for('main.accounts') }}">Accounts</a> page (owners and admins) lists every member and pending invitation.</li>
+                            <li>To change someone's role, pick it in the dropdown and click <strong>Save Role</strong>.</li>
+                            <li><strong>Remove</strong> ends a member's access straight away and shows them as <em>removed</em>. Their email is freed, so they can be invited again or use it to register their own club. Sessions and rounds they worked on are kept.</li>
+                            <li><strong>Revoke</strong> cancels a pending invitation. Admins can only manage staff.</li>
+                        </ul>
 
                         <h3>Club details</h3>
                         <p>
@@ -484,15 +639,22 @@ Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
                     <section class="card support-section" id="troubleshooting">
 
                         <h2 class="section-title">
-                            12. Troubleshooting
+                            15. Troubleshooting
                         </h2>
 
                         <dl class="support-faq">
 
+                            <dt>A player is asking why they keep sitting out.</dt>
+                            <dd>
+                                Open the <a href="{{ url_for('main.players') }}">Players</a> page, click them, then the expand icon.
+                                The breakdown compares their sit-outs with what was expected and with the rest of the club.
+                                See <a href="#sit-outs">Sit-out records</a>.
+                            </dd>
+
                             <dt>A player is missing from Attending Players or the generated round.</dt>
                             <dd>
-                                Check that they have a skill rating, are still active, and haven't been marked unavailable.
-                                Late players only join from the next round that's generated after they were added.
+                                Check that they have a skill rating, are still active, and haven't been removed from the session.
+                                Players added during a session only join from the next round that's generated.
                             </dd>
 
                             <dt>"Generation failed" after creating a session.</dt>
@@ -501,21 +663,15 @@ Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
                                 to try again and see the reason. Usually there are too few eligible players for the selected courts.
                             </dd>
 
-                            <dt>I can't complete the round.</dt>
+                            <dt>I can't complete the round, add or remove a player, or end the session.</dt>
                             <dd>
-                                Save or undo your edits first, and make sure the current (latest) round is selected.
+                                Save or undo your swaps first, and make sure the current (latest) round is selected.
+                                If End Session is greyed out, the session has already ended; find it on the History page.
                             </dd>
 
                             <dt>My match edits won't save.</dt>
                             <dd>
-                                Each player can only appear once per round. Also check that nobody else edited
-                                the round at the same time; if so, reload the page and try again.
-                            </dd>
-
-                            <dt>I can't end the session.</dt>
-                            <dd>
-                                Save or undo your changes to the current round first. If the button is greyed out,
-                                the session has already ended. You can find it on the History page.
+                                Someone else may have edited the round at the same time. Reload the page and try again.
                             </dd>
 
                             <dt>My CSV import skipped some rows.</dt>
@@ -533,20 +689,25 @@ Fiona Lee,Female,7,Prefers morning sessions,Clay</code></pre>
 
                             <dt>Players see an old session on the QR page.</dt>
                             <dd>
-                                The public page shows your most recently <em>created</em> session and only <em>saved</em> matches.
+                                The public page shows your most recently created session and only saved matches.
                                 Check you've saved your changes, and wait up to 15 seconds for it to refresh.
                             </dd>
 
-                            <dt>The QR code doesn't open on players' phones.</dt>
+                            <dt>I didn't get an invitation, password reset or confirmation email.</dt>
                             <dd>
-                                The phone must be able to reach the same web address you use for SetMaker. Ask whoever runs
-                                SetMaker for your club to check its public web address is set up.
+                                Check your spam folder first. Reset links expire after 1 hour and invitations after 7 days, so ask for a new one if it's old.
+                                If emails never arrive, ask whoever runs SetMaker for your club to check its email settings.
                             </dd>
 
-                            <dt>An invited team member didn't get their email.</dt>
+                            <dt>I was logged out unexpectedly.</dt>
                             <dd>
-                                Ask them to check their spam folder, then send a new invitation. If emails never arrive, ask whoever
-                                runs SetMaker to check its email settings.
+                                Changing or resetting your password logs out your other devices. Log in again with your new password.
+                                Without <strong>Remember me</strong>, you're also logged out when the browser closes.
+                            </dd>
+
+                            <dt>I removed someone by mistake.</dt>
+                            <dd>
+                                Invite them again from Settings &rsaquo; Team Members using the same email. They'll set a new password when they accept.
                             </dd>
 
                             <dt>I can't set skill ratings, import players, add courts or edit templates.</dt>

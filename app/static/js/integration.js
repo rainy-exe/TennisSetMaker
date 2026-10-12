@@ -484,7 +484,7 @@
       const add = document.getElementById("addAccountButton");
       add.textContent = "Invite Member";
       add.onclick = () => location.assign("/settings/invite-member");
-      const rows = members.users.map(u => ({...u, status: u.active ? "active" : "disabled"}));
+      const rows = members.users.map(u => ({...u, status: u.status || (u.active ? "active" : "removed")}));
       rows.push(...invitations.invitations.filter(i => !i.accepted_at && new Date(`${i.expires_at}Z`) > new Date()).map(i => ({...i, status: "pending", invitation: true})));
       function drawAccounts() {
         const visible = rows.filter(u => `${u.full_name || ""} ${u.email}`.toLowerCase().includes(search.value.trim().toLowerCase()) &&
@@ -493,8 +493,9 @@
         for (const member of visible) {
           const row = element("tr", undefined, list);
           for (const value of [member.full_name || "—", member.email, member.role, member.status, "—"]) element("td", value, row);
+          if (member.status === "removed") row.classList.add("account-removed");
           const cell = element("td", undefined, row);
-          if (member.role === "owner" || (ownRole !== "owner" && member.role !== "staff") || member.status === "disabled") continue;
+          if (member.role === "owner" || (ownRole !== "owner" && member.role !== "staff") || member.status === "removed") continue;
           const actions = element("div", undefined, cell);
           actions.className = "account-actions";
           if (!member.invitation) {
@@ -512,7 +513,8 @@
             role.onchange = () => { save.disabled = role.value === member.role; };
           }
           const remove = button(member.invitation ? "Revoke" : "Remove", actions, async () => {
-            if (!window.confirm(`${member.invitation ? "Revoke invitation for" : "Remove"} ${member.email}?`)) return;
+            if (!window.confirm(member.invitation ? `Revoke invitation for ${member.email}?`
+              : `Remove ${member.email}? They lose access straight away. The email is freed, so they can be invited again or register their own club.`)) return;
             await api(`/api/${member.invitation ? "invitations" : "users"}/${member.id}`, "DELETE"); location.reload();
           });
           remove.classList.add("btn-sm", "btn-warn");

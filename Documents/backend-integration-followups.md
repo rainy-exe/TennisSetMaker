@@ -109,9 +109,9 @@ not consistent with the existing API, migrations or stored records.
 Open/mixed/same-gender formats and fixed variety mode 2 are the current contract.
 The adapter passes gender mode 0/1/2 to both Prototype4 selection and assignment.
 Strict same-gender requires same-gender partners but permits MM versus FF spares.
-Cross-session partner/opponent
-history still uses 120 days; the PR #26 discussion about resetting it needs
-coordination before changing existing behaviour. Court drag-order UI, detailed
+Partner/opponent
+history now resets every session (client decision); sit-out fairness still uses
+each player's last 50 rounds. Court drag-order UI, detailed
 player statistics and export
 are not completed by this pass. Kate's QR result route is retained and tested
 against final assignments, not replaced. Password reset only reports success when

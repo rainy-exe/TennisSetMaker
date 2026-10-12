@@ -28,7 +28,7 @@ from app.models import Player, Round, RoundPlayerOutcome, TennisSession
 
 RECENT_ROUNDS = 50  # same window as the algorithm's sit-out ratio
 EVEN_MARGIN = 1.0  # |balance| below this reads as "even"
-TOP_PARTNERS = 10
+TOP_PLAYED_WITH = 10
 
 
 def _window_rows(club_id):
@@ -158,16 +158,22 @@ def _club_rate(windows):
     return round(sits / rounds, 3) if rounds else None
 
 
-def _partner_counts(player_id, team_rows):
-    """team_rows: (round_id, player_id, court_id, team) for players who played."""
-    teams = defaultdict(list)
+def _played_with(player_id, team_rows):
+    """team_rows: (round_id, player_id, court_id, team) for everyone who played
+    in the player's rounds. Returns ({other: partner rounds},
+    {other: opponent rounds})."""
+    courts = defaultdict(list)
     for round_id, other_id, court_id, team in team_rows:
-        teams[(round_id, court_id, team)].append(other_id)
-    counts = Counter()
-    for members in teams.values():
-        if player_id in members:
-            counts.update(other for other in members if other != player_id)
-    return counts
+        courts[(round_id, court_id)].append((other_id, team))
+    partners, opponents = Counter(), Counter()
+    for members in courts.values():
+        own_team = next((team for other, team in members if other == player_id), None)
+        if own_team is None:
+            continue
+        for other, team in members:
+            if other != player_id:
+                (partners if team == own_team else opponents)[other] += 1
+    return partners, opponents
 
 
 def club_summaries(club_id):
@@ -214,10 +220,10 @@ def player_report(club_id, player_id):
     for entry in sessions:
         entry["expected"] = round(entry["expected"], 1)
 
-    partners = Counter()
+    partners, opponents = Counter(), Counter()
     round_ids = [r["round_id"] for r in window if not r["sat_out"]]
     if round_ids:
-        partners = _partner_counts(
+        partners, opponents = _played_with(
             player_id,
             db.session.execute(
                 select(
@@ -232,12 +238,26 @@ def player_report(club_id, player_id):
                 )
             ).all(),
         )
-    top = partners.most_common(TOP_PARTNERS)
+    # Most played with = partner + opponent rounds; ties go to more partner
+    # rounds, then name.
+    others = set(partners) | set(opponents)
     names = dict(
         db.session.execute(
-            select(Player.id, Player.name).where(Player.id.in_([other for other, _ in top] or [""]))
+            select(Player.id, Player.name).where(Player.id.in_(list(others) or [""]))
         ).all()
     )
+    played_with = sorted(
+        (
+            {
+                "name": names.get(other, "Unknown"),
+                "partner": partners[other],
+                "opponent": opponents[other],
+                "total": partners[other] + opponents[other],
+            }
+            for other in others
+        ),
+        key=lambda item: (-item["total"], -item["partner"], item["name"]),
+    )[:TOP_PLAYED_WITH]
 
     club = []
     for other_id, other_window in windows.items():
@@ -251,6 +271,6 @@ def player_report(club_id, player_id):
         "club_rate": _club_rate(windows),
         "timeline": timeline,
         "sessions": sessions[:8],
-        "partners": [{"name": names.get(other, "Unknown"), "rounds": count} for other, count in top],
+        "played_with": played_with,
         "club": club,
     }
