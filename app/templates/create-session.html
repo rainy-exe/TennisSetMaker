@@ -339,16 +339,34 @@
 
                     <div class="attending-chips" id="attendingChips" aria-live="polite"></div>
 
-                    <div class="player-picker">
-                        <input type="text" id="playerSearch" class="input" autocomplete="off"
-                            placeholder="Type a name to add a player…"
-                            role="combobox" aria-autocomplete="list" aria-expanded="false"
-                            aria-controls="playerSuggestions">
-                        <ul class="player-suggestions" id="playerSuggestions" role="listbox" hidden></ul>
+                    <div class="player-picker-row">
+                        <div class="player-picker">
+                            <input type="text" id="playerSearch" class="input" autocomplete="off"
+                                placeholder="Type a name to add a player…"
+                                role="combobox" aria-autocomplete="list" aria-expanded="false"
+                                aria-controls="playerSuggestions">
+                            <ul class="player-suggestions" id="playerSuggestions" role="listbox" hidden></ul>
+                        </div>
+                        <button type="button" class="btn all-players-toggle" id="allPlayersToggle"
+                            aria-expanded="false" aria-controls="allPlayersPanel" title="Show all players">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <line x1="9" y1="6" x2="20" y2="6"></line>
+                                <line x1="9" y1="12" x2="20" y2="12"></line>
+                                <line x1="9" y1="18" x2="20" y2="18"></line>
+                                <circle cx="4.5" cy="6" r="1"></circle>
+                                <circle cx="4.5" cy="12" r="1"></circle>
+                                <circle cx="4.5" cy="18" r="1"></circle>
+                            </svg>
+                            <span>All players</span>
+                        </button>
                     </div>
+
+                    <div class="all-players-panel" id="allPlayersPanel" hidden></div>
 
                     <p class="attending-hint">
                         Use ↑ ↓ and Enter, or click a name. Backspace in an empty box removes the last player.
+                        In the full list, click a name to add or remove them.
                     </p>
 
                 </section>

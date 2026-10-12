@@ -516,6 +516,7 @@ def test_create_session_page_has_player_picker_and_one_line_extras(mail_app):
     assert login(client).status_code == 200
     page = client.get("/sessions/create").text
     assert 'id="playerSearch"' in page and 'id="attendingChips"' in page
+    assert 'id="allPlayersToggle"' in page and 'id="allPlayersPanel"' in page
     extras = page.split('class="session-extras"', 1)[1].split('class="attending-players"', 1)[0]
     for name in ('name="session_duration_minutes"', 'name="tea_break_after_round"', 'name="allowRelaxation"'):
         assert name in extras

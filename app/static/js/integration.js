@@ -105,6 +105,8 @@
     const list = document.getElementById("playerSuggestions");
     const chips = document.getElementById("attendingChips");
     const count = document.getElementById("attendingCount");
+    const toggle = document.getElementById("allPlayersToggle");
+    const panel = document.getElementById("allPlayersPanel");
     const chosen = new Map();
     let matches = [];
     let active = -1;
@@ -176,7 +178,41 @@
         remove.onclick = () => { chosen.delete(player.id); render(); input.focus(); };
       }
       count.textContent = `${chosen.size} selected`;
+      if (!panel.hidden) renderAll();
     }
+    // Full reference list: men (blue) A-Z, then women (red) A-Z, then anyone else.
+    function renderAll() {
+      panel.replaceChildren();
+      const groups = [["male", "Male"], ["female", "Female"], ["unknown", "Other"]];
+      for (const [key, label] of groups) {
+        const members = players.filter(player => genderDotClass(player.gender) === key).sort(byName);
+        if (!members.length) continue;
+        const heading = element("div", `${label} · ${members.length}`, panel);
+        heading.className = "all-players-heading";
+        const grid = element("div", undefined, panel);
+        grid.className = "all-players-grid";
+        for (const player of members) {
+          const item = element("button", undefined, grid);
+          item.type = "button";
+          item.className = "all-players-item" + (chosen.has(player.id) ? " chosen" : "");
+          item.setAttribute("aria-pressed", chosen.has(player.id) ? "true" : "false");
+          const dot = element("span", undefined, item);
+          dot.className = `gender-dot ${genderDotClass(player.gender)}`;
+          element("span", player.name, item);
+          item.onclick = () => {
+            if (chosen.has(player.id)) chosen.delete(player.id); else chosen.set(player.id, player);
+            render();
+          };
+        }
+      }
+      if (!panel.childElementCount) element("p", "No rated players yet.", panel).className = "attending-hint";
+    }
+    toggle.addEventListener("click", () => {
+      panel.hidden = !panel.hidden;
+      toggle.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
+      toggle.classList.toggle("active", !panel.hidden);
+      if (!panel.hidden) renderAll();
+    });
     function add(player) {
       chosen.set(player.id, player);
       render();
@@ -646,144 +682,160 @@
       selector.replaceChildren();
       let selectedRound = round;
       let final;
+      // Swapping players: drag one player onto another, or click one then
+      // another. Every slot (team spot or sitting-out spot) holds exactly one
+      // player, so a swap can never put someone in two places.
+      let picked = null;  // {list, index} of the player clicked first
+      let refocus = null;  // keep keyboard focus on the same spot after redrawing
       function draw(current) {
-    selectedRound = current;
+        selectedRound = current;
+        final = current
+          ? structuredClone(current.final)
+          : {assignments: [], sit_out_player_ids: []};
+        picked = null;
+        render();
+      }
+      function render() {
+        const current = selectedRound;
+        const saved = current?.final;
+        const matches = document.getElementById("matchGrid");
+        const sitting = document.getElementById("sitoutList");
+        matches.replaceChildren();
+        sitting.replaceChildren();
+        document.getElementById("currentRound").textContent = current?.number || "Not generated";
+        document.getElementById("matchCount").textContent = final.assignments.length;
+        document.getElementById("sitoutCount").textContent = final.sit_out_player_ids.length;
+        const editable = current?.status === "generated";
+        const changed = saved && JSON.stringify(final) !== JSON.stringify(saved);
 
-    final = current
-        ? structuredClone(current.final)
-        : { assignments: [], sit_out_player_ids: [] };
-
-    const matches = document.getElementById("matchGrid");
-    const sitting = document.getElementById("sitoutList");
-
-    matches.replaceChildren();
-    sitting.replaceChildren();
-
-    document.getElementById("currentRound").textContent =
-        current?.number || "Not generated";
-
-    document.getElementById("matchCount").textContent =
-        final.assignments.length;
-
-    document.getElementById("sitoutCount").textContent =
-        final.sit_out_player_ids.length;
-
-    const eligible = current?.eligibility
-        .filter(item => item.status === "eligible")
-        .map(item => item.player_id) || [];
-
-    const editable = current?.status === "generated";
-
-    // Compact player selector, preserving manual override.
-    function playerSelect(parent, playerId, change) {
-        const line = element("div", undefined, parent);
-        line.className = "player-line";
-
-        const player = byId.get(playerId);
-
-        const genderDot = element("span", undefined, line);
-        genderDot.className = `gender-dot ${genderDotClass(player?.gender)}`;
-        genderDot.title =
-            player?.gender === "F" ? "Female" :
-            player?.gender === "M" ? "Male" : "Unknown";
-
-        const select = element("select", undefined, line);
-        select.className = "player-inline-select";
-
-        for (const id of eligible) {
-            const option = element(
-                "option",
-                byId.get(id)?.name || id,
-                select
-            );
-            option.value = id;
+        function swap(a, b) {
+          if (a.list === b.list && a.index === b.index) return;
+          const held = a.list[a.index];
+          a.list[a.index] = b.list[b.index];
+          b.list[b.index] = held;
+          picked = null;
+          refocus = b;
+          render();
+        }
+        function isPicked(slot) {
+          return picked && picked.list === slot.list && picked.index === slot.index;
+        }
+        // Makes one player element clickable/draggable for swapping.
+        function swappable(el, slot, savedId) {
+          const id = slot.list[slot.index];
+          el.dataset.playerId = id;
+          if (savedId !== undefined && savedId !== id) el.classList.add("moved");
+          if (!editable) return;
+          el.classList.add("swappable");
+          el.tabIndex = 0;
+          el.setAttribute("role", "button");
+          const name = byId.get(id)?.name || id;
+          el.setAttribute("aria-pressed", isPicked(slot) ? "true" : "false");
+          el.setAttribute("aria-label", picked && !isPicked(slot)
+            ? `Swap with ${name}` : `${name}. Select to swap`);
+          if (isPicked(slot)) el.classList.add("picked");
+          if (refocus && refocus.list === slot.list && refocus.index === slot.index) {
+            refocus = null;
+            requestAnimationFrame(() => el.focus({preventScroll: true}));
+          }
+          const choose = () => {
+            refocus = slot;
+            if (!picked) { picked = slot; render(); }
+            else if (isPicked(slot)) { picked = null; render(); }
+            else swap(picked, slot);
+          };
+          el.addEventListener("click", choose);
+          el.addEventListener("keydown", event => {
+            if (event.key === "Enter" || event.key === " ") { event.preventDefault(); choose(); }
+          });
+          el.draggable = true;
+          el.addEventListener("dragstart", event => {
+            dragging = slot;
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", id);
+            requestAnimationFrame(() => el.classList.add("dragging"));
+          });
+          el.addEventListener("dragend", () => {
+            dragging = null;
+            el.classList.remove("dragging");
+            document.querySelectorAll(".drop-target").forEach(node => node.classList.remove("drop-target"));
+          });
+          el.addEventListener("dragover", event => {
+            if (!dragging) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            el.classList.add("drop-target");
+          });
+          el.addEventListener("dragleave", () => el.classList.remove("drop-target"));
+          el.addEventListener("drop", event => {
+            event.preventDefault();
+            const from = dragging;
+            dragging = null;
+            if (from) swap(from, slot);
+          });
+        }
+        function playerLine(parent, list, index, savedList) {
+          const line = element("div", undefined, parent);
+          line.className = "player-line";
+          const player = byId.get(list[index]);
+          const genderDot = element("span", undefined, line);
+          genderDot.className = `gender-dot ${genderDotClass(player?.gender)}`;
+          genderDot.title = player?.gender === "F" ? "Female" : player?.gender === "M" ? "Male" : "Unknown";
+          element("span", player?.name || list[index], line).className = "player-line-name";
+          swappable(line, {list, index}, savedList?.[index]);
         }
 
-        select.value = playerId;
-        select.disabled = !editable;
-
-        select.onchange = () => change(select.value);
-    }
-
-    // Generate styled court cards.
-    for (const assignment of final.assignments) {
-        const card = element("div", undefined, matches);
-        card.className = "card match-card";
-
-        const header = element("div", undefined, card);
-        header.className = "match-card-header";
-
-        element(
-            "span",
-            `Court ${courtById.get(assignment.court_id)?.number || assignment.court_id}`,
-            header
-        );
-
-        // Team A
-        const teamA = element("div", undefined, card);
-        teamA.className = "team";
-
-        const labelA = element("div", "TEAM A", teamA);
-        labelA.className = "team-label";
-
-        assignment.team_a_player_ids.forEach((id, index) => {
-            playerSelect(teamA, id, value => {
-                assignment.team_a_player_ids[index] = value;
-            });
+        final.assignments.forEach((assignment, courtIndex) => {
+          const savedMatch = saved?.assignments[courtIndex];
+          const card = element("div", undefined, matches);
+          card.className = "card match-card";
+          const header = element("div", undefined, card);
+          header.className = "match-card-header";
+          element("span", `Court ${courtById.get(assignment.court_id)?.number || assignment.court_id}`, header);
+          const teamA = element("div", undefined, card);
+          teamA.className = "team";
+          element("div", "TEAM A", teamA).className = "team-label";
+          assignment.team_a_player_ids.forEach((id, index) =>
+            playerLine(teamA, assignment.team_a_player_ids, index, savedMatch?.team_a_player_ids));
+          element("div", "VS", card).className = "vs";
+          const teamB = element("div", undefined, card);
+          teamB.className = "team";
+          element("div", "TEAM B", teamB).className = "team-label";
+          assignment.team_b_player_ids.forEach((id, index) =>
+            playerLine(teamB, assignment.team_b_player_ids, index, savedMatch?.team_b_player_ids));
         });
 
-        // VS divider
-        const vs = element("div", "VS", card);
-        vs.className = "vs";
-
-        // Team B
-        const teamB = element("div", undefined, card);
-        teamB.className = "team";
-
-        const labelB = element("div", "TEAM B", teamB);
-        labelB.className = "team-label";
-
-        assignment.team_b_player_ids.forEach((id, index) => {
-            playerSelect(teamB, id, value => {
-                assignment.team_b_player_ids[index] = value;
-            });
-        });
-    }
-
-    // Styled sitting-out players
-    final.sit_out_player_ids.forEach((id, index) => {
-        const row = element("div", undefined, sitting);
-        row.className = "sitout-player";
-
-        const name = byId.get(id)?.name || id;
-
-        const avatar = element(
-            "div",
-            name.split(" ").map(part => part[0]).slice(0, 2).join("").toUpperCase(),
-            row
-        );
-        avatar.className = "player-avatar";
-
-        const details = element("div", undefined, row);
-        details.className = "sitout-details";
-
-        playerSelect(details, id, value => {
-            final.sit_out_player_ids[index] = value;
+        final.sit_out_player_ids.forEach((id, index) => {
+          const row = element("div", undefined, sitting);
+          row.className = "sitout-player";
+          const player = byId.get(id);
+          const name = player?.name || id;
+          const avatar = element("div", name.split(" ").map(part => part[0]).slice(0, 2).join("").toUpperCase(), row);
+          avatar.className = "player-avatar";
+          const details = element("div", undefined, row);
+          details.className = "sitout-details";
+          const line = element("div", undefined, details);
+          line.className = "player-line";
+          const dot = element("span", undefined, line);
+          dot.className = `gender-dot ${genderDotClass(player?.gender)}`;
+          element("span", name, line).className = "player-line-name";
+          element("div", "Sitting out this round", details).className = "sitout-meta";
+          swappable(row, {list: final.sit_out_player_ids, index}, saved?.sit_out_player_ids[index]);
         });
 
-        const description = element(
-            "div",
-            "Sitting out this round",
-            details
-        );
-        description.className = "sitout-meta";
-    });
-
-    document.getElementById("matchExplanation").textContent =
-        current?.status === "completed"
+        document.getElementById("matchExplanation").textContent =
+          current?.status === "completed"
             ? "Completed round — locked."
-            : "Change players if needed, then click Save Changes. Duplicate assignments are rejected by the backend.";
-}
+            : picked
+              ? `Now click the player to swap with ${byId.get(picked.list[picked.index])?.name || "them"}, or click them again to cancel.`
+              : changed
+                ? "Unsaved changes (highlighted). Click Save Changes to keep them, or Undo Unsaved Changes."
+                : "Drag a player onto another player, or click one then another, to swap them. Then click Save Changes.";
+      }
+      let dragging = null;
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && picked) { picked = null; render(); }
+      });
       for (const saved of session.rounds) {
         const roundButton = button(
             `Round ${saved.number}`,

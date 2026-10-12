@@ -5723,9 +5723,105 @@ html.smooth-scroll {
   color: var(--text);
 }
 
+.player-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 560px;
+}
+
 .player-picker {
   position: relative;
-  max-width: 420px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.all-players-toggle {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.all-players-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.all-players-toggle.active {
+  background: var(--green-soft);
+  border-color: #b9dcbe;
+  color: #206a2a;
+}
+
+.all-players-panel {
+  margin-top: 12px;
+  padding: 12px 14px;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.all-players-panel[hidden] {
+  display: none;
+}
+
+.all-players-heading {
+  margin: 4px 0 6px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.all-players-heading:not(:first-child) {
+  margin-top: 14px;
+}
+
+.all-players-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 2px 8px;
+}
+
+.all-players-item {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.all-players-item .gender-dot {
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+}
+
+.all-players-item:hover,
+.all-players-item:focus-visible {
+  background: #eef1ef;
+}
+
+.all-players-item.chosen {
+  background: var(--green-soft);
+  color: #206a2a;
+  font-weight: 600;
+}
+
+.all-players-item.chosen::after {
+  content: "✓";
+  margin-left: auto;
+  font-size: 11px;
 }
 
 .player-suggestions {
@@ -5785,8 +5881,100 @@ html.smooth-scroll {
     grid-template-columns: 1fr;
   }
 
+  .all-players-toggle span {
+    display: none;
+  }
+
   .info-tip-text {
     left: 0;
     right: auto;
   }
+}
+
+
+/* =========================
+   ACTIVE SESSION: drag or click players to swap
+========================= */
+
+.match-card .player-line {
+  border: 1px solid transparent;
+  font-size: 11px;
+}
+
+.player-line-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sitout-player .player-line {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sitout-player .gender-dot {
+  width: 8px;
+  height: 8px;
+  margin-right: 7px;
+}
+
+.swappable {
+  cursor: grab;
+  user-select: none;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+
+.swappable:hover {
+  border-color: #b9dcbe;
+  background: #f3faf4;
+}
+
+.swappable:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 1px;
+}
+
+.swappable:active {
+  cursor: grabbing;
+}
+
+/* Clicked first: waiting for the player to swap with */
+.swappable.picked {
+  background: var(--green-soft);
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(47, 135, 59, 0.18);
+  color: #206a2a;
+  font-weight: 700;
+}
+
+.swappable.dragging {
+  opacity: 0.4;
+}
+
+.swappable.drop-target {
+  border-color: var(--green);
+  border-style: dashed;
+  background: #e2f2e5;
+}
+
+/* Changed since the last save */
+.player-line.moved,
+.sitout-player.moved {
+  background: var(--yellow-soft);
+  border-color: #efd27a;
+}
+
+.player-line.moved .player-line-name::after,
+.sitout-player.moved .player-line-name::after {
+  content: " • moved";
+  color: #a07800;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.swappable.picked.moved {
+  background: var(--green-soft);
+  border-color: var(--green);
 }
