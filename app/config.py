@@ -16,6 +16,13 @@ class Config:
         "DATABASE_URL", "sqlite:///tennis_set_maker.db"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Neon suspends idle databases and drops idle connections. Test each
+    # pooled connection before use (replacing dead ones) and retire them
+    # after 5 minutes, so a stale connection never reaches a request.
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+    }
     ALGORITHM_PATH = os.environ.get(
         "TENNIS_ALGORITHM_PATH",
         str(
