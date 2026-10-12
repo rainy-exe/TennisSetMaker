@@ -98,6 +98,114 @@
       label.append(document.createTextNode(item.name || `Court ${item.number} (${item.court_type})`));
     }
   }
+  // Attending players: type to search, pick with arrows/Enter or the mouse.
+  // Chosen players show as chips holding hidden player_ids inputs.
+  function playerPicker(players) {
+    const input = document.getElementById("playerSearch");
+    const list = document.getElementById("playerSuggestions");
+    const chips = document.getElementById("attendingChips");
+    const count = document.getElementById("attendingCount");
+    const chosen = new Map();
+    let matches = [];
+    let active = -1;
+    const byName = (a, b) => a.name.localeCompare(b.name);
+
+    function findMatches(query) {
+      const q = query.trim().toLowerCase();
+      if (!q) return [];
+      const available = players.filter(player => !chosen.has(player.id));
+      const starts = available.filter(player => player.name.toLowerCase().startsWith(q)).sort(byName);
+      // Then anyone whose surname/initial starts with it ("s" finds "John S").
+      const words = available.filter(player => !player.name.toLowerCase().startsWith(q) &&
+        player.name.toLowerCase().split(/\s+/).some(word => word.startsWith(q))).sort(byName);
+      return starts.concat(words);
+    }
+    function close() {
+      list.hidden = true;
+      input.setAttribute("aria-expanded", "false");
+      input.removeAttribute("aria-activedescendant");
+      active = -1;
+    }
+    function highlight(index) {
+      active = index;
+      list.querySelectorAll("li").forEach((item, i) => {
+        item.classList.toggle("active", i === index);
+        item.setAttribute("aria-selected", i === index ? "true" : "false");
+        if (i === index) {
+          input.setAttribute("aria-activedescendant", item.id);
+          item.scrollIntoView({block: "nearest"});
+        }
+      });
+    }
+    function show() {
+      matches = findMatches(input.value);
+      list.replaceChildren();
+      if (!input.value.trim()) { close(); return; }
+      if (!matches.length) {
+        const empty = element("li", "No matching players", list);
+        empty.className = "empty";
+      }
+      matches.forEach((player, i) => {
+        const item = element("li", undefined, list);
+        item.id = `player-option-${i}`;
+        item.setAttribute("role", "option");
+        const dot = element("span", undefined, item);
+        dot.className = `gender-dot ${genderDotClass(player.gender)}`;
+        element("span", player.name, item);
+        item.addEventListener("mousedown", event => { event.preventDefault(); add(player); });
+        item.addEventListener("mousemove", () => { if (active !== i) highlight(i); });
+      });
+      list.hidden = false;
+      input.setAttribute("aria-expanded", "true");
+      highlight(matches.length ? 0 : -1);
+    }
+    function render() {
+      chips.replaceChildren();
+      for (const player of [...chosen.values()]) {
+        const chip = element("span", undefined, chips);
+        chip.className = "player-chip";
+        const dot = element("span", undefined, chip);
+        dot.className = `gender-dot ${genderDotClass(player.gender)}`;
+        element("span", player.name, chip);
+        const hidden = element("input", undefined, chip);
+        hidden.type = "hidden"; hidden.name = "player_ids"; hidden.value = player.id;
+        const remove = element("button", "×", chip);
+        remove.type = "button";
+        remove.className = "chip-remove";
+        remove.setAttribute("aria-label", `Remove ${player.name}`);
+        remove.onclick = () => { chosen.delete(player.id); render(); input.focus(); };
+      }
+      count.textContent = `${chosen.size} selected`;
+    }
+    function add(player) {
+      chosen.set(player.id, player);
+      render();
+      input.value = "";
+      close();
+      input.focus();
+    }
+    input.addEventListener("input", show);
+    input.addEventListener("focus", () => { if (input.value.trim()) show(); });
+    input.addEventListener("blur", close);
+    input.addEventListener("keydown", event => {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        if (list.hidden) { show(); return; }
+        if (!matches.length) return;
+        const step = event.key === "ArrowDown" ? 1 : -1;
+        highlight((active + step + matches.length) % matches.length);
+      } else if (event.key === "Enter") {
+        event.preventDefault();  // never submit the whole form from here
+        if (!list.hidden && matches[active]) add(matches[active]);
+      } else if (event.key === "Escape") {
+        close();
+      } else if (event.key === "Backspace" && !input.value && chosen.size) {
+        chosen.delete([...chosen.keys()].pop());
+        render();
+      }
+    });
+    render();
+  }
   function attachForm(form, save) {
     form.onsubmit = async event => {
       event.preventDefault();
@@ -212,10 +320,7 @@
         form.elements.matchFormat.value = {mixed: "mixedDoubles", same_gender: "sameGenderDoubles", open: "openPlay"}[template?.round_format || "open"];
         form.elements.allowRelaxation.checked = !template?.strict_format;
         choices(document.getElementById("courtOptions"), courts, "court_ids", template?.court_ids || courts.map(court => court.id));
-        const playerChoices = element("section", undefined, form);
-        element("h2", "Attending Players", playerChoices);
-        const list = element("div", undefined, playerChoices);
-        choices(list, players, "player_ids");
+        playerPicker(players);
         form.elements.venue.closest(".field").hidden = true;
         document.querySelector(".segmented").closest(".field").hidden = true;
         attachForm(form, async values => {
@@ -262,12 +367,32 @@
           (!date.value || s.starts_at.slice(0, 10) === date.value) &&
           (!mode.value || s.round_format === mode.value));
         list.replaceChildren();
+        const statusLabels = {active: "Active", draft: "Upcoming", completed: "Completed", cancelled: "Cancelled"};
+        const statusClasses = {active: "active", draft: "upcoming", completed: "completed", cancelled: "cancelled"};
         for (const session of visible) {
-          const row = element("article", undefined, list);
-          const link = element("a", session.name, row);
-          link.href = `/sessions/${session.id}`;
-          row.className = "card";
-          element("p", `${session.starts_at} · ${session.status} · ${formats[session.round_format]}`, row);
+          // The whole card is the link, so clicking anywhere opens the session.
+          const row = element("a", undefined, list);
+          row.href = `/sessions/${session.id}`;
+          row.className = "sessions-page-card";
+          const info = element("div", undefined, row);
+          const title = element("div", session.name, info);
+          title.className = "sessions-page-title";
+          const meta = element("div", undefined, info);
+          meta.className = "sessions-page-meta";
+          const when = new Date(session.starts_at);
+          const valid = !Number.isNaN(when.getTime());
+          element("span", valid ? when.toLocaleDateString(undefined, {weekday: "short", day: "numeric", month: "short", year: "numeric"}) : session.starts_at.slice(0, 10), meta).className = "sessions-page-meta-item";
+          element("span", valid ? when.toLocaleTimeString(undefined, {hour: "numeric", minute: "2-digit"}) : session.starts_at.slice(11, 16), meta).className = "sessions-page-meta-item";
+          element("span", formats[session.round_format] || session.round_format, meta).className = `format-pill ${session.round_format}`;
+          const players = element("div", undefined, row);
+          players.className = "sessions-page-stat";
+          element("strong", String((session.participants || []).length), players);
+          element("span", "players", players);
+          const rounds = element("div", undefined, row);
+          rounds.className = "sessions-page-stat";
+          element("strong", String(session.number_of_rounds), rounds);
+          element("span", "rounds", rounds);
+          element("span", statusLabels[session.status] || session.status, row).className = `session-status ${statusClasses[session.status] || ""}`;
         }
         document.getElementById("sessionsEmptyState").hidden = visible.length > 0;
         document.getElementById("sessionsResultCount").textContent = `${visible.length} sessions`;

@@ -291,31 +291,68 @@
                 <!-- Divider -->
                 <div class="form-divider"></div>
 
-                <!-- Allow Format Relaxation -->
-                <div class="relax-row">
+                <!-- Duration, tea break and format relaxation on one row -->
+                <div class="session-extras">
 
-                    <div>
-
-                        <div class="relax-title">
-                            Allow Format Relaxation
-                        </div>
-
-                        <div class="relax-copy">
-                            If odd player numbers occur, the system can automatically
-                            adapt the match format to keep everyone playing.
-                        </div>
-
+                    <div class="field">
+                        <label for="session_duration_minutes">
+                            Session Duration (minutes)
+                        </label>
+                        <input type="number" id="session_duration_minutes" name="session_duration_minutes"
+                            class="input" min="1" value="180">
                     </div>
 
-                    <label class="switch">
+                    <div class="field">
+                        <label for="tea_break_after_round">
+                            Tea Break After Round (optional)
+                        </label>
+                        <input type="number" id="tea_break_after_round" name="tea_break_after_round"
+                            class="input" min="1" placeholder="No tea break">
+                    </div>
 
-                        <input type="checkbox" id="allowRelaxation" name="allowRelaxation">
-
-                        <span class="slider"></span>
-
-                    </label>
+                    <div class="field relax-field">
+                        <span class="field-label">
+                            <span id="allowRelaxationLabel">Allow Format Relaxation</span>
+                            <span class="info-tip" tabindex="0" role="button"
+                                aria-label="What is format relaxation?" aria-describedby="relaxationTip">i</span>
+                            <span class="info-tip-text" role="tooltip" id="relaxationTip">
+                                If odd player numbers occur, the system can automatically
+                                adapt the match format to keep everyone playing.
+                            </span>
+                        </span>
+                        <label class="switch">
+                            <input type="checkbox" id="allowRelaxation" name="allowRelaxation"
+                                aria-labelledby="allowRelaxationLabel">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
 
                 </div>
+
+                <!-- Attending Players -->
+                <section class="attending-players">
+
+                    <div class="attending-header">
+                        <h2 class="form-section-title">Attending Players</h2>
+                        <span class="attending-count" id="attendingCount">0 selected</span>
+                    </div>
+
+                    <div class="attending-chips" id="attendingChips" aria-live="polite"></div>
+
+                    <div class="player-picker">
+                        <input type="text" id="playerSearch" class="input" autocomplete="off"
+                            placeholder="Type a name to add a player…"
+                            role="combobox" aria-autocomplete="list" aria-expanded="false"
+                            aria-controls="playerSuggestions">
+                        <ul class="player-suggestions" id="playerSuggestions" role="listbox" hidden></ul>
+                    </div>
+
+                    <p class="attending-hint">
+                        Use ↑ ↓ and Enter, or click a name. Backspace in an empty box removes the last player.
+                    </p>
+
+                </section>
+
                 <!-- Form Actions -->
                 <div class="form-actions">
 

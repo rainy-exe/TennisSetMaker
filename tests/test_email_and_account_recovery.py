@@ -508,3 +508,15 @@ def test_page_scripts_find_the_page_form_not_the_sidebar_logout_form():
 
     script = Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "integration.js"
     assert 'document.querySelector("form")' not in script.read_text()
+
+
+def test_create_session_page_has_player_picker_and_one_line_extras(mail_app):
+    client = mail_app.test_client()
+    register(client)
+    assert login(client).status_code == 200
+    page = client.get("/sessions/create").text
+    assert 'id="playerSearch"' in page and 'id="attendingChips"' in page
+    extras = page.split('class="session-extras"', 1)[1].split('class="attending-players"', 1)[0]
+    for name in ('name="session_duration_minutes"', 'name="tea_break_after_round"', 'name="allowRelaxation"'):
+        assert name in extras
+    assert 'role="tooltip"' in extras
