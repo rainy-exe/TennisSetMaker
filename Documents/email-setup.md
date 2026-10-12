@@ -1,6 +1,6 @@
 # Email setup (setify.net)
 
-SetMaker sends invitations, password-reset links, email confirmations and
+Setify sends invitations, password-reset links, email confirmations and
 "your password/email was changed" notices through one SMTP sender
 (`app/mailer.py`). Without the settings below the app still runs: invitations
 fail with 502, password reset says plainly that no email was sent, and the
@@ -78,7 +78,7 @@ CLIENT_IP_HEADER=CF-Connecting-IP
   visitor's real IP. Only set it while the DNS record is proxied through
   Cloudflare (orange cloud); otherwise leave it out.
 - `APP_NAME` is the product name used in email subjects and text (default
-  `SetMaker`).
+  `Setify`).
 - Port 587 with STARTTLS also works (`SMTP_PORT=587`, or set
   `SMTP_SECURITY=starttls`) if the server can't reach port 465.
 

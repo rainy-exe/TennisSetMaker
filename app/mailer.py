@@ -13,7 +13,7 @@ can configure mail without touching the process environment:
 Optional:
     SMTP_SECURITY    "ssl" or "starttls" (default: ssl on port 465, else starttls)
     SMTP_REPLY_TO    e.g. support@setify.net
-    APP_NAME         product name used in emails (default "SetMaker")
+    APP_NAME         product name used in emails (default "Setify")
 
 See Documents/email-setup.md for the DNS / provider setup.
 """
@@ -57,7 +57,7 @@ def mail_configured():
 
 
 def app_name():
-    return setting("APP_NAME", "SetMaker")
+    return setting("APP_NAME", "Setify")
 
 
 def public_url(path):

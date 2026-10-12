@@ -22,7 +22,7 @@ MAIL_SETTINGS = {
     "SMTP_PORT": "465",
     "SMTP_USERNAME": "synthetic-user",
     "SMTP_PASSWORD": "synthetic-not-a-real-secret",
-    "SMTP_FROM": "SetMaker <noreply@example.invalid>",
+    "SMTP_FROM": "Setify <noreply@example.invalid>",
     "SMTP_REPLY_TO": "support@example.invalid",
     "PUBLIC_BASE_URL": BASE_URL,
 }
@@ -135,7 +135,7 @@ def test_password_reset_end_to_end_logs_out_every_device(mail_app, outbox):
     assert len(outbox) == 1
     message = outbox[0]
     assert message["To"] == "owner@example.invalid"
-    assert "Reset your SetMaker password" == message["Subject"]
+    assert "Reset your Setify password" == message["Subject"]
     path, token = link_in(message)
     assert path == "/reset-password"
 
@@ -165,7 +165,7 @@ def test_password_reset_end_to_end_logs_out_every_device(mail_app, outbox):
 
     # A "password changed" notice went to the account, and the reset
     # proved the inbox, so the email counts as confirmed.
-    assert outbox[-1]["Subject"] == "Your SetMaker password was changed"
+    assert outbox[-1]["Subject"] == "Your Setify password was changed"
     with mail_app.app_context():
         user = db.session.scalar(select(User))
         assert user.email_verified_at is not None
@@ -294,7 +294,7 @@ def test_change_password_keeps_this_device_and_logs_out_others(mail_app, outbox)
     assert logged_in(this_device)
     assert not logged_in(other_device)
     assert login(other_device, password=NEW_PASSWORD).status_code == 200
-    assert [m["Subject"] for m in outbox] == ["Your SetMaker password was changed"]
+    assert [m["Subject"] for m in outbox] == ["Your Setify password was changed"]
 
 
 def approve(client, token):
@@ -703,3 +703,11 @@ def test_free_removed_emails_migration_frees_members_removed_earlier(tmp_path):
         rows = dict(connection.execute(sa.text("SELECT id, email FROM users")).all())
         assert rows == {"a": "kept@example.invalid", "b": "removed+b@removed.invalid"}
         assert connection.execute(sa.text("SELECT removed_email FROM users WHERE id = 'b'")).scalar() == "gone@example.invalid"
+
+
+def test_product_is_branded_setify_everywhere_users_see_it():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "app"
+    for path in [*root.glob("templates/*.html"), root / "static" / "js" / "integration.js", root / "mailer.py"]:
+        assert re.search(r"\bSetMaker\b", path.read_text(encoding="utf-8")) is None, path.name
