@@ -60,12 +60,13 @@ def test_user_can_see_skill_but_cannot_write_skill_or_delete(client, set_actor):
         == 403
     )
 
-    provisional = client.post(
-        "/api/players", json={"name": "Provisional Player", "gender": "F"}
+    # Staff can't choose a rating; new players start at 1 so they can play.
+    staff_added = client.post(
+        "/api/players", json={"name": "Staff Added Player", "gender": "F"}
     )
-    assert provisional.status_code == 201
-    assert provisional.get_json()["player"]["skill_ready"] is False
-    assert provisional.get_json()["player"]["skill"] is None
+    assert staff_added.status_code == 201
+    assert staff_added.get_json()["player"]["skill_ready"] is True
+    assert staff_added.get_json()["player"]["skill"] == 1
 
 
 def test_club_isolation_returns_not_found(client, create_player, set_actor):

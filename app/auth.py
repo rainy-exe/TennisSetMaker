@@ -518,9 +518,35 @@ def accept_invitation():
 def join_page():
     token = request.args.get("token", "")
 
+    # Show who the invitation is from. The token is the secret that was
+    # emailed to this person, so it's fine to show them its details.
+    invite = None
+    invite_problem = None
+    invitation = (
+        Invitation.query.filter_by(token=token).first()
+        if isinstance(token, str) and 0 < len(token) <= 255
+        else None
+    )
+    if invitation is None:
+        invite_problem = "This invitation link isn't valid. Ask the person who invited you to send a new one."
+    elif invitation.accepted_at is not None:
+        invite_problem = "This invitation has already been accepted. Log in instead."
+    elif invitation.expires_at < utc_now() or not invitation.club.active:
+        invite_problem = "This invitation has expired. Ask the person who invited you to send a new one."
+    else:
+        inviter = invitation.inviter
+        invite = {
+            "club": invitation.club.name,
+            "role": invitation.role.capitalize(),
+            "invited_by": (inviter.full_name or inviter.email.split("@")[0]) if inviter else "—",
+            "email": invitation.email,
+        }
+
     return render_account_page(
         "accept-invite.html",
         token=token,
+        invite=invite,
+        invite_problem=invite_problem,
     )
 
 # ---------------------------------------------------------

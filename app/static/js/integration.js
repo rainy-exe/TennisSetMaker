@@ -304,10 +304,19 @@
     if (data.page === "player-form") {
       const form = main.querySelector("form");
       if (!data.can_manage_skill) {
-        form.elements.rating.disabled = true;
-        form.elements.rating.required = false;
+        const rating = form.elements.rating;
+        rating.disabled = true;
+        rating.required = false;
+        if (!data.player) {
+          // New players added by staff start at rating 1 (set by the server).
+          rating.value = "1";
+          const hint = element("p", "Players you add start at rating 1. An owner or admin can change it.");
+          hint.className = "field-hint";
+          rating.after(hint);
+        }
       }
       const confirm = element("label", undefined, form);
+      confirm.className = "duplicate-confirm";
       const check = element("input", undefined, confirm);
       check.type = "checkbox";
       check.name = "confirm_duplicate";
@@ -484,18 +493,29 @@
         for (const member of visible) {
           const row = element("tr", undefined, list);
           for (const value of [member.full_name || "—", member.email, member.role, member.status, "—"]) element("td", value, row);
-          const actions = element("td", undefined, row);
+          const cell = element("td", undefined, row);
           if (member.role === "owner" || (ownRole !== "owner" && member.role !== "staff") || member.status === "disabled") continue;
+          const actions = element("div", undefined, cell);
+          actions.className = "account-actions";
           if (!member.invitation) {
             const role = element("select", undefined, actions);
-            for (const value of ownRole === "owner" ? ["admin", "staff"] : ["staff"]) element("option", value, role).value = value;
+            role.className = "select select-sm";
+            role.setAttribute("aria-label", `Role for ${member.full_name || member.email}`);
+            for (const value of ownRole === "owner" ? ["admin", "staff"] : ["staff"]) {
+              element("option", value.charAt(0).toUpperCase() + value.slice(1), role).value = value;
+            }
             role.value = member.role;
-            button("Save Role", actions, async () => { await api(`/api/users/${member.id}`, "PATCH", {role: role.value}); location.reload(); });
+            const save = button("Save Role", actions, async () => { await api(`/api/users/${member.id}`, "PATCH", {role: role.value}); location.reload(); });
+            save.classList.add("btn-sm");
+            // Only worth saving once the role has actually changed.
+            save.disabled = true;
+            role.onchange = () => { save.disabled = role.value === member.role; };
           }
-          button(member.invitation ? "Revoke" : "Remove", actions, async () => {
+          const remove = button(member.invitation ? "Revoke" : "Remove", actions, async () => {
             if (!window.confirm(`${member.invitation ? "Revoke invitation for" : "Remove"} ${member.email}?`)) return;
             await api(`/api/${member.invitation ? "invitations" : "users"}/${member.id}`, "DELETE"); location.reload();
           });
+          remove.classList.add("btn-sm", "btn-warn");
         }
         document.getElementById("accountsEmptyState").hidden = visible.length > 0;
         document.getElementById("accountCount").textContent = `${visible.length} accounts and pending invitations`;

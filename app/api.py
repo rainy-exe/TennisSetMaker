@@ -194,6 +194,7 @@ def serialize_court(court):
     }
 
 
+STAFF_DEFAULT_SKILL = 1
 VARIETY_MODES = {1, 2, 3}  # 1 avoid repeats, 2 balanced skill, 3 round robin
 
 
@@ -357,7 +358,9 @@ def create_player():
             raise ApiError(
                 "You don't have permission to set player skill.", 403, "forbidden"
             )
-        skill = None
+        # Staff can't set ratings. Start the player at the lowest rating so
+        # they can play straight away; an owner/admin can change it later.
+        skill = STAFF_DEFAULT_SKILL
     elif skill is not None:
         skill = positive_int(skill, "skill", 10)
     player = Player(

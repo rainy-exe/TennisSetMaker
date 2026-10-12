@@ -111,11 +111,10 @@ def test_user_can_create_session_but_provisional_player_is_not_algorithm_eligibl
     client, create_player, set_actor, app
 ):
     players = [create_player() for _ in range(4)]
-    set_actor(Role.STAFF)
+    # An owner can still leave a player unrated on purpose.
     provisional = client.post(
-        "/api/players", json={"name": "Needs rating", "gender": "F"}
+        "/api/players", json={"name": "Needs rating", "gender": "F", "skill": None}
     ).get_json()["player"]
-    set_actor(Role.OWNER)
     court = client.post(
         "/api/courts", json={"number": 1, "court_type": "hard"}
     ).get_json()["court"]

@@ -590,3 +590,21 @@ def test_sit_out_report_counts_expected_share_staff_changes_and_partners(mail_ap
     assert 'data-sort="sitouts"' in page
     assert "1 / 2" in page
     assert client.get("/api/players/not-a-player/sit-outs").status_code == 404
+
+
+def test_join_page_shows_club_role_and_who_sent_the_invitation(mail_app, outbox):
+    owner = mail_app.test_client()
+    register(owner)
+    assert login(owner).status_code == 200
+    response = write(owner, "POST", "/api/invitations", {"email": "new.staff@example.invalid", "role": "staff"})
+    assert response.status_code == 201, response.get_json()
+    path, token = link_in(outbox[-1])
+    assert path == "/join"
+
+    page = mail_app.test_client().get(f"/join?token={token}").text
+    assert "Synthetic Club" in page
+    assert "Staff" in page
+    assert "Invited by" in page and "Synthetic Owner" in page
+
+    bad = mail_app.test_client().get("/join?token=not-a-real-token").text
+    assert "isn&#39;t valid" in bad or "isn't valid" in bad
